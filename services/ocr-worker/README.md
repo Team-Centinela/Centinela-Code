@@ -4,12 +4,9 @@ Extracted per ADR-001 §"Currently Extracted Services / Document OCR Worker".
 
 ## Why it is extracted
 
-- **Different technology**: Azure AI Document Intelligence SDK is
-  Python-first (`azure-ai-documentintelligence` PyPI package).
-- **Failure isolation**: OCR latency (~3–8 s/doc) does not block
-  scoring or case-management latency budgets.
-- **Independent scaling**: OCR is the slowest step in the case-creation
-  pipeline. Scale up independently.
+- **Different technology**: Azure AI Document Intelligence SDK is Python-first (`azure-ai-documentintelligence` PyPI package).
+- **Failure isolation**: OCR latency (~3–8 s/doc) does not block scoring or case-management latency budgets.
+- **Independent scaling**: OCR is the slowest step in the case-creation pipeline. Scale up independently.
 
 ## What it owns
 

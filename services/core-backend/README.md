@@ -1,8 +1,6 @@
 # Core Backend (Modular Monolith)
 
-Per ADR-001 (`docs/decision-log/ADR-001-modular-monolith-hexagonal.md`), this
-is the **primary deployment artifact**. It hosts all modules that have not
-been selectively extracted.
+Per ADR-001 (`docs/decision-log/ADR-001-modular-monolith-hexagonal.md`), this is the **primary deployment artifact**. It hosts all modules that have not been selectively extracted.
 
 ## Modules in this deployment
 
@@ -21,9 +19,7 @@ Per `docs/architecture/02-modular-monolith.md`:
 
 ## Communication
 
-Inter-module communication is **async** via Azure Service Bus
-(`decision-log/ADR-003-async-messaging-reliability.md` plus
-`architecture/04-event-driven-communication.md`).
+Inter-module communication is **async** via Azure Service Bus (`decision-log/ADR-003-async-messaging-reliability.md` plus `architecture/04-event-driven-communication.md`).
 
 Topics and queues owned by Core Backend:
 - Topic: `case-events` (subscriptions: `reporting-updates`, `alerts`)
@@ -35,8 +31,7 @@ Topics and queues owned by Core Backend:
 Per `best-practices/02-testing-strategy.md`:
 - Domain code: 100% line coverage requirement
 - Use cases: 95% line coverage
-- Adapters: smoke + integration tests against the real engine
-  (PostgreSQL Testcontainers dev profile when applicable)
+- Adapters: smoke + integration tests against the real engine (PostgreSQL Testcontainers dev profile when applicable)
 
 ## Owned GitHub Issues
 

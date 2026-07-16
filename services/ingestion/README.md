@@ -1,16 +1,12 @@
 # Ingestion Service
 
-Pulled out per ADR-001's **Selective Extraction Strategy**
-(`docs/architecture/05-selective-extraction.md`).
+Pulled out per ADR-001's **Selective Extraction Strategy** § (`docs/architecture/05-selective-extraction.md`).
 
 ## Why it is extracted
 
-- **Independent scaling**: ingestion receives burst traffic; the monolith
-  CPU profile is dominated by scoring + reporting reads. Different scales.
-- **Failure isolation**: ingestion must remain reachable when Core Backend
-  is down (outbox buffers events until broker recovers).
-- **Independent deploy**: schema changes in `transactions` are decoupled
-  from monolith deploys.
+- **Independent scaling**: ingestion receives burst traffic; the monolith CPU profile is dominated by scoring + reporting reads. Different scales.
+- **Failure isolation**: ingestion must remain reachable when Core Backend is down (outbox buffers events until broker recovers).
+- **Independent deploy**: schema changes in `transactions` are decoupled from monolith deploys.
 
 ## What it owns
 
@@ -30,7 +26,7 @@ Pulled out per ADR-001's **Selective Extraction Strategy**
 
 ## Owned GitHub Issues
 
-- **Implementation**: see `[#4 Sprint 1 — Foundation & Ingestion Pipeline](../.github/issues?filter=milestone)`
+- **Implementation**: see `[#4 Sprint 1 — Foundation & Ingestion Pipeline (../.github/issues?filter=milestone)`
 - Will appear under `sprint-1` label
 
 ## File layout

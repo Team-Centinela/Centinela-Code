@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  push:
+    branches: [developer, main]
+  pull_request:
+    branches: [developer, main]
+
+jobs:
+  docs-lint:
+    name: Docs Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check markdown link integrity
+        run: |
+          # Lightweight check — fail if any stale Centinela-docs URL is referenced.
+          if grep -RIl "centinela-docs/issues\|Centinela-Code\)\|#\(github\)\?\.com/Team-Centinela/Centinela-docs/" docs/ 2>/dev/null; then
+            echo "❌ Stale Centinela-docs references found in docs/. Commit a fix."
+            exit 1
+          fi
+          echo "✅ No stale references in docs/"
+
+  code-lint:
+    name: Code Build & Lint (placeholder)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stub
+        run: echo 'Service-level CI will land in Sprint 1 (see issue #4).'
+
+  terraform-lint:
+    name: Terraform Validate (placeholder)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stub
+        run: echo 'Terraform validation lands in Sprint 1 (see issue #4).'

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md",
+    "docs/AGENTS.md",
+    "docs/architecture/01-overview.md",
+    "docs/architecture/06-technology-stack.md",
+    ".opencode/CONTEXT-MAP.md"
+  ],
+  "skills": {
+    "paths": [
+      ".opencode/skills"
+    ]
+  },
+  "compaction": {
+    "auto": true,
+    "tail_turns": 25
+  },
+  "permission": {
+    "edit": "ask",
+    "bash": {
+      "git status": "allow",
+      "git diff": "allow",
+      "git log*": "allow",
+      "gh issue*": "allow",
+      "gh pr*": "allow",
+      "ls *": "allow",
+      "rg *": "allow",
+      "cat *": "allow",
+      "*": "ask"
+    }
+  }
+}

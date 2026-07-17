@@ -27,6 +27,8 @@ Per ADR-001 §Decision:
 
 See `architecture/04-event-driven-communication.md` and `decision-log/ADR-003-async-messaging-reliability.md`.
 
+**Dependency pinning**: per ADR-003 §3.1 client library pinning (issue #26), the Core Backend uses `com.azure.spring:spring-cloud-azure-starter-servicebus` (Spring Cloud Azure Service Bus binder) over `spring-cloud-stream` 4.x. Versions are pinned in the parent POM `services/pom.xml` (`<spring-cloud-azure.version>5.19.0</...>`, `<azure-messaging-servicebus.version>7.17.7</...>` — see PR #36). The explicit `spring-cloud-stream` pin and per-service README cross-reference lands in sub-issue #39 (epic #37).
+
 Topics and queues owned by Core Backend:
 - Topic: `case-events` (subscriptions: `reporting-updates`, `alerts`)
 - Queue: `transactions-raw` (consumer)

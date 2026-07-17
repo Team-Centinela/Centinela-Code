@@ -16,7 +16,7 @@ Pulled out per ADR-001's **Selective Extraction Strategy** § (`docs/architectur
 | Persist transactions to PostgreSQL `oltp.transactions` | JPA / JOOQ adapter (`ports.outbound.oltp.*`) |
 | Insert outbox event in same ACID tx | `outbox.outbox_events` |
 | Run outbox publisher draining `transactions-raw` queue | Scheduled job `@1s` |
-| Publish to Azure Service Bus queue `transactions-raw` | `azure-servicebus` SDK adapter |
+| Publish to Azure Service Bus queue `transactions-raw` | `spring-cloud-azure-starter-servicebus` binder adapter (per ADR-003 §3.1) |
 
 ## What it does **not** own
 
@@ -49,3 +49,4 @@ References:
 - `docs/architecture/05-selective-extraction.md` §"Ingestion API"
 - `docs/decision-log/ADR-002-postgresql-only-db.md` §"Storage matrix"
 - `docs/decision-log/ADR-003-async-messaging-reliability.md` §"3.2 Outbox"
+- **Dependency pinning**: per ADR-003 §3.1 (issue #26), Ingestion API shares the Core Backend Spring Cloud Azure Service Bus binder chain (`spring-cloud-azure-starter-servicebus` 5.19.0 + `spring-cloud-stream` 4.x). Versions declared in parent POM `services/pom.xml`.

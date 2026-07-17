@@ -81,3 +81,47 @@ public class JpaTransactionRepository implements TransactionRepository {
 | Changing database | Affects Service layer | Only replace JpaTransactionRepository |
 | Adding new delivery mechanism (e.g., GraphQL) | New controller, may duplicate logic | New adapter implementing same port |
 | Framework upgrade risk | Annotations everywhere | Only adapter layer changes |
+
+## Package Convention (all modules)
+
+Every module under `modules/<module-name>/` follows the same four-package layout:
+
+```
+com.centinela.core.modules.<module>/
+  domain/           # Pure Java aggregates, value objects, domain services
+  application/      # Use cases / inbound ports (interfaces)
+  port/             # Outbound port interfaces
+  adapter/
+    persistence/    # JPA / JDBC adapters implementing port interfaces
+    messaging/      # Outbox publisher, event listeners (Spring events + Service Bus)
+    rest/           # REST controllers (only if module exposes HTTP endpoints)
+```
+
+**Concrete example — scoring module:**
+
+```
+com.centinela.core.modules.scoring/
+  domain/
+    FraudScore.java              # value object
+    RuleEngine.java              # domain service — pure Java, no Spring
+  application/
+    ScoreTransactionUseCase.java # inbound port interface
+  port/
+    TransactionRepository.java   # outbound port interface
+    RuleConfigProvider.java      # outbound port interface
+  adapter/
+    persistence/
+      JpaTransactionRepository.java   # @Repository implements TransactionRepository
+      JpaRuleConfigRepository.java    # @Repository implements RuleConfigProvider
+    messaging/
+      ScoreCompletedPublisher.java    # publishes via outbox on ApplicationEvent
+    rest/
+      ScoreAdminController.java       # GET /admin/scores — admin-only
+```
+
+### Rules
+
+1. **No cross-module imports of `domain/` or `application/`.** Module A must never `import com.centinela.core.modules.b.domain.*`. Cross-module coordination happens through domain events only.
+2. **Domain layer has zero framework imports.** No Spring, JPA, or Azure SDK annotations in `domain/`.
+3. **Ports are Java interfaces.** `application/` contains interfaces the module exposes; `port/` contains interfaces the module depends on.
+4. **Adapters are the only layer with framework imports.** `adapter/persistence/` may use JPA, `adapter/messaging/` may use Spring events and Azure SDK.

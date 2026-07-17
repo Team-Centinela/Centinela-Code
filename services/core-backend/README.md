@@ -19,7 +19,13 @@ Per `docs/architecture/02-modular-monolith.md`:
 
 ## Communication
 
-Inter-module communication is **async** via Azure Service Bus (`decision-log/ADR-003-async-messaging-reliability.md` plus `architecture/04-event-driven-communication.md`).
+Per ADR-001 §Decision:
+
+- **In-monolith** module coordination uses Spring's `ApplicationEventPublisher` (in-process, transactional) — no Service Bus latency within the monolith.
+- **Cross-deployment** hops (Ingestion API, OCR Worker) use Azure Service Bus via the Outbox pattern (`patterns/03-outbox-pattern.md`).
+- Direct method calls between modules are **forbidden** — only ports/adapters at the boundary.
+
+See `architecture/04-event-driven-communication.md` and `decision-log/ADR-003-async-messaging-reliability.md`.
 
 Topics and queues owned by Core Backend:
 - Topic: `case-events` (subscriptions: `reporting-updates`, `alerts`)

@@ -36,7 +36,7 @@ module-name/
 | **Rule Engine** | Evaluate fraud rules (velocity, outlier, geo, blacklist), calculate risk scores | `rules_config` (PostgreSQL) |
 | **Case** | Manage fraud case lifecycle — creation, assignment, investigation, resolution | `cases` (PostgreSQL) |
 | **Alert** | Generate and dispatch real-time fraud alerts to analysts | `alerts` (PostgreSQL) |
-| **Reporting** | Serve analytics queries, dashboard data, and report exports | `reporting` (PostgreSQL read-replica) |
+| **Reporting** | Serve analytics queries, dashboard data, and report exports | `reporting` (PostgreSQL, read-only role `reporting_reader`) |
 | **Auth** | Handle authentication, authorization, and API key management | `auth` (PostgreSQL) |
 
 > Storage justification for choosing a single PostgreSQL engine is consolidated in `decision-log/ADR-002-postgresql-only-db.md`.

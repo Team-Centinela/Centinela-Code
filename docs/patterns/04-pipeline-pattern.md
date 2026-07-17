@@ -14,12 +14,18 @@ The Pipeline Pattern chains rules sequentially, passing a shared context between
 ## Architecture
 
 ```
-Transaction ──▶ EvaluationContext ──▶ FR-1 (Velocity) ──▶ FR-2 (Outlier) ──▶ ... ──▶ Aggregated Score
-                                          │                     │
-                                          ▼                     ▼
-                                     shares velocity       uses velocity data
-                                     data in context       from context
+Transaction ──▶ EvaluationContext ──▶ STAGE 1 (cheap, always)
+                                          │     FR-1 (Velocity) → FR-4 (High-Risk Merchant)
+                                          ▼
+                                       guard: did Stage 1 fire?
+                                          │       │
+                                          │       └── yes ──▶ STAGE 2 (expensive, conditional)
+                                          │                       FR-3 (Impossible Geo) → FR-2 (Atypical)
+                                          ▼
+                              Aggregator (sum, clamp to [0,100], case opens iff ≥ SCORE_THRESHOLD)
 ```
+
+Stage assignment is fixed by `decision-log/ADR-004-rule-engine-pipeline-explainer.md` §4.1. FR-3 is in Stage 2 because PostGIS `ST_Distance` is the most expensive operation on B1ms-shaped data — gating it behind a Stage-1 hit keeps median evaluation cost low. See ADR-004 for the cost table and the rationale.
 
 ## Implementation
 
@@ -67,26 +73,49 @@ public interface PipelineStage {
 ```java
 @Component
 public class FraudPipeline {
-    private final List<PipelineStage> stages;
-
-    public FraudPipeline(List<PipelineStage> stages) {
-        this.stages = stages;
-    }
+    private final List<PipelineStage> stage1;   // cheap: FR-1, FR-4
+    private final List<PipelineStage> stage2;   // expensive: FR-3, FR-2
+    private final ThresholdsConfig thresholds;  // score_threshold from system_config (default 70)
 
     public FraudEvaluation evaluate(Transaction transaction) {
         EvaluationContext context = new EvaluationContext(transaction);
 
-        for (PipelineStage stage : stages) {
+        for (PipelineStage stage : stage1) {
             stage.process(context);
-            // Optional: short-circuit if score already exceeds threshold
-            if (context.aggregateScore().value() >= 100.0) break;
+            if (context.aggregateScore().value() >= thresholds.caseOpensAt()) break;
         }
 
-        FraudScore score = context.aggregateScore();
-        return new FraudEvaluation(transaction.id(), score, context.getResults());
+        boolean stageOneFired = context.getResults().values().stream()
+                .anyMatch(r -> r.scoreAdded() > 0);
+
+        if (stageOneFired) {
+            for (PipelineStage stage : stage2) {
+                stage.process(context);
+                if (context.aggregateScore().value() >= thresholds.caseOpensAt()) break;
+            }
+        }
+
+        FraudScore score = context.aggregateScore();   // clamped to [0,100]
+        boolean opensCase = score.value() >= thresholds.caseOpensAt();
+        return new FraudEvaluation(transaction.id(), score, opensCase, context.getResults());
     }
 }
 ```
+
+> The single short-circuit termination rule is `aggregateScore() >= SCORE_THRESHOLD` (default 70), evaluated **after** every stage whether or not it produced a new `RuleResult`. The clamp to `[0, 100]` happens once at the aggregator. See `decision-log/ADR-004-rule-engine-pipeline-explainer.md` §4.1 / §4.4 for the full semantics.
+
+## `rawEvidence` Schema — Pinned Per Rule
+
+The deterministic NL Explainer (`RuleExplanationTemplates.java`) is forbidden from querying the database or any external source at render time. Every value a template needs must already exist on the `RuleResult.rawEvidence` of the rule that fired. The per-rule key contract (mirrors ADR-004 §4.2):
+
+| Rule code | Required keys in `rawEvidence` JSONB |
+|---|---|
+| **FR-1 Velocity** | `window_seconds`, `txn_count`, `threshold`, `current_score_added` |
+| **FR-2 Atypical Amount** | `historical_avg_usd`, `historical_sample_size`, `current_amount_usd`, `std_dev_usd`, `z_score`, `current_score_added` |
+| **FR-3 Impossible Geo** | `last_txn_lat`, `last_txn_lon`, `last_txn_at`, `current_lat`, `current_lon`, `distance_km`, `elapsed_seconds`, `implied_speed_kmh`, `max_allowed_speed_kmh`, `current_score_added` |
+| **FR-4 High-Risk Merchant** | `merchant_id`, `risk_label`, `current_score_added` |
+
+Unit tests assert that each rule's payload contains exactly the listed keys before the `RuleResult` is published; a missing key fails the test and triggers a `RULE_EVIDENCE_PAYLOAD_INVALID` runtime log line. Renaming a key is an ADR amendment.
 
 ## Pipeline vs Strategy
 

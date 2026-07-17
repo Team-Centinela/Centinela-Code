@@ -24,7 +24,7 @@ The two proposals contradict each other and must be reconciled before Sprint 1 b
 
 1. **Budget**: $60 USD hard limit over 21 days. Cosmos DB Serverless + PostgreSQL + Blob Storage are individually cheap, but operating two data engines for one data class is wasted spend.
 2. **Operational simplicity** (`ASSIGNMENT.md` §T.1): 4-person team in 3 weeks, no SRE.
-3. **Reporting** (`architecture/02-modular-monolith.md`): Reporting module uses a PostgreSQL read-replica. Joining across data classes (e.g. case → account → transactions) requires a single engine.
+3. **Reporting** (`architecture/02-modular-monolith.md`): Reporting module reads from the **primary** PostgreSQL Flexible Server via read-only DB role. Joining across data classes (e.g. case → account → transactions) requires a single engine. A read-replica was dropped from scope — see issue #24 and Considerations §Read-replica removal rationale below.
 4. **Service Bus + Outbox** (`patterns/03-outbox-pattern.md`): the outbox table is already PostgreSQL. A polyglot strategy would force the previous-Service-Bus observers to either (a) read from Cosmos to build the outbox or (b) maintain two transactional origins per event.
 5. **PostGIS extension** (`architecture/06-technology-stack.md`): geolocation checks (`FR-3 Impossible Location`) require spatial queries that PostgreSQL handles natively via PostGIS.
 
@@ -54,19 +54,48 @@ Both strategies fit the $60 budget. The cost gap is, on its own, **not** the dec
 | Transactions | PostgreSQL `oltp` schema, table `transactions` | Partition by `accountId` (hash partitioning) | "Get recent transactions for account X" → partition scan |
 | FraudCases, AuditLog, Users, RuleConfigs | PostgreSQL various schemas | Schema-per-module | Relational queries, FK joins |
 | VerificationDocuments metadata | PostgreSQL `documents` schema | Schema-per-module | Relational queries, FK joins |
-| Verification document blobs | Azure Blob Storage | Container `documents-worm` (WORM policy, LRS Hot) | "Write once, read rarely" |
+| Verification document blobs | Azure Blob Storage | Container `documents-worm` — **7-year time-based immutable policy** (legal-hold disabled), LRS Hot; lifecycle: Hot → Cool after 90 days, Cool → Archive after 1 year. Owner: `centinela-platform@…` AAD group. See §WORM policy. | "Write once, read rarely" |
 | Outbox events | PostgreSQL `outbox` schema | — | Required by `patterns/03-outbox-pattern.md` |
 
 **Cosmos DB is not used in any capacity.** The historical polyglot proposal at [Team-Centinela/Centinela-docs#3](https://github.com/Team-Centinela/Centinela-docs/issues/3) is superseded.
+
+### WORM policy (verification document blobs)
+
+Per issue #33, the `documents-worm` container carries an Azure Blob Storage **immutable blob policy** with these fixed parameters. Immutable blob policies are themselves immutable once set, so the choice must be made before the bucket is provisioned.
+
+| Attribute | Value | Rationale |
+|---|---|---|
+| Policy kind | `immutabilityPolicy` (time-based) | Audit-by-design (§E) + ASSIGNMENT §Audit-by-design; no per-blob legal hold required for the 21-day window. |
+| Retention period | **7 years** (2557 days) | Default for financial fraud evidence; survives pilot → production. |
+| Legal hold | **disabled** | No active litigation signal exists for pilot scope; revisitable per-archive if invoked. |
+| Policy name | `centinela-worm-2026` | Stable, versioned with the year the policy is set. |
+| Container name | `documents-worm` | Matches existing Terraform module; do not rename post-create. |
+| Storage tier | LRS Hot | "Write once, read rarely" but reads are bursty during case escalation. |
+| Write path | Service Bus-triggered only (OCR Worker, FastAPI) | Application identity scoped to `Blob Data Contributor` on the container. |
+| Read path | Auditors + analysts via short-lived SAS tokens issued through Azure AD | Application identity does **not** have `Blob Data Reader` on the container directly. |
+| Owner (RP) | `centinela-platform@centinela.onmicrosoft.com` AAD group | Documented in `infrastructure/README.md` §WORM ownership. |
+| Lifecycle rule | Hot → Cool after 90 days; Cool → Archive after 1 year | Lifecycle is **separate** from the immutability policy; do not confuse the two. |
+| IaC | `infrastructure/…/storage.tf` (module `documents_worm`) | Terraform `azurerm_storage_container` + `azurerm_storage_management_policy` + `azurerm_storage_container_immutability_policy`. |
+
+> **Reversibility warning:** unchanged from #33 — once the immutability policy is set, it cannot be shortened. Plan accordingly.
+
+### Read-replica removal rationale
+
+Per issue #24, the originally-cited PostgreSQL read-replica for the Reporting module is **removed** from scope for the 21-day window. The B1ms Flexible Server SKU on the Azure Free tier does not support replicas in many regions, and provisioning one would push the project outside the $60/21-day budget.
+
+Reporting connects to the **same primary** as every other module via a dedicated **read-only DB role** (`reporting_reader`) whose grants are limited to the `reporting` schema and a `SELECT`-only view surface across `oltp`, `cases`, `alerts`. The role is provisioned by Terraform and has no DDL/DML grants. This satisfies the ADR-002 §Decision driver 3 ("Joining across data classes requires a single engine") without operating a second database engine.
+
+The read-replica remains an **ADR-amendable** option for V2 (Sprint 4+) once traffic outgrows the primary.
 
 ## Consequences
 
 ### Positive
 - One DB engine, one backup story, one IAM path, one connection pool story. Reduces ops surface area for a 4-person, 3-week team.
-- Reporting read-replica joins across data classes natively; no ETL or materialized views required.
+- Reporting reads from the primary via a `SELECT`-only role; no read-replica to operate, no second connection pool to tune. Joins across data classes are native.
 - PostGIS enables the `FR-3` geo-velocity check `WHERE ST_Distance(...)` queries at zero licensing cost.
 - Outbox events live in the same engine as the business tables — atomic writes, no two-phase.
 - PostgreSQL `JSONB` covers the few "schemaless" reasonability needs (e.g., `raw_evidence` for triggered rules).
+- WORM 7-year policy + lifecycle (90d Hot→Cool, 1yr→Archive) preserves audit-evidence integrity while controlling storage spend across the 21-day window.
 
 ### Negative
 - Credits toward project budget ceiling cannot route through Cosmos DB free tier.
@@ -78,8 +107,10 @@ Both strategies fit the $60 budget. The cost gap is, on its own, **not** the dec
 | Negative | Mitigation |
 |---|---|
 | Cross-schema boundary leakage | Flyway migrations are namespaced per schema; CI rejects any migration referencing another module's schema. |
+| Reporting accidental writes against the primary | Provision a `reporting_reader` PostgreSQL role with `SELECT`-only grants; Reporting service connection string uses this role. CI denies DDL/DML through that role. |
 | Hash-partition hot spots | Use modulo 16 hashing by default; for V2, rebalance to range/hash composite if hotspot observed. |
 | Outbox noise | Clean up `outbox_events WHERE status='SENT' AND sent_at < NOW() - INTERVAL '7 days'` weekly (`patterns/03-outbox-pattern.md`). |
+| Blob lifecycle confusion with immutability | Document in IaC comments; lifecycle rule sets `tier_to_cool` after 90d and `tier_to_archive` after 365d; immutability policy remains fixed at 7y. |
 
 ## Alternatives considered
 
@@ -101,7 +132,10 @@ Both strategies fit the $60 budget. The cost gap is, on its own, **not** the dec
 - Historical GitHub Issue [Team-Centinela/Centinela-docs#7](https://github.com/Team-Centinela/Centinela-docs/issues/7) (Observability/Cost draft) — supersedes the cost rows for Cosmos DB
 - [#4](https://github.com/Team-Centinela/Centinela-Code/issues/4) Sprint 1 — actions updated; no Cosmos module to provision in Week 1
 - [#11](https://github.com/Team-Centinela/Centinela-Code/issues/11) ADR-002 issue tracker — Supersedes [Team-Centinela/Centinela-docs#3](https://github.com/Team-Centinela/Centinela-docs/issues/3)
+- [#24](https://github.com/Team-Centinela/Centinela-Code/issues/24) — Reporting read-replica removed (this ADR §Read-replica removal rationale)
+- [#33](https://github.com/Team-Centinela/Centinela-Code/issues/33) — WORM policy pinned (this ADR §WORM policy)
+- [#34](https://github.com/Team-Centinela/Centinela-Code/issues/34) — Day-1 region/quota verification (`infrastructure/REGION-QUOTA-CHECK.md`)
 
 ## Status
 
-**DRAFT** — pending Sprint 0 review on [`gh issue list --label adr --state open`](https://github.com/Team-Centinela/Centinela-Code/issues?q=is%3Aopen+label%3Aadr). This ADR clusters with [#1, #12, #13](https://github.com/Team-Centinela/Centinela-Code/issues?q=is%3Aopen+label%3Aadr); if #11 is approved, [#11](https://github.com/Team-Centinela/Centinela-Code/issues/11) must be moved out of *draft* label and the historical [docs#3](https://github.com/Team-Centinela/Centinela-docs/issues/3) stays closed.
+**APPROVED** (Sprint 0, 2026-07-17) — addresses blockers #24, #33, #34 raised in [#16](https://github.com/Team-Centinela/Centinela-Code/issues/16) Sprint 0 review. This ADR clusters with [#1, #12, #13](https://github.com/Team-Centinela/Centinela-Code/issues?q=is%3Aopen+label%3Aadr); the historical [docs#3](https://github.com/Team-Centinela/Centinela-docs/issues/3) stays closed. The `draft` label on [#11](https://github.com/Team-Centinela/Centinela-Code/issues/11) is removed in the same release.

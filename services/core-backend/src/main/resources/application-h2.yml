@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:centinela;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;INIT=CREATE SCHEMA IF NOT EXISTS oltp
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+    hikari:
+      schema: PUBLIC
+
+  autoconfigure:
+    exclude:
+      - com.azure.spring.cloud.autoconfigure.implementation.servicebus.AzureServiceBusAutoConfiguration
+      - com.azure.spring.cloud.autoconfigure.implementation.servicebus.AzureServiceBusMessagingAutoConfiguration
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        default_schema: oltp

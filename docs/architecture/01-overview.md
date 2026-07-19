@@ -1,42 +1,71 @@
 # Architecture Overview
 
-Centinela uses a **Modular Monolith with Hexagonal Architecture** — a single Spring Boot deployment where each module is internally organized in hexagonal layers and communicates via domain events over Azure Service Bus.
+Centinela uses a **Modular Monolith with Hexagonal Architecture** as the deployment posture for case-management logic, surrounded by **selectively-extracted services** for the workloads that have independent scaling or isolation needs. Each deployment unit — monolith or extracted service — is internally organized in hexagonal layers and communicates via domain events over Azure Service Bus.
 
 ## What This Architecture Achieves
 
 - **Domain isolation** — fraud detection logic lives in pure Java, decoupled from frameworks and infrastructure
-- **Independent modules** — Transaction, Rule Engine, Case, Alert, Reporting, and Auth each own their data and logic with no direct cross-module calls
+- **Independent modules** — Transaction, Case, Alert, Reporting, and Auth own their data and logic inside the monolith; Rule Engine (scoring) and OCR are deployed as their own services, each with the same hexagonal discipline
+- **Serverless where it matters** — the Rule Engine and Ingestion API run on Azure Container Apps Consumption plan with KEDA Service Bus / HTTP scaling; cost is paid per active vCPU-second, not for idle clusters
 - **Future-proof extraction** — any module can be extracted to an independent microservice without rewriting business logic
-- **Operational simplicity** — single deployment, single CI/CD, no service mesh overhead
+- **Operational simplicity** — one build pipeline, four small deployments, no service mesh overhead
 
 ## System Components
 
 ```
-                    ┌──────────────────────────────────────────────┐
-                    │              Modular Monolith                 │
+                    ┌─────────────────────────────────────────────┐
+                    │              Modular Monolith                │
                     │  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-                    │  │Transaction│  │   Rule   │  │   Case   │   │
-                    │  │  Module   │──│  Engine  │──│  Module  │   │
-                    │  └─────┬────┘  └────┬─────┘  └────┬─────┘   │
-                    │        │            │              │         │
-                    │  ┌─────┴────┐  ┌────┴─────┐  ┌────┴─────┐   │
-                    │  │  Alert   │  │Reporting │  │   Auth   │   │
-                    │  │  Module  │  │  Module  │  │  Module  │   │
-                    │  └──────────┘  └──────────┘  └──────────┘   │
-                    └─────────────────────┬────────────────────────┘
+                    │  │Transaction│  │   Case   │  │  Alert   │   │
+                    │  │  Module   │  │  Module  │  │  Module  │   │
+                    │  └───────────┘  └──────────┘  └──────────┘   │
+                    │  ┌──────────┐  ┌──────────┐                    │
+                    │  │Reporting │  │   Auth   │                    │
+                    │  │  Module  │  │  Module  │                    │
+                    │  └──────────┘  └──────────┘                    │
+                    └─────────────────────┬─────────────────────────┘
                                           │
-                                ┌─────────┴─────────┐
-                                │ Azure Service Bus  │
-                                └─────────┬─────────┘
+              ┌───────────────────────────┼───────────────────────────┐
+              │                           │                           │
+      ┌───────┴────────┐          ┌────────┴────────┐          ┌──────┴───────────┐
+      │ Azure Service  │          │ Azure Service  │          │ Azure Service      │
+      │ Bus            │          │ Bus            │          │ Bus                │
+      │ (case-events,  │          │ (transactions- │          │ (documents-        │
+      │  documents-    │          │  raw)          │          │  pending)          │
+      │  pending-pub)  │          │                │          │                    │
+      └───────┬────────┘          └────────┬────────┘          └──────┬────────────┘
+              │                           │                           │
+              │                           ▼                           ▼
+              │                ┌─────────────────────┐         ┌──────────────┐
+              │                │  Serverless Engine  │         │ OCR Worker   │
+              │                │  (Rule Engine)      │         │ (FastAPI /   │
+              │                │  Spring Boot on ACA │         │  Python)     │
+              │                │  Consumption + KEDA │         └──────────────┘
+              │                └─────────────────────┘                 ▲
+              │                                                          │
+              └──────────────────────────────────────────────────────────┘
+                                  (cross-deployment events)
+                                          ▲
                                           │
-                          ┌───────────────┴───────────────┐
-                          │      Extracted Services        │
-                          │  ┌──────────┐  ┌──────────┐    │
-                          │  │Ingestion │  │   OCR    │    │
-                          │  │   API    │  │  Worker  │    │
-                          │  └──────────┘  └──────────┘    │
-                          └───────────────────────────────┘
+                                  ┌───────┴────────┐
+                                  │ Ingestion API  │
+                                  │ (Spring Boot   │
+                                  │  on ACA        │
+                                  │  Consumption)  │
+                                  └────────────────┘
 ```
+
+The four **deployable artifacts** of the platform:
+
+| Artifact | Type | Deployment |
+|---|---|---|
+| **Ingestion API** | Spring Boot (Java 21) | Azure Container Apps (Consumption), HTTP-scaled |
+| **Serverless Engine** (Rule Engine) | Spring Boot (Java 21) | Azure Container Apps (Consumption), KEDA-scaled on `transactions-raw` |
+| **Core Backend** | Spring Boot (Java 21) modular monolith | Azure Container Apps (Consumption), HTTP-scaled, hosts Case / Alert / Reporting / Auth / Transaction modules |
+| **OCR Worker** | FastAPI (Python 3.12) | Azure Container Apps (Consumption), KEDA-scaled on `documents-pending` |
+| **Frontend** | React + TypeScript (Vite SPA) | Azure Static Web Apps |
+
+All four backends share a single PostgreSQL Flexible Server, one Service Bus namespace, one Blob Storage account, one Key Vault, and one Application Insights workspace — operational cohesion without coupling between deployments.
 
 ## Principles That Guide Decisions
 
@@ -45,7 +74,8 @@ Centinela uses a **Modular Monolith with Hexagonal Architecture** — a single S
 | **Domain-Centric** | Business logic is framework-agnostic; infrastructure is an adapter |
 | **Module Isolation** | Each module owns its schema and logic; no shared databases or direct calls |
 | **Event-Driven** | Modules coordinate asynchronously via Azure Service Bus domain events |
-| **Selective Extraction** | Only extract to independent services when scaling, technology, or isolation demands it |
+| **Selective Extraction** | Modules stay in the monolith by default; extract only when independent scaling, technology, or isolation demands it |
+| **Serverless by Default** | Every deployable artifact runs on Azure Container Apps Consumption — pay per active vCPU-second, scale to zero on idle; no AKS / managed Kubernetes |
 | **Testability** | Pure domain logic can be unit-tested without Spring, databases, or network |
 
 ## Related Documents
@@ -57,3 +87,4 @@ Centinela uses a **Modular Monolith with Hexagonal Architecture** — a single S
 - [ADR-005: Monorepo Unification](../decision-log/ADR-005-monorepo-unification.md)
 - [Technology Stack](06-technology-stack.md)
 - [Hexagonal Architecture](03-hexagonal-architecture.md)
+- [Selective Extraction](05-selective-extraction.md)

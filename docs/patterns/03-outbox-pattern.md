@@ -2,7 +2,7 @@
 
 Guarantees reliable event delivery to Azure Service Bus without coupling database transactions to broker transactions.
 
-> This pattern is mandated for every module that publishes a domain event. Authority: `decision-log/ADR-003-async-messaging-reliability.md`. Companion: `patterns/06-idempotency-key.md` for consumer-side dedup.
+> This pattern is mandated for every service that publishes a domain event: the Ingestion API, the Serverless Engine, and the Core Backend each run their own Outbox Publisher. Authority: `decision-log/ADR-003-async-messaging-reliability.md`. Companion: `patterns/06-idempotency-key.md` for consumer-side dedup.
 
 ## The Problem
 
@@ -14,14 +14,14 @@ Distributed transactions (XA) are slow, complex, and often unsupported by cloud 
 
 ## The Solution
 
-Write the event to the same database, in the same ACID transaction, as the business data. A background process reads unsent events and publishes them to the broker.
+Write the event to the same database, in the same ACID transaction, as the business data. A background process reads unsent events and publishes them to the broker. Every service that owns event-emitting aggregates runs its own publisher (the Ingestion API publishes `TransactionReceived` to the `transactions-raw` queue; the Serverless Engine publishes `FraudEvaluationCompleted` to the `case-events` topic; the Core Backend publishes `CaseOpened` / `FraudAlertRaised` / `CaseResolved`).
 
 ```
 Business Operation (ACID)
 ├── transaction: INSERT INTO transactions ...
 └── outbox: INSERT INTO outbox_events (event_type, payload, status='PENDING')
 
-Outbox Publisher (@Scheduled, every 1 second)
+Outbox Publisher (@Scheduled, every 1 second — one in each deploying service)
 ├── SELECT * FROM outbox_events WHERE status = 'PENDING' ORDER BY created_at
 ├── For each event:
 │   ├── Publish to Azure Service Bus

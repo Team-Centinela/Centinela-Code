@@ -7,7 +7,7 @@ tags:
   - ai-agent
   - context-enrichment
 created: 2026-07-15
-last_reviewed: 2026-07-16
+last_reviewed: 2026-07-19
 ---
 # Centinela Monorepo — Agent Behavior
 
@@ -32,6 +32,7 @@ Centinela-Code/
 │   └── ASSIGNMENT.md          ← the fixed project constraints
 ├── services/                  ← runtime services
 │   ├── ingestion/             ← Spring Boot, extracted per ADR-001
+│   ├── serverless-engine/     ← Spring Boot, KEDA-scaled on transactions-raw, extracted per ADR-001
 │   ├── core-backend/          ← Spring Boot modular monolith host
 │   ├── ocr-worker/            ← FastAPI Python, extracted per ADR-001
 │   └── frontend/              ← Static SPA
@@ -73,10 +74,10 @@ When you start a new AI session, perform this bootstrap **before answering any p
 
 - **"What area am I in?"** → `docs/architecture/01-overview.md`
 - **"What stack is decided?"** → `docs/architecture/06-technology-stack.md`
-- **"Why this module is separate?"** → `docs/architecture/05-selective-extraction.md` + `services/<name>/README.md`
+- **"Why is this module separate?"** → `docs/architecture/05-selective-extraction.md` + `services/<name>/README.md` (currently extracted services: Ingestion API, Serverless Engine / Rule Engine, OCR Worker)
 - **"Where do these events go?"** → `docs/architecture/04-event-driven-communication.md` + `docs/decision-log/ADR-003-async-messaging-reliability.md`
-- **"How is this rule evaluated?"** → `docs/patterns/04-pipeline-pattern.md` + `docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md`
-- **"How do I publish an event reliably?"** → `docs/patterns/03-outbox-pattern.md`
+- **"How is this rule evaluated? Where does the Pipeline Pattern live?"** → `docs/patterns/04-pipeline-pattern.md` + `docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md`. The Pipeline is **not** in the Core Backend — it ships in the Serverless Engine (`services/serverless-engine/`) and consumes `transactions-raw` from the Ingestion API.
+- **"How do I publish an event reliably?"** → `docs/patterns/03-outbox-pattern.md` — every deploying service (Ingestion API, Serverless Engine, Core Backend) runs its own publisher.
 - **"Where does my data live?"** → `docs/decision-log/ADR-002-postgresql-only-db.md`
 - **"Why am I working in a monorepo?"** → `docs/decision-log/ADR-005-monorepo-unification.md`
 - **"What is the absolute must-and-must-not?"** → `docs/ASSIGNMENT.md`

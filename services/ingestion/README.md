@@ -20,8 +20,8 @@ Pulled out per ADR-001's **Selective Extraction Strategy** § (`docs/architectur
 
 ## What it does **not** own
 
-- Scoring (lives in Core Backend)
-- Case management (Core Backend)
+- Scoring (lives in the Serverless Engine, `services/serverless-engine/`)
+- Case management (Core Backend, `services/core-backend/`)
 - Rule configuration (admin module in Core Backend)
 
 ## Owned GitHub Issues

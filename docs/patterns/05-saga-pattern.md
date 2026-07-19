@@ -7,19 +7,19 @@ For multi-step business operations that cross module boundaries — such as "tra
 The end-to-end pipeline in `architecture/04-event-driven-communication.md` is a long-running, multi-actor process:
 
 ```
-Transaction Received
+Transaction Received (Ingestion API)
        │
        ▼
-Rule Engine Scoring (FraudEvaluationCompleted)
+Rule Engine Scoring on the Serverless Engine (FraudEvaluationCompleted)
        │
        ▼
-Case Created (CaseOpened, only if score > threshold)
+Case Created on the Core Backend (CaseOpened, only if score > threshold)
        │
        ▼
-Alert Raised (FraudAlertRaised)
+Alert Raised on the Core Backend (FraudAlertRaised)
        │
        ▼
-Analyst resolves the case (CaseResolved)
+Analyst resolves the case on the Core Backend (CaseResolved)
 ```
 
 No global 2PC. Each step is its own ACID transaction locally plus a domain event for the next actor. This is a **chained-orchestration saga**: each module's command handler responds to the previous event, performs the local work, and emits the next event.
@@ -28,8 +28,8 @@ No global 2PC. Each step is its own ACID transaction locally plus a domain event
 
 | Saga Name | Initiated When | Steps | Termination |
 |---|---|---|---|
-| **Case Lifecycle Saga** | `TransactionReceived` event published by Ingestion | 1. Score (Rule Engine) — emits `FraudEvaluationCompleted`<br/>2. If score > threshold → open case (Case Module) — emits `CaseOpened`<br/>3. Raise alert (Alert Module) — emits `FraudAlertRaised`<br/>4. Analyst assignment + resolution — emits `CaseResolved` | `CaseResolved` marks saga terminal |
-| **Document Verification Saga** | Analyst uploads verification document to a case | 1. Upload blob + write `DocumentRecord` (Core Backend) — emits `DocumentPending`<br/>2. OCR Worker extracts fields — emits `DocumentProcessed`<br/>3. Core Backend appends extracted data to case — emits `CaseDataAppended`<br/>4. Alert closes OCR-related findings | `CaseDataAppended` marks saga terminal |
+| **Case Lifecycle Saga** | `TransactionReceived` event published by Ingestion API | 1. Score on the Serverless Engine (Rule Engine) — emits `FraudEvaluationCompleted`<br/>2. If score > threshold → open case on the Core Backend (Case Module) — emits `CaseOpened`<br/>3. Raise alert on the Core Backend (Alert Module) — emits `FraudAlertRaised`<br/>4. Analyst assignment + resolution on the Core Backend — emits `CaseResolved` | `CaseResolved` marks saga terminal |
+| **Document Verification Saga** | Analyst uploads verification document to a case | 1. Upload blob + write `DocumentRecord` on the Core Backend — emits `DocumentPending`<br/>2. OCR Worker extracts fields — emits `DocumentProcessed`<br/>3. Core Backend appends extracted data to case — emits `CaseDataAppended`<br/>4. Alert closes OCR-related findings | `CaseDataAppended` marks saga terminal |
 
 ## Compensating Actions
 

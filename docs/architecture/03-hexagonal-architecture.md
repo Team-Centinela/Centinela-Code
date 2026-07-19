@@ -97,27 +97,27 @@ com.centinela.core.modules.<module>/
     rest/           # REST controllers (only if module exposes HTTP endpoints)
 ```
 
-**Concrete example — scoring module:**
+**Concrete example — case module (in-monolith):**
 
 ```
-com.centinela.core.modules.scoring/
+com.centinela.core.modules.cases/
   domain/
-    FraudScore.java              # value object
-    RuleEngine.java              # domain service — pure Java, no Spring
+    FraudCase.java                # aggregate root
+    CaseStatus.java               # value object
   application/
-    ScoreTransactionUseCase.java # inbound port interface
+    OpenCaseUseCase.java         # inbound port interface
   port/
-    TransactionRepository.java   # outbound port interface
-    RuleConfigProvider.java      # outbound port interface
+    CaseRepository.java           # outbound port interface
   adapter/
     persistence/
-      JpaTransactionRepository.java   # @Repository implements TransactionRepository
-      JpaRuleConfigRepository.java    # @Repository implements RuleConfigProvider
+      JpaCaseRepository.java     # @Repository implements CaseRepository
     messaging/
-      ScoreCompletedPublisher.java    # publishes via outbox on ApplicationEvent
+      CaseOpenedPublisher.java   # publishes via outbox on ApplicationEvent
     rest/
-      ScoreAdminController.java       # GET /admin/scores — admin-only
+      CaseController.java         # GET/POST /api/v1/cases — analyst-facing
 ```
+
+The same layout applies to other in-monolith modules (Transaction, Alert, Reporting, Auth) and to each extracted service (Ingestion API, Serverless Engine, OCR Worker) — the **only** difference is the deployment unit, not the package convention. The Serverless Engine combines the inbound port (`ScoreTransactionUseCase`) with a `transactions-raw` Service Bus consumer adapter instead of (or in addition to) a REST adapter; see `docs/architecture/05-selective-extraction.md` *Serverless Engine*.
 
 ### Rules
 

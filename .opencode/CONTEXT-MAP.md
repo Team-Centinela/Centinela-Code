@@ -40,13 +40,14 @@ session.
 | Module boundaries / cross-module deps | `architecture/02-modular-monolith.md` |
 | Touching a domain model | `architecture/03-hexagonal-architecture.md` |
 | Adding a domain event | `architecture/04-event-driven-communication.md` + `patterns/03-outbox-pattern.md` |
-| Why is a service extracted? | `architecture/05-selective-extraction.md` + `services/<name>/README.md` |
+| Why is a service extracted? | `architecture/05-selective-extraction.md` + `services/<name>/README.md` (Serverless Engine = third extracted service) |
 | ADR lifecycle / how to add a new one | `docs/AGENTS.md` + `.github/ISSUE_TEMPLATE/adr.md` |
-| Adding a new rule (FR-?) | `decision-log/ADR-004-rule-engine-pipeline-explainer.md` + `patterns/04-pipeline-pattern.md` |
+| Adding a new rule (FR-?) | `decision-log/ADR-004-rule-engine-pipeline-explainer.md` + `patterns/04-pipeline-pattern.md` (engine now lives in `services/serverless-engine/`) |
 | Where do documents live? | `decision-log/ADR-002-postgresql-only-db.md` + issue `#18` |
 | Why no Cosmos DB? | `decision-log/ADR-002-postgresql-only-db.md` |
 | Why Standard tier Service Bus? | `decision-log/ADR-003-async-messaging-reliability.md` |
-| Saga across modules | `patterns/05-saga-pattern.md` |
+| Why Azure Container Apps (not Functions / AKS)? | `architecture/06-technology-stack.md` §Why Each Technology + `decision-log/ADR-001-modular-monolith-hexagonal.md` §Alternatives |
+| Saga across modules / services | `patterns/05-saga-pattern.md` |
 | Idempotency on a consumer | `patterns/06-idempotency-key.md` |
 | Tests | `best-practices/02-testing-strategy.md` |
 | Errors | `best-practices/03-error-handling.md` |

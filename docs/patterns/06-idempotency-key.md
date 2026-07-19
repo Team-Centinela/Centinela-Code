@@ -27,7 +27,7 @@ For each async command or event consumed, persist a small "processed events" led
 
 ```sql
 CREATE TABLE processed_events (
-    consumer       VARCHAR(100) NOT NULL,        -- 'rule-engine', 'case-module', etc.
+    consumer       VARCHAR(100) NOT NULL,        -- 'serverless-engine', 'case-module', 'alert-module', 'ocr-worker', etc.
     idempotency_key VARCHAR(255) NOT NULL,      -- transactionId / caseId / documentId / eventId
     processed_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (consumer, idempotency_key)
@@ -40,11 +40,11 @@ Consumer-side handler (pseudocode):
 @Transactional
 public void onMessage(EventEnvelope env) {
     String id = env.aggregateId();
-    if (processedRepo.exists("rule-engine", id)) {
+    if (processedRepo.exists("serverless-engine", id)) {
         return;                                   // already processed; safe to ack
     }
     runScoring(id);
-    processedRepo.save("rule-engine", id);
+    processedRepo.save("serverless-engine", id);
 }
 ```
 
@@ -78,4 +78,4 @@ A second layer of consumer-side idempotency is mandatory.
 
 ## Status
 
-**DRAFT** — first implementation in `rule-engine`'s consumer of `transactions-raw`. Pattern is reused thereafter by every other consumer.
+**DRAFT** — first implementation in the Serverless Engine consumer of `transactions-raw`. Pattern is reused thereafter by every other consumer.

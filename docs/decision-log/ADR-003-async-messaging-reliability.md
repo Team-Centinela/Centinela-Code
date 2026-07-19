@@ -1,8 +1,5 @@
 # ADR-003: Async Messaging & Reliability
 
-## Status
-**ACCEPTED** — Ratified during Sprint 0 ADR review (#16) after blockers #22, #25, #26, and #27 were resolved. Sub-issues #39 (spring-cloud-stream pin) and #40 (Outbox Publisher implementation) remain on epic #37 / `feature/architecture` branch track and will close when implementation lands.
-
 ## Context
 
 Cross-module coordination in the modular monolith must be async by rule (`architecture/02-modular-monolith.md` § Communication Rules). The async layer must:
@@ -176,3 +173,7 @@ The ADR text **does not** carry `max_delivery_count = 3` literal into Java/Pytho
 - `ASSIGNMENT.md` §E — access patterns influencing this decision
 - `infrastructure/README.md` — Azure resource budget and IaC ownership (Day-1 quota link)
 - Sub-issues that close the implementation side of this ADR: #39 (`spring-cloud-stream` pin in `services/pom.xml`), #40 (Outbox Publisher with shutdown recovery + cold-start handling). Both roll up to epic #37.
+
+## Status
+
+**ACCEPTED** — Ratified during Sprint 0 ADR review (#16) after blockers #22, #25, #26, and #27 were resolved. Sub-issues #39 (spring-cloud-stream pin) and #40 (Outbox Publisher implementation) remain on epic #37 / `feature/architecture` branch track and will close when implementation lands.

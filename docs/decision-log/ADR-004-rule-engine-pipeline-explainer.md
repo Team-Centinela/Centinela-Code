@@ -1,7 +1,6 @@
 # ADR-004: Rule Engine — Pipeline Pattern & Deterministic Explainer
 
 ## Status
-
 **ACCEPTED** — Ratified during Sprint 0 ADR review (#16) after blockers #28 (pipeline ordering), #29 (rawEvidence schema), and #30 (short-circuit vs clamp semantics) were resolved. Implementation sub-issue #42 (Rule Engine Pipeline code) remains open and tracks the coding work that consumes the contracts pinned below.
 
 ## Context

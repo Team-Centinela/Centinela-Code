@@ -1,8 +1,5 @@
 # ADR-002: Unified PostgreSQL Persistence
 
-## Status
-**DRAFT** — Pending team review and approval (supersedes the historical polyglot proposal at [github.com/Team-Centinela/Centinela-docs/issues/3](https://github.com/Team-Centinela/Centinela-docs/issues/3), now closed).
-
 ## Context
 
 `ASSIGNMENT.md` §E requires defending the storage engine choice based on the access patterns of each data type:
@@ -35,15 +32,17 @@ The two proposals contradict each other and must be reconciled before Sprint 1 b
 | **Unified PostgreSQL** | Azure Database for PostgreSQL Flexible Server | B1ms (1 vCore / 2 GiB), nightly auto-stop on non-testing hours (12 h/day, weekday nights + weekends). See §Planned DB downtime & outbox restart-drain. | **~$5–8** |
 | | Azure Blob Storage | LRS Hot, near-zero | **<$1** |
 | | (no Cosmos DB, no extra DB engines) | — | **$0** |
-| | **Subtotal** | | **~$6–9** |
+| | **Subtotal (storage engine only)** | | **~$6–9** |
 | **Polyglot** | Azure Cosmos DB | Serverless (Free tier: 1000 RU/s + 25 GB free) | **$0** |
 | | Azure Database for PostgreSQL | B1ms, no auto-stop (always-on to host Cosmos-outbox bridge per service topology — a second-engine design cannot tolerate DB restarts) | **~$9–12** |
 | | Azure Blob Storage | LRS Hot | **<$1** |
-| | **Subtotal** | | **~$10–13** |
+| | **Subtotal (storage engine only)** | | **~$10–13** |
 
 Both strategies fit the $60 budget. The cost gap is, on its own, **not** the deciding factor. The deciding factors are operational simplicity and join/reporting capability.
 
 > **Cost-table note:** the "always-on to host outbox" qualifier on the Polyglot PostgreSQL row describes a Cosmos-side change-feed bridge that would have to stay running. In a polyglot design the outbox cannot be a PostgreSQL table (Cosmos writes have no PostgreSQL transaction), so a separate bridge service would be required — that bridge would force always-on. The Unified strategy is not subject to that constraint because the outbox *is* PostgreSQL; see §Planned DB downtime & outbox restart-drain.
+
+> **Full system budget:** the table above covers only the storage engine. For the complete 21-day budget including compute (ACA Consumption), messaging (Service Bus Standard), observability (App Insights), secrets (Key Vault), and frontend (Static Web Apps Free), see `infrastructure/README.md` §Cost Guardrails (total ~$27–31).
 
 ## Decision
 

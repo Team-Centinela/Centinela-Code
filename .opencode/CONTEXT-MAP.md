@@ -46,7 +46,7 @@ session.
 | Where do documents live? | `decision-log/ADR-002-postgresql-only-db.md` + issue `#18` |
 | Why no Cosmos DB? | `decision-log/ADR-002-postgresql-only-db.md` |
 | Why Standard tier Service Bus? | `decision-log/ADR-003-async-messaging-reliability.md` |
-| Why Azure Container Apps (not Functions / AKS)? | `architecture/06-technology-stack.md` §Why Each Technology + `decision-log/ADR-001-modular-monolith-hexagonal.md` §Alternatives |
+| Why Azure Container Apps (not Functions / AKS)? | `decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md` (primary) + `architecture/06-technology-stack.md` §Why Each Technology + `decision-log/ADR-001-modular-monolith-hexagonal.md` §Alternatives |
 | Saga across modules / services | `patterns/05-saga-pattern.md` |
 | Idempotency on a consumer | `patterns/06-idempotency-key.md` |
 | Tests | `best-practices/02-testing-strategy.md` |

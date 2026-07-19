@@ -39,9 +39,10 @@ Technologies selected and the rationale for each choice.
 - Each backend's replica count scales:
   - **HTTP**: on concurrent inbound request count for the Ingestion API and Core Backend REST endpoints.
   - **KEDA `azure-servicebus`**: on the queue/topic-subscription active-message count for the Serverless Engine (`transactions-raw`) and the OCR Worker (`documents-pending`).
-- Scales to **zero replicas** when there is no traffic; the first 180,000 vCPU-seconds and 2 M requests / month per subscription are free, keeping compute spend effectively nil for bursty workloads inside the $60 budget.
+- Scales to **zero replicas** when there is no traffic; the first 180,000 vCPU-seconds, 360,000 GiB-seconds, and 2 M requests / month per subscription are free, keeping compute spend effectively nil for bursty workloads inside the $60 budget.
 - Built-in KEDA scalers (no YAML of our own beyond the `az containerapp update ... --scale-rule-type azure-servicebus` form) make cold-start recovery an Azure-managed concern.
 - One Azure Container Apps **Environment** hosts the four backends together, sharing the same VNet (none currently used) and unified observability wiring through Application Insights.
+- See `decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md` for the full decision record, alternatives analysis, and cost comparison.
 
 ### Spring Boot (Java 21)
 - Team already knows Java and Spring ecosystem

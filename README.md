@@ -78,6 +78,7 @@ Centinela-Code/
 | [ADR-003](docs/decision-log/ADR-003-async-messaging-reliability.md) | Async Messaging & Reliability | ACCEPTED (Sprint 0) |
 | [ADR-004](docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md) | Rule Engine — Pipeline Pattern (Serverless Engine) | ACCEPTED (Sprint 0) |
 | [ADR-005](docs/decision-log/ADR-005-monorepo-unification.md) | Monorepo Unification | EXECUTED (2026-07-15) |
+| [ADR-009](docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md) | Compute Substrate — ACA Consumption + SWA Free | DRAFT (pending Sprint 0 review) |
 
 > ADR-006 (Security & Auth), ADR-007 (Observability/Cost), and ADR-008
 > (Config & Secrets) are tracked as issues and will land after Sprint 0.

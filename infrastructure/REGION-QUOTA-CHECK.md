@@ -21,7 +21,7 @@ Per `ASSIGNMENT.md` §3, every Azure service the project depends on must be veri
 | Azure AI Document Intelligence | `<region>` | Free (F0) | yes/no | n/a | n/a | Monthly quota: 500 pages free / month (per region, subject to change). `az cognitiveservices account show --kind FormRecognizer --sku F0` + `_usage` endpoint. |
 | Azure Application Insights | `<region>` | Free (per-node) | yes/no | n/a | n/a | First 5 GB / month free; 90-day retention at Free tier. |
 | Azure Blob Storage (General-purpose v2) | `<region>` | LRS Hot | yes/no | n/a | n/a | WORM immutability policies supported on GPv2 in most regions; verify with `az storage account immutability-policy` create against a test container. |
-| Azure Container Apps | `<region>` | Consumption (serverless) | yes/no | n/a | n/a | First 180,000 vCPU-seconds / month free; 2M requests / month free. |
+| Azure Container Apps | `<region>` | Consumption (serverless) | yes/no | n/a | n/a | First 180,000 vCPU-seconds + 360,000 GiB-seconds / month free; 2M requests / month free. |
 | Azure Static Web Apps | `<region>` | Free | yes/no | n/a | n/a | 100 GB bandwidth / month free; sufficient for SPA frontend. |
 | Azure Key Vault | `<region>` | Standard | yes/no | n/a | n/a | 25,000 transactions / month free; soft-delete on (default in IaC). |
 

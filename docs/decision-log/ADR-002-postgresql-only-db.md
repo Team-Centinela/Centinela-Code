@@ -32,16 +32,18 @@ The two proposals contradict each other and must be reconciled before Sprint 1 b
 
 | Strategy | Component | SKU/Tier | Est. cost (21 days) |
 |---|---|---|---|
-| **Unified PostgreSQL** | Azure Database for PostgreSQL Flexible Server | B1ms (1 vCore / 2 GiB), with nightly auto-stop | **~$5–8** |
+| **Unified PostgreSQL** | Azure Database for PostgreSQL Flexible Server | B1ms (1 vCore / 2 GiB), nightly auto-stop on non-testing hours (12 h/day, weekday nights + weekends). See §Planned DB downtime & outbox restart-drain. | **~$5–8** |
 | | Azure Blob Storage | LRS Hot, near-zero | **<$1** |
 | | (no Cosmos DB, no extra DB engines) | — | **$0** |
 | | **Subtotal** | | **~$6–9** |
 | **Polyglot** | Azure Cosmos DB | Serverless (Free tier: 1000 RU/s + 25 GB free) | **$0** |
-| | Azure Database for PostgreSQL | B1ms, no auto-stop (always-on to host outbox) | **~$9–12** |
+| | Azure Database for PostgreSQL | B1ms, no auto-stop (always-on to host Cosmos-outbox bridge per service topology — a second-engine design cannot tolerate DB restarts) | **~$9–12** |
 | | Azure Blob Storage | LRS Hot | **<$1** |
 | | **Subtotal** | | **~$10–13** |
 
 Both strategies fit the $60 budget. The cost gap is, on its own, **not** the deciding factor. The deciding factors are operational simplicity and join/reporting capability.
+
+> **Cost-table note:** the "always-on to host outbox" qualifier on the Polyglot PostgreSQL row describes a Cosmos-side change-feed bridge that would have to stay running. In a polyglot design the outbox cannot be a PostgreSQL table (Cosmos writes have no PostgreSQL transaction), so a separate bridge service would be required — that bridge would force always-on. The Unified strategy is not subject to that constraint because the outbox *is* PostgreSQL; see §Planned DB downtime & outbox restart-drain.
 
 ## Decision
 
@@ -86,6 +88,25 @@ Per issue #24, the originally-cited PostgreSQL read-replica for the Reporting mo
 Reporting connects to the **same primary** as every other module via a dedicated **read-only DB role** (`reporting_reader`) whose grants are limited to the `reporting` schema and a `SELECT`-only view surface across `oltp`, `cases`, `alerts`. The role is provisioned by Terraform and has no DDL/DML grants. This satisfies the ADR-002 §Decision driver 3 ("Joining across data classes requires a single engine") without operating a second database engine.
 
 The read-replica remains an **ADR-amendable** option for V2 (Sprint 4+) once traffic outgrows the primary.
+
+### Planned DB downtime & outbox restart-drain
+
+`ASSIGNMENT.md` §3 (Constraints) explicitly states *"Resource cleanup/shutdown is required when not actively testing (to avoid burning budget over weekends)"*. To act on that constraint at minimal cost we use the B1ms **PostgreSQL Flexible Server Stop/Start capability**: a scheduled Azure Automation runbook (or `az postgres flexible-server stop`) puts the database into a stopped state during non-testing hours (weekday nights + weekends, ~12 h/day). The cost-comparison row above reflects this.
+
+This has a direct interaction with the Outbox Pattern mandated by `ADR-003` – `patterns/03-outbox-pattern.md`. The two designs are **compatible**, because:
+
+1. While PostgreSQL is stopped, **no service can write to it** — the Ingestion API (which writes to the `oltp` schema and the `outbox` schema in the same ACID transaction) returns `503 Service Unavailable`. No new `outbox_events` rows can be inserted during this window, so no events are "in flight" without an active writer.
+2. `outbox_events` rows inserted in the last write transaction **before** stop remain in `status='PENDING'` on the stopped database's storage. The Outbox Publisher does not need the database to remain *running* for events to be safe — it only needs the database to be *available* when it is time to drain.
+3. When the Elastic Job / Azure Automation runbook issues `start`, PostgreSQL comes back online typically within 60–120 s. On its first poll after restart, each Outbox Publisher (Ingestion API, Serverless Engine worker, Core Backend) runs the existing `SELECT … ORDER BY created_at` query and drains the entire backlog. The `@Scheduled(fixedDelay = 1000)` cadence converges the backlog to `SENT` in seconds, not hours.
+4. Service Bus receives the burst of events that accumulated during downtime shortly after restart; downstream consumers (Serverless Engine, OCR Worker) process them with no special handling beyond the consumer-side idempotency already mandated by `patterns/06-idempotency-key.md`.
+
+**Out of scope during the DB-down window:** clients that POST to the Ingestion API receive `503` with a `Retry-After` header. This is consistent with the "Real-Time" requirement in `ASSIGNMENT.md` §1.2 because tests are not executed during scheduled downtime; when the team is actively testing, PostgreSQL is running (see #10 — the auto-stop schedule excludes business-hours test blocks).
+
+**What auto-stop does *not* solve and which ADR-003 gaps this keeps open:** auto-stop does not help against (a) broker-side outages — for which the Outbox Pattern was originally designed, (b) consumer-side poison messages, or (c) intermediate service crashes. Those are unaffected by DB availability and continue to be handled by the rest of `ADR-003`.
+
+### Reconciliation of the historical "always-on to host outbox" claim
+
+A previous revision of this ADR listed "(no auto-stop, always-on to host outbox)" *as a counter-argument for keeping PostgreSQL always-on under the unified strategy*. That phrasing was wrong: the unified strategy **does** host the outbox, and the outbox is safe across the auto-stop window (no writer means no in-flight events, store-and-forward on restart). This ADR now states the strategy unambiguously as: auto-stop is on (per the §Planned DB downtime above), and the cost saving is real.
 
 ## Consequences
 
@@ -135,6 +156,7 @@ The read-replica remains an **ADR-amendable** option for V2 (Sprint 4+) once tra
 - [#24](https://github.com/Team-Centinela/Centinela-Code/issues/24) — Reporting read-replica removed (this ADR §Read-replica removal rationale)
 - [#33](https://github.com/Team-Centinela/Centinela-Code/issues/33) — WORM policy pinned (this ADR §WORM policy)
 - [#34](https://github.com/Team-Centinela/Centinela-Code/issues/34) — Day-1 region/quota verification (`infrastructure/REGION-QUOTA-CHECK.md`)
+- [#10](https://github.com/Team-Centinela/Centinela-Code/issues/10) — Azure Budget Controls & PostgreSQL auto-stop schedule (delivers this ADR §Planned DB downtime & outbox restart-drain)
 
 ## Status
 

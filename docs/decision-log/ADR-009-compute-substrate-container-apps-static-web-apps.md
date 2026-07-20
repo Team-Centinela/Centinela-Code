@@ -2,7 +2,7 @@
 
 ## Status
 
-**DRAFT** — Pending Sprint 0 review. Tracked at [#48](https://github.com/Team-Centinela/Centinela-Code/issues/48).
+**ACCEPTED** (Sprint 0, 2026-07-17) — Ratified during Sprint 0 ADR review ([#16](https://github.com/Team-Centinela/Centinela-Code/issues/16)). Tracker [#48](https://github.com/Team-Centinela/Centinela-Code/issues/48) closed.
 
 ## Context
 
@@ -106,4 +106,4 @@ The free grant covers the expected workload for a 21-day demo: intermittent HTTP
 
 ## Status
 
-**DRAFT** — pending Sprint 0 review on [`gh issue list --label adr --state open`](https://github.com/Team-Centinela/Centinela-Code/issues?q=is%3Aopen+label%3Aadr). If accepted, [#48](https://github.com/Team-Centinela/Centinela-Code/issues/48) moves from *draft* label.
+**ACCEPTED** (Sprint 0, 2026-07-17) — Ratified during Sprint 0 ADR review ([#16](https://github.com/Team-Centinela/Centinela-Code/issues/16)). Tracker [#48](https://github.com/Team-Centinela/Centinela-Code/issues/48) closed. This ADR clusters with [#4](https://github.com/Team-Centinela/Centinela-Code/issues/4) (Infra epic) and [#51](https://github.com/Team-Centinela/Centinela-Code/issues/51) (Serverless Engine module registration).

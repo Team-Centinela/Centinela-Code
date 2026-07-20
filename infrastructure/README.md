@@ -22,8 +22,8 @@ See the ADRs for each technology's rationale:
 | ADR-002 | Storage layout |
 | ADR-003 | Service Bus Standard tier + reliability |
 | ADR-009 | Compute substrate (ACA Consumption + SWA Free) |
-| ADR-006 (issue [#3](https://github.com/Team-Centinela/Centinela-Code/issues/3)) | Auth & secrets |
-| ADR-007 (pending) | Observability & cost caps |
+| ADR-006 | Auth & secrets |
+| ADR-007 | Observability & cost caps |
 
 ## Cost guardrails
 

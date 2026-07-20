@@ -127,6 +127,19 @@ Long sessions accumulate noise and stale references. When a session hits the sym
 
 Do not let a session grind on past 60 turns without pausing to assess the snapshot.
 
+## Commit hygiene
+
+The doc tree and the issue tracker are collaborative. Every commit must keep the two reconcilable. Three rules govern how this is done:
+
+1. **Single concern per commit, with cross-referenced docs.**
+   A commit addresses exactly one thing — one ADR amendment, one missed cross-link, one cost-row update, one logical behavioral fix. When the same commit touches both an ADR and the affected pattern/architecture page, the commit message must call out every file so a future reader can trace the textual consequence of the decision in one `git show`. Mixing unrelated changes (e.g., a status-heading fix and a cost table bump, or a new module skeleton and an unrelated IaC tweak) is a defect — split before committing.
+
+2. **Tracking issues close when their docs land.**
+   Every ADR amendment, every cross-doc reconciliation, and every ADR blocker ends in a tracking issue (issue label `adr` or `documentation, adr`). The issue's acceptance criteria are exactly the textual state the docs must reach. When a commit lands the docs that satisfy those criteria, the issue closes in the *same* release cycle — either by a `gh issue close` with a body linking the commit, or by a comment that records the commit SHA. A "doc-fix" commit without a tracking-issue close is a sign the audit trail is breaking.
+
+3. **Tiny format-only fixes get their own commit.**
+   A one-line whitespace fix, a duplicate-heading removal, a wording tweak, a link broken by a directory rename — none of these is too small to deserve its own commit. Bundling them into a larger PR hides them from `git log -- <file>` and forces a future reviewer to dig through unrelated changes. Each format-only commit gets a `docs:` or `fix(minor):` prefix and a focused subject that names the file and the change.
+
 ## Notes on this repo
 
 - `gh issue` works against Team-Centinela/Centinela-Code — never try to create issues in the archived Centinela-docs.

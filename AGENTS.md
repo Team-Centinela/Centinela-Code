@@ -54,6 +54,10 @@ This monorepo mixes *persistent* (lives forever) with *temporal* (expires with t
 
 **If a piece of information will still matter in 6 months, write a markdown file in `docs/`. If it expires with the next sprint, write a GitHub Issue. If neither fits well, write neither — keep it in chat.**
 
+### Service README imprint rule
+
+Every extracted service (per ADR-001 §Selective Extraction) **must** have a `services/<name>/README.md` describing what it owns and why it was extracted **before** the corresponding ADR can be closed. This keeps the "I/O of every deployable artifact" imprint current with the docs tree. If a service row exists in `services/README.md` but its directory is missing, that is a doc-code drift bug — track it as an issue.
+
 ## Obsidian mirror warning
 
 The Obsidian plugins `obsidian-github-issues` and `obsidian-github-pull-requests` create mirror folders (`GitHub/`, `GitHub-PR/`, `GitHub Pull Requests/`) inside the working tree. These are **explicitly .gitignored** — never try to commit them.

@@ -40,7 +40,7 @@ session.
 | Module boundaries / cross-module deps | `architecture/02-modular-monolith.md` |
 | Touching a domain model | `architecture/03-hexagonal-architecture.md` |
 | Adding a domain event | `architecture/04-event-driven-communication.md` + `patterns/03-outbox-pattern.md` |
-| Why is a service extracted? | `architecture/05-selective-extraction.md` + `services/<name>/README.md` (Serverless Engine = third extracted service) |
+| Why is a service extracted? | `architecture/05-selective-extraction.md` + `services/<name>/README.md` (Serverless Engine = third extracted service). The Serverless Engine's Maven `<module>` registration in `services/pom.xml` is tracked at [#51](https://github.com/Team-Centinela/Centinela-Code/issues/51). |
 | ADR lifecycle / how to add a new one | `docs/AGENTS.md` + `.github/ISSUE_TEMPLATE/adr.md` |
 | Adding a new rule (FR-?) | `decision-log/ADR-004-rule-engine-pipeline-explainer.md` + `patterns/04-pipeline-pattern.md` (engine now lives in `services/serverless-engine/`) |
 | Where do documents live? | `decision-log/ADR-002-postgresql-only-db.md` + issue `#18` |

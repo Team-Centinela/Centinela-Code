@@ -10,7 +10,7 @@ Per `architecture/06-technology-stack.md` the key resources are:
 | Azure Database for PostgreSQL Flexible Server | B1ms, nightly auto-stop, dev-only prod |
 | Azure Service Bus (Standard tier) | Required: tier supports Topics |
 | Azure Blob Storage | `documents-worm` container, LRS Hot, WORM policy (7y time-based) |
-| Azure Container Apps (Consumption) | Hosts all four backends: Ingestion API (HTTP), Serverless Engine (KEDA `azure-servicebus` on `transactions-raw`), Core Backend (HTTP), OCR Worker (KEDA `azure-servicebus` on `documents-pending`). Managed KEDA scaler; per-second billing; scale to zero. |
+| Azure Container Apps (Consumption) | Hosts all four backends: Ingestion API (HTTP), Serverless Engine (KEDA `azure-servicebus` on `transactions-raw`), Core Backend (HTTP), OCR Worker (KEDA `azure-servicebus` on `documents-pending`). Managed KEDA scaler; per-second billing; scale to zero. The Serverless Engine's Maven `<module>` registration is tracked at [#51](https://github.com/Team-Centinela/Centinela-Code/issues/51). |
 | Azure Static Web Apps | Frontend CDN |
 | Azure Application Insights | Observability + cost telemetry |
 | Azure Key Vault | Secrets only; keys managed by IaC |

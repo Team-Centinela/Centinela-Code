@@ -42,7 +42,7 @@ Both strategies fit the $60 budget. The cost gap is, on its own, **not** the dec
 
 > **Cost-table note:** the "always-on to host outbox" qualifier on the Polyglot PostgreSQL row describes a Cosmos-side change-feed bridge that would have to stay running. In a polyglot design the outbox cannot be a PostgreSQL table (Cosmos writes have no PostgreSQL transaction), so a separate bridge service would be required — that bridge would force always-on. The Unified strategy is not subject to that constraint because the outbox *is* PostgreSQL; see §Planned DB downtime & outbox restart-drain.
 
-> **Full system budget:** the table above covers only the storage engine. For the complete 21-day budget including compute (ACA Consumption), messaging (Service Bus Standard), observability (App Insights), secrets (Key Vault), and frontend (Static Web Apps Free), see `infrastructure/README.md` §Cost Guardrails (total ~$27–31).
+> **Full system budget:** the table above covers only the storage engine. For the complete 21-day budget including compute (ACA Consumption with the free grant: first 180k vCPU-seconds, 360k GiB-seconds, 2M requests/month), messaging (Service Bus Standard), observability (App Insights), secrets (Key Vault), frontend (Static Web Apps Free), and automation (Azure Automation runbook), see `infrastructure/README.md` §Cost Guardrails (total ~$15–24).
 
 ## Decision
 

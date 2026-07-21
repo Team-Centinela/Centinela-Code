@@ -7,7 +7,7 @@ tags:
   - ai-agent
   - context-enrichment
 created: 2026-07-15
-last_reviewed: 2026-07-19
+last_reviewed: 2026-07-21
 ---
 # Centinela Monorepo — Agent Behavior
 
@@ -93,6 +93,12 @@ When you start a new AI session, perform this bootstrap **before answering any p
 - **Reference, never duplicate.** If a fact is already a GitHub Issue or Project, link to it via `#N` (within the same repo) or via the full URL. Do not paste the same content into a markdown file.
 - **Read the ADR before the code it describes.** Implementation that conflicts with the matching ADR is wrong; update one of the two through a GitHub Issue, not by ignoring the conflict.
 - **Stay within the written budget.** $60 over 21 days. Every IaC change proposed must include a cost row in `infrastructure/README.md`.
+- **ADRs are the canonical source for decisions.** Architecture pages, `README.md`, `services/README.md`, `infrastructure/README.md`, and this file may *summarize*, but must not contain a duplicate full table or long rationale paragraph that already lives in an ADR. When tempted to copy, replace with one line plus a link, e.g. `See ADR-009 §9.1.`
+- **Relative links resolve from the linking file's directory.** Three concrete shapes that recur — keep them straight, lychee will fail otherwise:
+  - From `docs/decision-log/*.md`, cross-ADR references are bare filenames (`ADR-002-postgresql-only-db.md`), never `decision-log/ADR-002-...`.
+  - From `docs/architecture/` or `docs/patterns/`, references into other docs subdirectories start with `../` (`../decision-log/ADR-002-...`, `../patterns/03-outbox-pattern.md`).
+  - From `services/<name>/`, references to `docs/` start with `../../docs/`. The same goes for any file two levels deep (e.g. `services/<name>/sub/README.md`).
+- **Cross-doc PRs must enumerate the doc-effect.** If a PR touches more than one of {ADRs, architecture pages, service READMEs, AGENTS.md}, the body must list each affected file and the reason — so a reviewer can see the textual consequence in one PR view instead of digging through commits. Single concern per commit (Commit Hygiene §1) plus cross-doc disclosure is the separation; both are required.
 
 ## Never
 

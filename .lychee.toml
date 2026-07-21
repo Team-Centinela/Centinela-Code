@@ -2,10 +2,10 @@
 # See https://github.com/lycheeverse/lychee
 
 cache = true
-maxCacheAge = 86400
+max_cache_age = "1d"
 timeout = 30
-retryWaitMax = 60
-maxRetries = 3
+retry_wait_time = 60
+max_retries = 3
 
 exclude = [
   # GitHub issue/PR references — internal, resolved by GitHub UI

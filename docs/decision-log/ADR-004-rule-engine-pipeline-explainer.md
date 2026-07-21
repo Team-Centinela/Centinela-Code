@@ -18,7 +18,7 @@
 
 `ASSIGNMENT.md` §C explicitly forbids LLMs for explanation. The explanation must be deterministic, derived from the same `TriggeredRule` objects that produced the score.
 
-[Historical `#5`](https://github.com/Team-Centinela/Centinela-docs/issues/5) proposed the **Strategy Pattern**. The persisted docs (`patterns/04-pipeline-pattern.md`) propose the **Pipeline Pattern**.
+[Historical `#5`](https://github.com/Team-Centinela/Centinela-docs/issues/5) proposed the **Strategy Pattern**. The persisted docs (`../patterns/04-pipeline-pattern.md`) propose the **Pipeline Pattern**.
 
 The two are **semantically conflicting** and must be reconciled.
 
@@ -41,7 +41,7 @@ For Centinela's four rules, **the order and intermediate sharing matters**:
 
 ### 4.1 Rule Engine uses a Two-Stage Pipeline
 
-Adopt the implementation in `patterns/04-pipeline-pattern.md`. The pipeline executes cheap rules first (FR-1 and FR-4) and only runs the expensive rules (FR-3, then FR-2 if still below threshold) when at least one cheap rule has fired:
+Adopt the implementation in `../patterns/04-pipeline-pattern.md`. The pipeline executes cheap rules first (FR-1 and FR-4) and only runs the expensive rules (FR-3, then FR-2 if still below threshold) when at least one cheap rule has fired:
 
 ```
 Transaction
@@ -113,7 +113,7 @@ The example in `ASSIGNMENT.md §B` ("normal activity ~$50,000, sudden attempt of
 
 ### 4.3 Rule Audit Telemetry — `TriggeredRule` is persisted
 
-Aligned with §B.6: every triggered rule, with `rawEvidence` JSONB matching the §4.2 schema, is persisted alongside the transaction in `transactions.triggered_rules` (PostgreSQL `oltp` schema, JSONB column). Read access to this field is required by Reporting (per `architecture/01-overview.md`).
+Aligned with §B.6: every triggered rule, with `rawEvidence` JSONB matching the §4.2 schema, is persisted alongside the transaction in `transactions.triggered_rules` (PostgreSQL `oltp` schema, JSONB column). Read access to this field is required by Reporting (per `../architecture/01-overview.md`).
 
 ### 4.4 Configurable threshold and rule parameters
 
@@ -133,7 +133,7 @@ These defaults are not magic numbers in code or hardcoded in business logic — 
 ## Consequences
 
 ### Positive
-- Pipeline matches the architectural intent expressed in `patterns/04-pipeline-pattern.md`; Strategy was a historical draft proposal at [Team-Centinela/Centinela-docs#5](https://github.com/Team-Centinela/Centinela-docs/issues/5).
+- Pipeline matches the architectural intent expressed in `../patterns/04-pipeline-pattern.md`; Strategy was a historical draft proposal at [Team-Centinela/Centinela-docs#5](https://github.com/Team-Centinela/Centinela-docs/issues/5).
 - Two-stage ordering puts the expensive PostGIS scan (FR-3) behind the cheap Stage-1 screen, keeping median evaluation time and B1ms IOPS pressure low (per #28).
 - Short-circuit on `SCORE_THRESHOLD` (default 70) stops work the moment a case is guaranteed, and uses the same value the case-creation decision uses — no two-threshold drift (per #30).
 - Shared `EvaluationContext` enables future rules without re-architecture.
@@ -165,8 +165,8 @@ These defaults are not magic numbers in code or hardcoded in business logic — 
 ## References
 
 - `ASSIGNMENT.md` §B, §C — rules and explainer
-- `architecture/01-overview.md` — module responsibilities
-- `patterns/04-pipeline-pattern.md` — Pipeline Pattern specification (mirror of the two-stage + short-circuit + rawEvidence contracts)
+- `../architecture/01-overview.md` — module responsibilities
+- `../patterns/04-pipeline-pattern.md` — Pipeline Pattern specification (mirror of the two-stage + short-circuit + rawEvidence contracts)
 - Historical GitHub Issue [Team-Centinela/Centinela-docs#5](https://github.com/Team-Centinela/Centinela-docs/issues/5) (existing ADR draft) — superseded
 - [#13](https://github.com/Team-Centinela/Centinela-Code/issues/13) ADR-004 issue tracker — Supersedes [Team-Centinela/Centinela-docs#5](https://github.com/Team-Centinela/Centinela-docs/issues/5)
 - [#11](https://github.com/Team-Centinela/Centinela-Code/issues/11) ADR-002 (postgresql-only) — Postgres JSONB store for evidence

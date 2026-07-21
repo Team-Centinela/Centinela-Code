@@ -42,7 +42,7 @@ Technologies selected and the rationale for each choice.
 - Scales to **zero replicas** when there is no traffic; the first 180,000 vCPU-seconds, 360,000 GiB-seconds, and 2 M requests / month per subscription are free, keeping compute spend effectively nil for bursty workloads inside the $60 budget.
 - Built-in KEDA scalers (no YAML of our own beyond the `az containerapp update ... --scale-rule-type azure-servicebus` form) make cold-start recovery an Azure-managed concern.
 - One Azure Container Apps **Environment** hosts the four backends together, sharing the same VNet (none currently used) and unified observability wiring through Application Insights.
-- See `decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md` for the full decision record, alternatives analysis, and cost comparison.
+- See `../decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md` for the full decision record, alternatives analysis, and cost comparison.
 
 ### Spring Boot (Java 21)
 - Team already knows Java and Spring ecosystem
@@ -59,7 +59,7 @@ Technologies selected and the rationale for each choice.
 - ACID compliance for transactional fraud data
 - PostGIS extension enables geolocation-based fraud checks
 - Hash partitioning by `accountId` resolves the "Get recent transactions for account X" access pattern
-- `JSONB` columns store flexible rule evidence payload (`patterns/04-pipeline-pattern.md`)
+- `JSONB` columns store flexible rule evidence payload (`../patterns/04-pipeline-pattern.md`)
 - Automated backups, point-in-time restore, and high-availability options
 - Single engine for the entire system (ADR-002 supersedes earlier polyglot proposals)
 

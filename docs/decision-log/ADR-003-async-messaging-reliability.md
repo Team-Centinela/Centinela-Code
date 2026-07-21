@@ -2,7 +2,7 @@
 
 ## Context
 
-Cross-module coordination in the modular monolith must be async by rule (`architecture/02-modular-monolith.md` § Communication Rules). The async layer must:
+Cross-module coordination in the modular monolith must be async by rule (`../architecture/02-modular-monolith.md` § Communication Rules). The async layer must:
 
 1. Guarantee at-least-once delivery for every domain event (no silent drops).
 2. Survive transient broker outages without needing distributed transactions.
@@ -36,11 +36,11 @@ Three small decisions are bundled under this ADR: message broker choice, transpo
 
 Why the binder (not raw SDK): the Spring Cloud Azure Service Bus binder is queue/topic-aware, integrates with `spring-cloud-stream` declarative bindings, and gives us idempotency primitives (NACK vs ACK) aligned with ADR-003 §3.3. Raw `com.azure:azure-messaging-servicebus` is reserved for places where the binder model is too restrictive (e.g. session-keyed-by-`aggregateId` for in-order per-aggregate processing). Versions must appear in build files on **Day 1** and may not be bumped during Sprint 1 without an ADR amendment issue.
 
-**Tunnel**: Service Bus Standard is required by the architecture, not Basic. The `architecture/06-technology-stack.md` and `architecture/04-event-driven-communication.md` files adopt this tier; any cost projection cited from earlier drafts that mentioned "Basic" must be corrected — the cost line increases by ~$7 over the project window, well under budget.
+**Tunnel**: Service Bus Standard is required by the architecture, not Basic. The `../architecture/06-technology-stack.md` and `../architecture/04-event-driven-communication.md` files adopt this tier; any cost projection cited from earlier drafts that mentioned "Basic" must be corrected — the cost line increases by ~$7 over the project window, well under budget.
 
 ### 3.2 Outbox Pattern is mandatory for every service that publishes a domain event
 
-To avoid the dual-write problem across multiple modules, every module publishing a domain event uses the Outbox Pattern documented in `patterns/03-outbox-pattern.md`:
+To avoid the dual-write problem across multiple modules, every module publishing a domain event uses the Outbox Pattern documented in `../patterns/03-outbox-pattern.md`:
 
 ```
 Business Table Write + Outbox Insert (same ACID transaction)
@@ -165,8 +165,8 @@ The ADR text **does not** carry `max_delivery_count = 3` literal into Java/Pytho
 
 ## References
 
-- `architecture/04-event-driven-communication.md` — domain event catalog
-- `patterns/03-outbox-pattern.md` — full Outbox Pattern implementation
+- `../architecture/04-event-driven-communication.md` — domain event catalog
+- `../patterns/03-outbox-pattern.md` — full Outbox Pattern implementation
 - Historical GitHub Issue [Team-Centinela/Centinela-docs#4](https://github.com/Team-Centinela/Centinela-docs/issues/4) (existing ADR draft on messaging) — superseded
 - [#12](https://github.com/Team-Centinela/Centinela-Code/issues/12) ADR-003 issue tracker — Supersedes [Team-Centinela/Centinela-docs#4](https://github.com/Team-Centinela/Centinela-docs/issues/4)
 - `ASSIGNMENT.md` §T.1, §T.3 — inter-component contract

@@ -1,7 +1,7 @@
 # ADR-001: Modular Monolith with Hexagonal Architecture
 
 ## Status
-**ACCEPTED** — Ratified during Sprint 0 ADR review (#16). See `architecture/03-hexagonal-architecture.md` for the canonical package layout.
+**ACCEPTED** — Ratified during Sprint 0 ADR review (#16). See `../architecture/03-hexagonal-architecture.md` for the canonical package layout.
 
 ## Context
 
@@ -12,7 +12,7 @@ Building a real-time fraud detection engine with budget constraints, a small tea
 Adopt **Modular Monolith + Hexagonal Architecture**:
 
 1. **Deployment**: Single Spring Boot application (the monolith)
-2. **Internal structure**: Each module follows Hexagonal Architecture with Ports & Adapters as specified in `architecture/03-hexagonal-architecture.md`
+2. **Internal structure**: Each module follows Hexagonal Architecture with Ports & Adapters as specified in `../architecture/03-hexagonal-architecture.md`
 3. **Cross-module communication**:
    - **In-monolith** modules coordinate via Spring's `ApplicationEventPublisher` (in-process, transactional listener). The publisher writes to the outbox in the same ACID transaction.
    - **Cross-deployment** hops (Ingestion API, Serverless Engine, OCR Worker, future microservices) use Azure Service Bus. The Outbox publisher relays events from the outbox table to the broker.
@@ -44,10 +44,10 @@ Adopt **Modular Monolith + Hexagonal Architecture**:
 
 ## References
 
-- `architecture/03-hexagonal-architecture.md` — canonical package layout per module (ratified via #31)
-- `architecture/04-event-driven-communication.md` — in-process + out-of-process event flow (ratified via #32)
-- ADR-002: Unified PostgreSQL Persistence (`decision-log/ADR-002-postgresql-only-db.md`)
-- ADR-003: Async Messaging & Reliability (`decision-log/ADR-003-async-messaging-reliability.md`)
-- ADR-004: Rule Engine — Pipeline Pattern (`decision-log/ADR-004-rule-engine-pipeline-explainer.md`)
-- ADR-005: Monorepo Unification (`decision-log/ADR-005-monorepo-unification.md`)
-- `architecture/01-overview.md` — system-level narrative of this ADR
+- `../architecture/03-hexagonal-architecture.md` — canonical package layout per module (ratified via #31)
+- `../architecture/04-event-driven-communication.md` — in-process + out-of-process event flow (ratified via #32)
+- ADR-002: Unified PostgreSQL Persistence (`ADR-002-postgresql-only-db.md`)
+- ADR-003: Async Messaging & Reliability (`ADR-003-async-messaging-reliability.md`)
+- ADR-004: Rule Engine — Pipeline Pattern (`ADR-004-rule-engine-pipeline-explainer.md`)
+- ADR-005: Monorepo Unification (`ADR-005-monorepo-unification.md`)
+- `../architecture/01-overview.md` — system-level narrative of this ADR

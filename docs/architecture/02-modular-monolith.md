@@ -42,7 +42,7 @@ module-name/
 
 > The Rule Engine is **not** an in-monolith module. It lives in its own extracted service — the *Serverless Engine* — per the qualification criteria in `architecture/05-selective-extraction.md`. It uses the same hexagonal layering and the same event contracts as the modules shown here.
 
-> Storage justification for choosing a single PostgreSQL engine is consolidated in `decision-log/ADR-002-postgresql-only-db.md`.
+> Storage justification for choosing a single PostgreSQL engine is consolidated in `../decision-log/ADR-002-postgresql-only-db.md`.
 
 ## Communication Rules Between Modules
 

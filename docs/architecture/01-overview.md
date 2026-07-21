@@ -86,10 +86,10 @@ Real-time fraud detection is the user-facing promise (§ASSIGNMENT.md §1.2). Th
 |---|---|---|
 | **Compute** | All four Container Apps at ≥1 replica; KEDA-driven scale-out for the Serverless Engine and OCR Worker. | Container Apps scale to zero replicas. **No compute cost.** |
 | **Database** | B1ms PostgreSQL Flexible Server **running**. CRUD + Outbox Publisher work normally. | B1ms PostgreSQL Flexible Server **stopped** via Azure Automation runbook (`#10`). Ingestion API returns `503` + `Retry-After` until next planned start. |
-| **Outbox Publisher** | Drains `outbox_events` every 1 s (`patterns/03-outbox-pattern.md`). | Paused (DB offline). Restarts on the first poll after `start` and drains the backlog in seconds. |
+| **Outbox Publisher** | Drains `outbox_events` every 1 s (`../patterns/03-outbox-pattern.md`). | Paused (DB offline). Restarts on the first poll after `start` and drains the backlog in seconds. |
 | **Service Bus** | Standard tier, always on (≈$7/21 d; required for Topics). | Standard tier, always on. Messages remain on the broker; consumers are idle. |
 
-The Outbox Pattern is **safe across planned DB restarts** because no events can be inserted while the DB is offline (the writer's `BEGIN` fails). On restart, the Outbox Publisher's existing `SELECT … WHERE status='PENDING'` enumerates every backlog row and drains it. Consumer-side idempotency (`patterns/06-idempotency-key.md`) absorbs the post-restart burst. Detailed phase-by-phase table: `patterns/03-outbox-pattern.md` §"Behavior under planned PostgreSQL downtime". See `decision-log/ADR-002-postgresql-only-db.md` §"Planned DB downtime & outbox restart-drain".
+The Outbox Pattern is **safe across planned DB restarts** because no events can be inserted while the DB is offline (the writer's `BEGIN` fails). On restart, the Outbox Publisher's existing `SELECT … WHERE status='PENDING'` enumerates every backlog row and drains it. Consumer-side idempotency (`../patterns/06-idempotency-key.md`) absorbs the post-restart burst. Detailed phase-by-phase table: `../patterns/03-outbox-pattern.md` §"Behavior under planned PostgreSQL downtime". See `../decision-log/ADR-002-postgresql-only-db.md` §"Planned DB downtime & outbox restart-drain".
 
 ## Related Documents
 

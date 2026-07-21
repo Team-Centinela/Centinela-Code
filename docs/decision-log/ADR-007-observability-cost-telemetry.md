@@ -49,7 +49,7 @@ Every service boundary (HTTP ingress, Service Bus publish/consume, DB query) pro
 | **OCR Worker → Document Intelligence (HTTP)** | `opentelemetry-instrument` injects `traceparent` on outbound HTTP. |
 | **SWA (browser) → Core Backend (HTTP)** | `@microsoft/applicationinsights-web` sends `traceparent` header; Spring extracts. |
 
-**Correlation ID** (`correlationId` in domain event envelope, `architecture/04-event-driven-communication.md` §Message Contract) is **business-level**, distinct from `traceparent` (infrastructure-level). Both are logged. `correlationId` = `transactionId` for the ingestion saga; `traceparent` stitches the infra hops.
+**Correlation ID** (`correlationId` in domain event envelope, `../architecture/04-event-driven-communication.md` §Message Contract) is **business-level**, distinct from `traceparent` (infrastructure-level). Both are logged. `correlationId` = `transactionId` for the ingestion saga; `traceparent` stitches the infra hops.
 
 **Span naming convention** (for queryability in Log Analytics):
 
@@ -95,7 +95,7 @@ The following **custom metrics** (Micrometer `MeterFilter` + `Counter`/`Gauge` i
 
 ### 7.4 Business Metrics — Custom Metrics in Application Insights
 
-The following **business metrics** (from `best-practices/04-logging-and-monitoring.md` §Custom Metrics) are emitted alongside the cost telemetry. They use the same Micrometer / OpenTelemetry pipeline and share the same dimensions (`service.name`, `deployment.environment`).
+The following **business metrics** (from `../best-practices/04-logging-and-monitoring.md` §Custom Metrics) are emitted alongside the cost telemetry. They use the same Micrometer / OpenTelemetry pipeline and share the same dimensions (`service.name`, `deployment.environment`).
 
 | Metric Name | Type | Dimensions | Source | Description |
 |---|---|---|---|---|
@@ -110,7 +110,7 @@ The following **business metrics** (from `best-practices/04-logging-and-monitori
 
 ### 7.5 Audit Log — Immutable State-Change Trail
 
-Per `ASSIGNMENT.md` §E ("audit-by-design") and `architecture/01-overview.md` §Operational Posture, every state change to a **Case** or **Alert** writes an `audit_log` row in the same PostgreSQL schema (`cases` / `alerts`).
+Per `ASSIGNMENT.md` §E ("audit-by-design") and `../architecture/01-overview.md` §Operational Posture, every state change to a **Case** or **Alert** writes an `audit_log` row in the same PostgreSQL schema (`cases` / `alerts`).
 
 | Column | Type | Description |
 |---|---|---|
@@ -131,7 +131,7 @@ Per `ASSIGNMENT.md` §E ("audit-by-design") and `architecture/01-overview.md` §
 
 ### 7.6 Saga Correlation — Linking Traces to Business Flows
 
-`patterns/05-saga-pattern.md` line 66 requires distributed tracing for saga visibility. This ADR provides it via:
+`../patterns/05-saga-pattern.md` line 66 requires distributed tracing for saga visibility. This ADR provides it via:
 
 | Saga | Business `correlationId` | Infrastructure `traceparent` | Linkage |
 |---|---|---|---|
@@ -221,7 +221,7 @@ env {
 }
 ```
 
-**Structured logging**: All services log JSON to stdout (ACA captures to Log Analytics). Fields: `timestamp`, `level`, `logger`, `message`, `traceId`, `spanId`, `service.name`, `correlationId` (when available). `LogstashEncoder` (Spring) / `structlog.processors.JSONRenderer` (Python). No PII in logs (enforced by `LogSanitizer` filter in `best-practices/04-logging-and-monitoring.md`).
+**Structured logging**: All services log JSON to stdout (ACA captures to Log Analytics). Fields: `timestamp`, `level`, `logger`, `message`, `traceId`, `spanId`, `service.name`, `correlationId` (when available). `LogstashEncoder` (Spring) / `structlog.processors.JSONRenderer` (Python). No PII in logs (enforced by `LogSanitizer` filter in `../best-practices/04-logging-and-monitoring.md`).
 
 ## Consequences
 
@@ -263,12 +263,12 @@ env {
 ## References
 
 - `ASSIGNMENT.md` §1.5 (Observability), §1.6 (Cost-efficient), §3 (Budget)
-- `architecture/06-technology-stack.md` — Application Insights, Key Vault, ACA Consumption
-- `architecture/04-event-driven-communication.md` — Event envelope with `correlationId`
-- `patterns/05-saga-pattern.md` — Distributed tracing reference for saga visibility
-- `best-practices/04-logging-and-monitoring.md` — Structured logging, log sanitization, correlation ID propagation
-- `decision-log/ADR-003-async-messaging-reliability.md` — Service Bus message properties for trace propagation
-- `decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md` — ACA Environment, SWA
+- `../architecture/06-technology-stack.md` — Application Insights, Key Vault, ACA Consumption
+- `../architecture/04-event-driven-communication.md` — Event envelope with `correlationId`
+- `../patterns/05-saga-pattern.md` — Distributed tracing reference for saga visibility
+- `../best-practices/04-logging-and-monitoring.md` — Structured logging, log sanitization, correlation ID propagation
+- `ADR-003-async-messaging-reliability.md` — Service Bus message properties for trace propagation
+- `ADR-009-compute-substrate-container-apps-static-web-apps.md` — ACA Environment, SWA
 - `infrastructure/README.md` — Cost guardrails table, budget alarms
 - `infrastructure/dashboards/cost-telemetry.json` — Workbook provisioned by Terraform
 - W3C TraceContext: <https://www.w3.org/TR/trace-context/>

@@ -2,7 +2,7 @@
 
 This directory holds the runtime services of the Centinela fraud detection platform.
 
-Per ADR-001 (`docs/decision-log/ADR-001-modular-monolith-hexagonal.md`), the default posture is a **Modular Monolith** with selective extraction. Services that have been pre-extracted (per ADR-001 §"Extracted services" and `docs/architecture/05-selective-extraction.md`) live in their own subdirectories here.
+Per ADR-001 (`../docs/decision-log/ADR-001-modular-monolith-hexagonal.md`), the default posture is a **Modular Monolith** with selective extraction. Services that have been pre-extracted (per ADR-001 §"Extracted services" and `../docs/architecture/05-selective-extraction.md`) live in their own subdirectories here.
 
 | Service | Technology | Reason | What it owns |
 |---|---|---|---|
@@ -12,8 +12,8 @@ Per ADR-001 (`docs/decision-log/ADR-001-modular-monolith-hexagonal.md`), the def
 | `ocr-worker/`        | FastAPI (Python 3.12) on Azure Container Apps (Consumption, KEDA `azure-servicebus` scaler) | Azure AI Document Intelligence SDK is Python-first | `documents` blob + metadata flow |
 | `frontend/`          | Static SPA on Azure Static Web Apps | Analyst dashboard served from CDN | — |
 
-See `docs/architecture/01-overview.md` for the full system map and
-`docs/architecture/05-selective-extraction.md` for the extraction playbook.
+See `../docs/architecture/01-overview.md` for the full system map and
+`../docs/architecture/05-selective-extraction.md` for the extraction playbook.
 
 > Per AGENTS.md §"Persistent vs Temporal", these service directories are intended for code only. Issues, status, and progress live as GitHub Issues — do not write markdown files inside service folders unless they are persistent references (e.g. internal-README, generated API docs).
 

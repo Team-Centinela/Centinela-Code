@@ -20,7 +20,7 @@ Decision drivers:
 1. **Budget**: $60 / 21 days — no API Management tier, no dedicated identity provider. Use Azure-native, zero-additional-cost auth mechanisms.
 2. **Operational simplicity**: 4-person team, no SRE. Managed identity eliminates secret rotation for service-to-service. SWA built-in auth eliminates custom login code for the analyst portal.
 3. **Compliance** (`ASSIGNMENT.md` §E, §T.4): API keys must be rotatable, auditable, and stored encrypted. `Idempotency-Key` must be enforced at the HTTP boundary per RFC 9110 §9.3.1.
-4. **Module boundary discipline** (`architecture/02-modular-monolith.md`): Auth logic lives in the **Auth module** (`auth` schema) inside the Core Backend monolith; extracted services consume it via managed identity, not by sharing the schema.
+4. **Module boundary discipline** (`../architecture/02-modular-monolith.md`): Auth logic lives in the **Auth module** (`auth` schema) inside the Core Backend monolith; extracted services consume it via managed identity, not by sharing the schema.
 
 ## Decision
 
@@ -65,7 +65,7 @@ CREATE INDEX ON auth.idempotency_keys (created_at) WHERE created_at > NOW() - IN
 
 TTL: 24 hours. A nightly cron (`@Scheduled(cron="0 3 * * *")`) deletes rows older than 24 h.
 
-**Why not Service Bus deduplication alone?** Service Bus de-dup is broker-level (sliding window, `messageId`). The HTTP contract requires **application-level** idempotency visible to the client (replay with same key returns same response). See `patterns/06-idempotency-key.md` §"Idempotency by Layer".
+**Why not Service Bus deduplication alone?** Service Bus de-dup is broker-level (sliding window, `messageId`). The HTTP contract requires **application-level** idempotency visible to the client (replay with same key returns same response). See `../patterns/06-idempotency-key.md` §"Idempotency by Layer".
 
 ### 6.3 Azure Key Vault — Secret Management
 
@@ -83,7 +83,7 @@ All secrets live in a single Key Vault (`centinela-kv-<env>`). Access policies:
 - Terraform state (Key Vault references via `azurerm_key_vault_secret` data sources only)
 - Docker images
 - GitHub repo (`.env`, `application.yml`, `settings.xml`)
-- Application Insights logs (sanitized by `LogFilter` in `best-practices/04-logging-and-monitoring.md`)
+- Application Insights logs (sanitized by `LogFilter` in `../best-practices/04-logging-and-monitoring.md`)
 
 ### 6.4 Auth Module Boundary (Core Backend Monolith)
 
@@ -172,13 +172,13 @@ public interface ApiKeyRepository {
 ## References
 
 - `ASSIGNMENT.md` §E (Persistence strategy), §T.4 (Architectural justification), §3 (Budget)
-- `architecture/02-modular-monolith.md` — Module boundaries, schema-per-module
-- `architecture/03-hexagonal-architecture.md` — Port/adapter contracts for Auth module
-- `architecture/06-technology-stack.md` — Key Vault, ACA MI, SWA auth
-- `patterns/06-idempotency-key.md` — Idempotency layers, HTTP `Idempotency-Key` header
-- `decision-log/ADR-002-postgresql-only-db.md` — PostgreSQL Azure AD auth
-- `decision-log/ADR-003-async-messaging-reliability.md` — Service Bus access via MI
-- `decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md` — ACA MI, SWA auth
+- `../architecture/02-modular-monolith.md` — Module boundaries, schema-per-module
+- `../architecture/03-hexagonal-architecture.md` — Port/adapter contracts for Auth module
+- `../architecture/06-technology-stack.md` — Key Vault, ACA MI, SWA auth
+- `../patterns/06-idempotency-key.md` — Idempotency layers, HTTP `Idempotency-Key` header
+- `ADR-002-postgresql-only-db.md` — PostgreSQL Azure AD auth
+- `ADR-003-async-messaging-reliability.md` — Service Bus access via MI
+- `ADR-009-compute-substrate-container-apps-static-web-apps.md` — ACA MI, SWA auth
 - `infrastructure/README.md` — Cost guardrails, Key Vault ownership
 - RFC 9110 §9.3.1 — `Idempotency-Key` header semantics
 - Issues: [#3](https://github.com/Team-Centinela/Centinela-Code/issues/3) ADR-006 tracker, [#43](https://github.com/Team-Centinela/Centinela-Code/issues/43) epic, [#44–#48](https://github.com/Team-Centinela/Centinela-Code/issues?q=is%3Aopen+label%3Aauth) sub-issues

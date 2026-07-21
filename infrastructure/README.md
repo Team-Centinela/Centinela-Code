@@ -2,7 +2,7 @@
 
 Terraform IaC for the Centinela platform.
 
-Per `architecture/06-technology-stack.md` the key resources are:
+Per `../docs/architecture/06-technology-stack.md` the key resources are:
 
 | Resource | Notes |
 |---|---|

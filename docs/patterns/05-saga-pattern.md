@@ -4,7 +4,7 @@ For multi-step business operations that cross module boundaries — such as "tra
 
 ## Why This Matters in Centinela
 
-The end-to-end pipeline in `architecture/04-event-driven-communication.md` is a long-running, multi-actor process:
+The end-to-end pipeline in `../architecture/04-event-driven-communication.md` is a long-running, multi-actor process:
 
 ```
 Transaction Received (Ingestion API)
@@ -48,7 +48,7 @@ Compensating actions are **explicit** documented code paths, never implicit. ADR
 
 Distinct concerns:
 
-- **Outbox** (`patterns/03-outbox-pattern.md`): guarantees *each module's* local write + event is atomic. A module building block, not a cross-module coordination primitive.
+- **Outbox** (`03-outbox-pattern.md`): guarantees *each module's* local write + event is atomic. A module building block, not a cross-module coordination primitive.
 - **Saga**: orchestrates a business workflow across modules over async events. A cross-module coordination primitive.
 
 Both are required and they layer on each other: **saga steps run inside outbox-protected handlers**.
@@ -69,9 +69,9 @@ For a **21-day project with 4 people**, choreography is the only viable option; 
 
 ## References
 
-- `architecture/04-event-driven-communication.md` — event catalog
-- `patterns/03-outbox-pattern.md` — per-handler reliability
-- `best-practices/04-logging-and-monitoring.md` — distributed tracing & correlation IDs
+- `../architecture/04-event-driven-communication.md` — event catalog
+- `03-outbox-pattern.md` — per-handler reliability
+- `../best-practices/04-logging-and-monitoring.md` — distributed tracing & correlation IDs
 
 ## Status
 

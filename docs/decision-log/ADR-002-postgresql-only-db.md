@@ -13,7 +13,7 @@
 Two competing storage strategies have been proposed:
 
 1. **Polyglot** (historical draft — [Team-Centinela/Centinela-docs#3](https://github.com/Team-Centinela/Centinela-docs/issues/3), now closed): Azure Cosmos DB for transactions, PostgreSQL for cases, Azure Blob Storage for documents.
-2. **Unified PostgreSQL** (`architecture/06-technology-stack.md` + `architecture/02-modular-monolith.md`): one PostgreSQL Flexible Server with schema-per-module; one Blob Storage account for documents only.
+2. **Unified PostgreSQL** (`../architecture/06-technology-stack.md` + `../architecture/02-modular-monolith.md`): one PostgreSQL Flexible Server with schema-per-module; one Blob Storage account for documents only.
 
 The two proposals contradict each other and must be reconciled before Sprint 1 begins.
 
@@ -21,9 +21,9 @@ The two proposals contradict each other and must be reconciled before Sprint 1 b
 
 1. **Budget**: $60 USD hard limit over 21 days. Cosmos DB Serverless + PostgreSQL + Blob Storage are individually cheap, but operating two data engines for one data class is wasted spend.
 2. **Operational simplicity** (`ASSIGNMENT.md` §T.1): 4-person team in 3 weeks, no SRE.
-3. **Reporting** (`architecture/02-modular-monolith.md`): Reporting module reads from the **primary** PostgreSQL Flexible Server via read-only DB role. Joining across data classes (e.g. case → account → transactions) requires a single engine. A read-replica was dropped from scope — see issue #24 and Considerations §Read-replica removal rationale below.
-4. **Service Bus + Outbox** (`patterns/03-outbox-pattern.md`): the outbox table is already PostgreSQL. A polyglot strategy would force the previous-Service-Bus observers to either (a) read from Cosmos to build the outbox or (b) maintain two transactional origins per event.
-5. **PostGIS extension** (`architecture/06-technology-stack.md`): geolocation checks (`FR-3 Impossible Location`) require spatial queries that PostgreSQL handles natively via PostGIS.
+3. **Reporting** (`../architecture/02-modular-monolith.md`): Reporting module reads from the **primary** PostgreSQL Flexible Server via read-only DB role. Joining across data classes (e.g. case → account → transactions) requires a single engine. A read-replica was dropped from scope — see issue #24 and Considerations §Read-replica removal rationale below.
+4. **Service Bus + Outbox** (`../patterns/03-outbox-pattern.md`): the outbox table is already PostgreSQL. A polyglot strategy would force the previous-Service-Bus observers to either (a) read from Cosmos to build the outbox or (b) maintain two transactional origins per event.
+5. **PostGIS extension** (`../architecture/06-technology-stack.md`): geolocation checks (`FR-3 Impossible Location`) require spatial queries that PostgreSQL handles natively via PostGIS.
 
 ### Cost comparison (3-week Azure spend)
 
@@ -56,7 +56,7 @@ Both strategies fit the $60 budget. The cost gap is, on its own, **not** the dec
 | FraudCases, AuditLog, Users, RuleConfigs | PostgreSQL various schemas | Schema-per-module | Relational queries, FK joins |
 | VerificationDocuments metadata | PostgreSQL `documents` schema | Schema-per-module | Relational queries, FK joins |
 | Verification document blobs | Azure Blob Storage | Container `documents-worm` — **7-year time-based immutable policy** (legal-hold disabled), LRS Hot; lifecycle: Hot → Cool after 90 days, Cool → Archive after 1 year. Owner: `centinela-platform@…` AAD group. See §WORM policy. | "Write once, read rarely" |
-| Outbox events | PostgreSQL `outbox` schema | — | Required by `patterns/03-outbox-pattern.md` |
+| Outbox events | PostgreSQL `outbox` schema | — | Required by `../patterns/03-outbox-pattern.md` |
 
 **Cosmos DB is not used in any capacity.** The historical polyglot proposal at [Team-Centinela/Centinela-docs#3](https://github.com/Team-Centinela/Centinela-docs/issues/3) is superseded.
 
@@ -92,12 +92,12 @@ The read-replica remains an **ADR-amendable** option for V2 (Sprint 4+) once tra
 
 `ASSIGNMENT.md` §3 (Constraints) explicitly states *"Resource cleanup/shutdown is required when not actively testing (to avoid burning budget over weekends)"*. To act on that constraint at minimal cost we use the B1ms **PostgreSQL Flexible Server Stop/Start capability**: a scheduled Azure Automation runbook (or `az postgres flexible-server stop`) puts the database into a stopped state during non-testing hours (weekday nights + weekends, ~12 h/day). The cost-comparison row above reflects this.
 
-This has a direct interaction with the Outbox Pattern mandated by `ADR-003` – `patterns/03-outbox-pattern.md`. The two designs are **compatible**, because:
+This has a direct interaction with the Outbox Pattern mandated by `ADR-003` – `../patterns/03-outbox-pattern.md`. The two designs are **compatible**, because:
 
 1. While PostgreSQL is stopped, **no service can write to it** — the Ingestion API (which writes to the `oltp` schema and the `outbox` schema in the same ACID transaction) returns `503 Service Unavailable`. No new `outbox_events` rows can be inserted during this window, so no events are "in flight" without an active writer.
 2. `outbox_events` rows inserted in the last write transaction **before** stop remain in `status='PENDING'` on the stopped database's storage. The Outbox Publisher does not need the database to remain *running* for events to be safe — it only needs the database to be *available* when it is time to drain.
 3. When the Elastic Job / Azure Automation runbook issues `start`, PostgreSQL comes back online typically within 60–120 s. On its first poll after restart, each Outbox Publisher (Ingestion API, Serverless Engine worker, Core Backend) runs the existing `SELECT … ORDER BY created_at` query and drains the entire backlog. The `@Scheduled(fixedDelay = 1000)` cadence converges the backlog to `SENT` in seconds, not hours.
-4. Service Bus receives the burst of events that accumulated during downtime shortly after restart; downstream consumers (Serverless Engine, OCR Worker) process them with no special handling beyond the consumer-side idempotency already mandated by `patterns/06-idempotency-key.md`.
+4. Service Bus receives the burst of events that accumulated during downtime shortly after restart; downstream consumers (Serverless Engine, OCR Worker) process them with no special handling beyond the consumer-side idempotency already mandated by `../patterns/06-idempotency-key.md`.
 
 **Out of scope during the DB-down window:** clients that POST to the Ingestion API receive `503` with a `Retry-After` header. This is consistent with the "Real-Time" requirement in `ASSIGNMENT.md` §1.2 because tests are not executed during scheduled downtime; when the team is actively testing, PostgreSQL is running (see #10 — the auto-stop schedule excludes business-hours test blocks).
 
@@ -129,7 +129,7 @@ A previous revision of this ADR listed "(no auto-stop, always-on to host outbox)
 | Cross-schema boundary leakage | Flyway migrations are namespaced per schema; CI rejects any migration referencing another module's schema. |
 | Reporting accidental writes against the primary | Provision a `reporting_reader` PostgreSQL role with `SELECT`-only grants; Reporting service connection string uses this role. CI denies DDL/DML through that role. |
 | Hash-partition hot spots | Use modulo 16 hashing by default; for V2, rebalance to range/hash composite if hotspot observed. |
-| Outbox noise | Clean up `outbox_events WHERE status='SENT' AND sent_at < NOW() - INTERVAL '7 days'` weekly (`patterns/03-outbox-pattern.md`). |
+| Outbox noise | Clean up `outbox_events WHERE status='SENT' AND sent_at < NOW() - INTERVAL '7 days'` weekly (`../patterns/03-outbox-pattern.md`). |
 | Blob lifecycle confusion with immutability | Document in IaC comments; lifecycle rule sets `tier_to_cool` after 90d and `tier_to_archive` after 365d; immutability policy remains fixed at 7y. |
 
 ## Alternatives considered
@@ -144,10 +144,10 @@ A previous revision of this ADR listed "(no auto-stop, always-on to host outbox)
 ## References
 
 - `ASSIGNMENT.md` §E — Persistence strategy requirement
-- `architecture/02-modular-monolith.md` — Schema-per-module rule
-- `architecture/06-technology-stack.md` — Technology stack baseline
-- `patterns/03-outbox-pattern.md` — Outbox Pattern in PostgreSQL
-- `architecture/04-event-driven-communication.md` — Domain Events
+- `../architecture/02-modular-monolith.md` — Schema-per-module rule
+- `../architecture/06-technology-stack.md` — Technology stack baseline
+- `../patterns/03-outbox-pattern.md` — Outbox Pattern in PostgreSQL
+- `../architecture/04-event-driven-communication.md` — Domain Events
 - Historical GitHub Issue [Team-Centinela/Centinela-docs#3](https://github.com/Team-Centinela/Centinela-docs/issues/3) (polyglot draft) — superseded
 - Historical GitHub Issue [Team-Centinela/Centinela-docs#7](https://github.com/Team-Centinela/Centinela-docs/issues/7) (Observability/Cost draft) — supersedes the cost rows for Cosmos DB
 - [#4](https://github.com/Team-Centinela/Centinela-Code/issues/4) Sprint 1 — actions updated; no Cosmos module to provision in Week 1

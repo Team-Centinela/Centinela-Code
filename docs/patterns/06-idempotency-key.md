@@ -71,9 +71,9 @@ A second layer of consumer-side idempotency is mandatory.
 
 ## References
 
-- `patterns/03-outbox-pattern.md` — Outbox Pattern (uses idempotency implicitly)
-- `architecture/04-event-driven-communication.md` — domain event envelope
-- `architecture/06-technology-stack.md` — Service Bus Standard tier (requires for `enableDuplicateDetection`)
+- `03-outbox-pattern.md` — Outbox Pattern (uses idempotency implicitly)
+- `../architecture/04-event-driven-communication.md` — domain event envelope
+- `../architecture/06-technology-stack.md` — Service Bus Standard tier (requires for `enableDuplicateDetection`)
 - ADR-006 (Security & Auth) — HTTP `Idempotency-Key` header on Ingestion
 
 ## Status

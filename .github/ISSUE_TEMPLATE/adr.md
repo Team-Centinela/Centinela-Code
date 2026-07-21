@@ -12,7 +12,7 @@ labels: ["adr", "draft"]
 ## Persistent location
 
 <!-- REQUIRED: relative path to the ADR file under docs/decision-log/. -->
-<!--   Example:  decision-log/ADR-006-security-auth.md -->
+<!--   Example:  docs/decision-log/ADR-006-security-auth.md -->
 
 ## Context
 
@@ -34,4 +34,4 @@ labels: ["adr", "draft"]
 <!-- REQUIRED: link the related ADRs and sprints the decision enables/blocks. -->
 <!--   - ADR-008 (patching) -->
 <!--   - [Sprint X](#Y) -->
-<!--   - architecture/02-modular-monolith.md -->
+<!--   - docs/architecture/02-modular-monolith.md -->

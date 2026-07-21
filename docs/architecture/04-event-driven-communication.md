@@ -6,7 +6,7 @@ Modules and services communicate asynchronously by publishing and consuming **Do
 
 Direct inter-module calls create tight coupling: if the Rule Engine is down, Transaction ingestion blocks. Synchronous calls also make it impossible to extract modules into separate services later. Event-driven communication decouples producers from consumers — each module operates independently and reacts to events at its own pace.
 
-> Broker tier, deduplication, and outbox semantics are codified in `decision-log/ADR-003-async-messaging-reliability.md`.
+> Broker tier, deduplication, and outbox semantics are codified in `../decision-log/ADR-003-async-messaging-reliability.md`.
 
 ## Event Flow
 

@@ -55,11 +55,11 @@ A module is a candidate if it meets **two or more** of these:
 ## How to Extract a Module (Playbook)
 
 1. **Verify boundaries** — ensure the module has no compile-time dependencies on other modules. Read `architecture/03-hexagonal-architecture.md`.
-2. **Keep events** — cross-module communication already uses Service Bus; no changes needed. See `decision-log/ADR-003-async-messaging-reliability.md`.
+2. **Keep events** — cross-module communication already uses Service Bus; no changes needed. See `../decision-log/ADR-003-async-messaging-reliability.md`.
 3. **Extract database** — move the module's schema to its dedicated database or server if required. Schema-per-module isolation (`architecture/02-modular-monolith.md`) makes this a controller layer change.
 4. **Containerize** — create Docker image and CI/CD pipeline (see [#8](https://github.com/Team-Centinela/Centinela-Code/issues/8)).
 5. **Wire the runtime** — for a Spring Boot service that triggered extraction, target Azure Container Apps Consumption with a KEDA scaler bound to the inbound queue (`azure-servicebus` scaler for queue/topic consumers, `http` scaler for REST APIs). The `infrastructure/README.md` §Service Bus ownership mirrors the queue/topic wiring so IaC can enforce the contract.
-6. **Add resilience** — implement the Outbox Pattern (mandatory per ADR-003 §3.2) and consumer-side idempotency (`patterns/06-idempotency-key.md`). Cold-start of an Azure Container Apps replica is a sub-second event for our workloads; no extra circuit breaker is required at the queue boundary.
+6. **Add resilience** — implement the Outbox Pattern (mandatory per ADR-003 §3.2) and consumer-side idempotency (`../patterns/06-idempotency-key.md`). Cold-start of an Azure Container Apps replica is a sub-second event for our workloads; no extra circuit breaker is required at the queue boundary.
 7. **Route traffic** — add API gateway routing only if the service needs its own HTTP endpoint (e.g., the Ingestion API's `POST /api/v1/transactions`); KEDA handles the event-driven services.
 
-> Authority: `decision-log/ADR-001-modular-monolith-hexagonal.md` defines the generous "Selective Extraction" criteria; the Serverless Engine is the third service extracted under those criteria. Future extraction decisions consult that ADR before action.
+> Authority: `../decision-log/ADR-001-modular-monolith-hexagonal.md` defines the generous "Selective Extraction" criteria; the Serverless Engine is the third service extracted under those criteria. Future extraction decisions consult that ADR before action.

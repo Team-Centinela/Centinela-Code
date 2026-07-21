@@ -78,7 +78,7 @@ A 3- to 5-line prompt the user can paste into the new session:
 
 ```
 Continue from .context-snapshots/<file>.md. Read AGENTS.md first,
-then this snapshot, then docs/architecture/01-overview.md. Resume
+then this snapshot, then ../../../docs/architecture/01-overview.md. Resume
 work on <file or task>, starting from the open question above.
 ```
 ```

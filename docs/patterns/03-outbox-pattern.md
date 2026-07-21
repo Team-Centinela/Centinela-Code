@@ -2,7 +2,7 @@
 
 Guarantees reliable event delivery to Azure Service Bus without coupling database transactions to broker transactions.
 
-> This pattern is mandated for every service that publishes a domain event: the Ingestion API, the Serverless Engine, and the Core Backend each run their own Outbox Publisher. Authority: `decision-log/ADR-003-async-messaging-reliability.md`. Companion: `patterns/06-idempotency-key.md` for consumer-side dedup.
+> This pattern is mandated for every service that publishes a domain event: the Ingestion API, the Serverless Engine, and the Core Backend each run their own Outbox Publisher. Authority: `../decision-log/ADR-003-async-messaging-reliability.md`. Companion: `../patterns/06-idempotency-key.md` for consumer-side dedup.
 
 ## The Problem
 
@@ -91,14 +91,14 @@ public class OutboxPublisher {
 | **Stop issued** (Azure Automation runbook) | Ingestion API returns `503` with `Retry-After`. Serverless Engine and Core Backend keep their JVMs warm but pending consumer messages sit on Service Bus. | `outbox_events` rows inserted in the last transaction remain in `status='PENDING'`. No new rows can be inserted because the writer's `BEGIN` fails on connection refused. | Outbox Publisher's next poll hits a connection error, logs it at `WARN`, retries on the next tick. |
 | **Stopped window (≤12 h)** | All HTTP ingress returns `503`. | Events from before stop remain on durable storage in `status='PENDING'`. Service Bus queues keep new messages inside Service Bus (broker-side, not PostgreSQL). | None. |
 | **Start issued** (runbook) | Cold-start overhead: ~60–120 s for `READY` state on B1ms. | Rows unchanged. | Publisher reconnects; the existing `SELECT … ORDER BY created_at` query finds every `PENDING` row from before the stop and publishes them. |
-| **First poll after start** | Writers reconnect (Container App warm-up; no cold-start for Spring Boot replicas unless scaled to zero). | The backlog drains in seconds at `@Scheduled(fixedDelay = 1000)` cadence. | Consumers see the burst through Service Bus; consumer-side idempotency (`patterns/06-idempotency-key.md`) prevents duplicate work. |
+| **First poll after start** | Writers reconnect (Container App warm-up; no cold-start for Spring Boot replicas unless scaled to zero). | The backlog drains in seconds at `@Scheduled(fixedDelay = 1000)` cadence. | Consumers see the burst through Service Bus; consumer-side idempotency (`06-idempotency-key.md`) prevents duplicate work. |
 
 **Why this is safe:**
 
 1. The outbox writer is **the same transaction** as the business data write (`INSERT INTO transactions … ; INSERT INTO outbox_events …`). If the writer can reach PostgreSQL, the event is durable; if it can't, the writer's transaction never starts, so the event is also never observed by anyone except the client. There is no in-flight state that bridges a stopped database to a running database without a completed transaction.
 2. PostgreSQL Flexible Server's stop state preserves the data volumes; `outbox_events` rows are not lost across a restart.
 3. The Outbox Publisher does not need to track "which events existed before the stop" — the `SELECT … WHERE status='PENDING'` query enumerates the entire backlog atomically on every poll.
-4. Consumer-side idempotency (mandated by `ADR-003` §3.3 and detailed in `patterns/06-idempotency-key.md`) makes the post-restart burst a non-event from the consumers' perspective; the same `transactionId` arriving twice does not produce two scores or two cases.
+4. Consumer-side idempotency (mandated by `ADR-003` §3.3 and detailed in `06-idempotency-key.md`) makes the post-restart burst a non-event from the consumers' perspective; the same `transactionId` arriving twice does not produce two scores or two cases.
 
 **Operational carve-outs (encoded in the auto-stop schedule, see #10):**
 

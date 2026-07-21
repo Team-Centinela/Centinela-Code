@@ -4,9 +4,9 @@ import com.centinela.corebackend.transaction.domain.model.TransactionId;
 
 import java.time.Instant;
 
-public record TransactionReceivedEvent(TransactionId transactionId, String accountId, Instant occurredAt) {
+public record TransactionReceivedEvent(String transactionId, String accountId, Instant occurredAt) {
 
     public TransactionReceivedEvent(TransactionId transactionId, String accountId) {
-        this(transactionId, accountId, Instant.now());
+        this(transactionId.value().toString(), accountId, Instant.now());
     }
 }

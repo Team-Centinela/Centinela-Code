@@ -8,7 +8,9 @@ import com.centinela.corebackend.account.domain.model.Account;
 import com.centinela.corebackend.account.domain.model.AccountId;
 import com.centinela.corebackend.account.domain.model.InsufficientBalanceException;
 import com.centinela.corebackend.account.domain.port.AccountRepository;
+import com.centinela.corebackend.account.domain.port.OutboxRepository;
 import com.centinela.corebackend.account.infrastructure.persistence.TransferJpaRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,6 +35,9 @@ class AccountServiceTest {
     @Mock
     private TransferJpaRepository transferJpaRepository;
 
+    @Mock
+    private OutboxRepository outboxRepository;
+
     @Captor
     private ArgumentCaptor<Account> accountCaptor;
 
@@ -40,7 +45,8 @@ class AccountServiceTest {
 
     @BeforeEach
     void setUp() {
-        accountService = new AccountService(accountRepository, transferJpaRepository);
+        accountService = new AccountService(accountRepository, transferJpaRepository,
+                outboxRepository, new ObjectMapper().findAndRegisterModules());
     }
 
     @Test
@@ -59,6 +65,9 @@ class AccountServiceTest {
         assertEquals(0, new BigDecimal("100.00").compareTo(response.getBalance()));
 
         verify(accountRepository).save(accountCaptor.capture());
+        verify(outboxRepository).append(
+                eq(OutboxRepository.Status.PENDING), eq("Account"), eq("acc-001"),
+                contains("acc-001"), eq("AccountCreatedEvent"));
         Account saved = accountCaptor.getValue();
         assertEquals("acc-001", saved.getId().value());
     }
@@ -113,6 +122,9 @@ class AccountServiceTest {
 
         verify(accountRepository, times(2)).save(any());
         verify(transferJpaRepository).save(any());
+        verify(outboxRepository).append(
+                eq(OutboxRepository.Status.PENDING), eq("Transfer"), anyString(),
+                contains("acc-001"), eq("TransferCompletedEvent"));
     }
 
     @Test

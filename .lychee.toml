@@ -1,0 +1,27 @@
+# lychee link checker configuration
+# See https://github.com/lycheeverse/lychee
+
+cache = true
+maxCacheAge = 86400
+timeout = 30
+retryWaitMax = 60
+maxRetries = 3
+
+exclude = [
+  # GitHub issue/PR references — internal, resolved by GitHub UI
+  'https://github.com/Team-Centinela/Centinela-Code/issues/\d+',
+  'https://github.com/Team-Centinela/Centinela-Code/pull/\d+',
+  # Archived historical repo — may 404 under load
+  'https://github.com/Team-Centinela/Centinela-docs/issues/\d+',
+]
+
+accept = ["301", "308"]
+
+exclude_path = [
+  # Obsidian mirror folders (gitignored but may exist temporarily)
+  'GitHub/',
+  'GitHub-PR/',
+  'GitHub Pull Requests/',
+  # Context snapshots (temporal, gitignored)
+  '.context-snapshots/',
+]

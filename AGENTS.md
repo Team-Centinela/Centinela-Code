@@ -144,6 +144,20 @@ The doc tree and the issue tracker are collaborative. Every commit must keep the
 3. **Tiny format-only fixes get their own commit.**
    A one-line whitespace fix, a duplicate-heading removal, a wording tweak, a link broken by a directory rename — none of these is too small to deserve its own commit. Bundling them into a larger PR hides them from `git log -- <file>` and forces a future reviewer to dig through unrelated changes. Each format-only commit gets a `docs:` or `fix(minor):` prefix and a focused subject that names the file and the change.
 
+## Docs CI
+
+A GitHub Actions workflow (`.github/workflows/docs-link-check.yml`) runs `lychee` on every push and PR that touches `.md` files. The workflow **fails the build** when a broken link is found. Two rules govern local work:
+
+1. **Relative paths must resolve from the file's own directory.**
+   - From a file in `docs/decision-log/`, cross-ADR references are bare filenames (`ADR-002-postgresql-only-db.md`), not `decision-log/ADR-002-...`.
+   - From a file in `docs/architecture/` or `docs/patterns/`, references to other docs subdirectories start with `../` (`../decision-log/ADR-002-...`, `../patterns/03-outbox-pattern.md`).
+   - From a file in `services/<name>/`, references to `docs/` start with `../../docs/`.
+   - This file (`AGENTS.md`), `README.md`, and `infrastructure/README.md` are at the repo root and use `docs/...` directly.
+   - The config `.lychee.toml` at the repo root drives the checker. Run locally with: `docker run --rm -v $PWD:/input lycheeverse/lychee --config /input/.lychee.toml --verbose '/input/**/*.md'`.
+
+2. **No link-check CI skip without an issue.**
+   If a legitimate external URL is flaky and causes false failures, the solution is to add an `exclude` pattern in `.lychee.toml` with a comment linking the tracking issue — not to disable the check or silence the action.
+
 ## Notes on this repo
 
 - `gh issue` works against Team-Centinela/Centinela-Code — never try to create issues in the archived Centinela-docs.

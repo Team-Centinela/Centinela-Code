@@ -6,26 +6,32 @@ import com.centinela.corebackend.account.application.dto.TransferRequest;
 import com.centinela.corebackend.account.application.dto.TransferResponse;
 import com.centinela.corebackend.account.domain.model.*;
 import com.centinela.corebackend.account.domain.port.AccountRepository;
+import com.centinela.corebackend.account.infrastructure.persistence.TransferEntity;
+import com.centinela.corebackend.account.infrastructure.persistence.TransferJpaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Currency;
+import java.util.Locale;
+import java.util.UUID;
 
 @Service
 @Transactional
 public class AccountService {
 
     private final AccountRepository accountRepository;
+    private final TransferJpaRepository transferJpaRepository;
 
-    public AccountService(AccountRepository accountRepository) {
+    public AccountService(AccountRepository accountRepository, TransferJpaRepository transferJpaRepository) {
         this.accountRepository = accountRepository;
+        this.transferJpaRepository = transferJpaRepository;
     }
 
     public AccountResponse create(CreateAccountRequest request) {
         Account account = new Account(
                 new AccountId(request.getAccountId()),
                 request.getOwner(),
-                Currency.getInstance(request.getCurrency()),
+                Currency.getInstance(request.getCurrency().toUpperCase(Locale.ROOT)),
                 request.getInitialBalance()
         );
         accountRepository.save(account);
@@ -53,6 +59,15 @@ public class AccountService {
 
         accountRepository.save(from);
         accountRepository.save(to);
+
+        TransferEntity transferEntity = new TransferEntity();
+        transferEntity.setId(UUID.randomUUID());
+        transferEntity.setFromAccountId(fromId.value());
+        transferEntity.setToAccountId(toId.value());
+        transferEntity.setAmount(request.getAmount());
+        transferEntity.setDescription(request.getDescription());
+        transferEntity.setTimestamp(java.time.Instant.now());
+        transferJpaRepository.save(transferEntity);
 
         Transfer transfer = new Transfer(fromId, toId, request.getAmount(), request.getDescription());
         return TransferResponse.fromDomain(transfer);

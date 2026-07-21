@@ -5,11 +5,15 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "accounts", schema = "accounts")
+@Table(name = "account", schema = "accounts")
 public class AccountEntity {
 
     @Id
     private String id;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     @Column(nullable = false)
     private String owner;
@@ -27,6 +31,8 @@ public class AccountEntity {
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
     public String getOwner() { return owner; }
     public void setOwner(String owner) { this.owner = owner; }
     public String getCurrency() { return currency; }

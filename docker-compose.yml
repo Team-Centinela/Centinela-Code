@@ -1,5 +1,9 @@
 version: "3.9"
 
+# Local development only — never use this file or these credentials in production.
+# Secrets (credentials, connection strings) must come from Azure Key Vault in any non-dev environment.
+# Flyway migrations handle all schema management at application startup.
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -12,7 +16,6 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./services/core-backend/src/main/resources/db/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s

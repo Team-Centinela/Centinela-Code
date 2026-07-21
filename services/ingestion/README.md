@@ -1,6 +1,6 @@
 # Ingestion Service
 
-Pulled out per ADR-001's **Selective Extraction Strategy** § (`docs/architecture/05-selective-extraction.md`).
+Pulled out per ADR-001's **Selective Extraction Strategy** § (`../../docs/architecture/05-selective-extraction.md`).
 
 ## Why it is extracted
 
@@ -20,8 +20,8 @@ Pulled out per ADR-001's **Selective Extraction Strategy** § (`docs/architectur
 
 ## What it does **not** own
 
-- Scoring (lives in Core Backend)
-- Case management (Core Backend)
+- Scoring (lives in the Serverless Engine, `services/serverless-engine/`)
+- Case management (Core Backend, `services/core-backend/`)
 - Rule configuration (admin module in Core Backend)
 
 ## Owned GitHub Issues
@@ -45,8 +45,8 @@ ingestion/
 ```
 
 References:
-- `docs/architecture/01-overview.md` §"Ingestion"
-- `docs/architecture/05-selective-extraction.md` §"Ingestion API"
-- `docs/decision-log/ADR-002-postgresql-only-db.md` §"Storage matrix"
-- `docs/decision-log/ADR-003-async-messaging-reliability.md` §"3.2 Outbox"
+- `../../docs/architecture/01-overview.md` §"Ingestion"
+- `../../docs/architecture/05-selective-extraction.md` §"Ingestion API"
+- `../../docs/decision-log/ADR-002-postgresql-only-db.md` §"Storage matrix"
+- `../../docs/decision-log/ADR-003-async-messaging-reliability.md` §"3.2 Outbox"
 - **Dependency pinning**: per ADR-003 §3.1 (issue #26), Ingestion API shares the Core Backend Spring Cloud Azure Service Bus binder chain (`spring-cloud-azure-starter-servicebus` 5.19.0 + `spring-cloud-stream` 4.x). Versions declared in parent POM `services/pom.xml`.

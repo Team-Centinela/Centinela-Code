@@ -25,7 +25,7 @@ Transaction ──▶ EvaluationContext ──▶ STAGE 1 (cheap, always)
                               Aggregator (sum, clamp to [0,100], case opens iff ≥ SCORE_THRESHOLD)
 ```
 
-Stage assignment is fixed by `decision-log/ADR-004-rule-engine-pipeline-explainer.md` §4.1. FR-3 is in Stage 2 because PostGIS `ST_Distance` is the most expensive operation on B1ms-shaped data — gating it behind a Stage-1 hit keeps median evaluation cost low. See ADR-004 for the cost table and the rationale.
+Stage assignment is fixed by `../decision-log/ADR-004-rule-engine-pipeline-explainer.md` §4.1. FR-3 is in Stage 2 because PostGIS `ST_Distance` is the most expensive operation on B1ms-shaped data — gating it behind a Stage-1 hit keeps median evaluation cost low. See ADR-004 for the cost table and the rationale.
 
 ## Implementation
 
@@ -102,7 +102,7 @@ public class FraudPipeline {
 }
 ```
 
-> The single short-circuit termination rule is `aggregateScore() >= SCORE_THRESHOLD` (default 70), evaluated **after** every stage whether or not it produced a new `RuleResult`. The clamp to `[0, 100]` happens once at the aggregator. See `decision-log/ADR-004-rule-engine-pipeline-explainer.md` §4.1 / §4.4 for the full semantics.
+> The single short-circuit termination rule is `aggregateScore() >= SCORE_THRESHOLD` (default 70), evaluated **after** every stage whether or not it produced a new `RuleResult`. The clamp to `[0, 100]` happens once at the aggregator. See `../decision-log/ADR-004-rule-engine-pipeline-explainer.md` §4.1 / §4.4 for the full semantics.
 
 ## `rawEvidence` Schema — Pinned Per Rule
 

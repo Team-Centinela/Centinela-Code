@@ -1,11 +1,8 @@
 # ADR-003: Async Messaging & Reliability
 
-## Status
-**ACCEPTED** — Ratified during Sprint 0 ADR review (#16) after blockers #22, #25, #26, and #27 were resolved. Sub-issues #39 (spring-cloud-stream pin) and #40 (Outbox Publisher implementation) remain on epic #37 / `feature/architecture` branch track and will close when implementation lands.
-
 ## Context
 
-Cross-module coordination in the modular monolith must be async by rule (`architecture/02-modular-monolith.md` § Communication Rules). The async layer must:
+Cross-module coordination in the modular monolith must be async by rule (`../architecture/02-modular-monolith.md` § Communication Rules). The async layer must:
 
 1. Guarantee at-least-once delivery for every domain event (no silent drops).
 2. Survive transient broker outages without needing distributed transactions.
@@ -34,21 +31,22 @@ Three small decisions are bundled under this ADR: message broker choice, transpo
 |---|---|---|---|
 | Core Backend | Java 21 / Spring Boot 3.4.x | `com.azure.spring:spring-cloud-azure-starter-servicebus` (Spring Cloud Azure Service Bus binder) over `spring-cloud-stream` 4.x | Pinned in `services/pom.xml` (`<spring-cloud-azure.version>5.19.0</spring-cloud-azure.version>`, `azure-messaging-servicebus 7.17.7`); see PR #36 for the foundation and sub-issue #39 for the explicit `spring-cloud-stream` pin still pending. |
 | Ingestion API | Java 21 / Spring Boot 3.4.x | Same as Core Backend — shares `services/pom.xml` parent. Same version source. | |
+| Serverless Engine (Rule Engine) | Java 21 / Spring Boot 3.4.x | Same binder chain as Core Backend and Ingestion API — its single consumer adapter binds to the `transactions-raw` queue subscription. KEDA `azure-servicebus` scaler reads from the same `Manage`-policy connection. | Pinned in `services/pom.xml`. |
 | OCR Worker | Python 3.12 / FastAPI | `azure-servicebus` 7.x async client (PyPI `azure-servicebus`) | Pinned in `services/ocr-worker/pyproject.toml` once issue #40 implementation lands. |
 
 Why the binder (not raw SDK): the Spring Cloud Azure Service Bus binder is queue/topic-aware, integrates with `spring-cloud-stream` declarative bindings, and gives us idempotency primitives (NACK vs ACK) aligned with ADR-003 §3.3. Raw `com.azure:azure-messaging-servicebus` is reserved for places where the binder model is too restrictive (e.g. session-keyed-by-`aggregateId` for in-order per-aggregate processing). Versions must appear in build files on **Day 1** and may not be bumped during Sprint 1 without an ADR amendment issue.
 
-**Tunnel**: Service Bus Standard is required by the architecture, not Basic. The `architecture/06-technology-stack.md` and `architecture/04-event-driven-communication.md` files adopt this tier; any cost projection cited from earlier drafts that mentioned "Basic" must be corrected — the cost line increases by ~$7 over the project window, well under budget.
+**Tunnel**: Service Bus Standard is required by the architecture, not Basic. The `../architecture/06-technology-stack.md` and `../architecture/04-event-driven-communication.md` files adopt this tier; any cost projection cited from earlier drafts that mentioned "Basic" must be corrected — the cost line increases by ~$7 over the project window, well under budget.
 
-### 3.2 Outbox Pattern is mandatory for ALL modules
+### 3.2 Outbox Pattern is mandatory for every service that publishes a domain event
 
-To avoid the dual-write problem across multiple modules, every module publishing a domain event uses the Outbox Pattern documented in `patterns/03-outbox-pattern.md`:
+To avoid the dual-write problem across multiple modules, every module publishing a domain event uses the Outbox Pattern documented in `../patterns/03-outbox-pattern.md`:
 
 ```
 Business Table Write + Outbox Insert (same ACID transaction)
        │
        ▼
-Outbox Publisher (scheduled @1s in Core Backend process)
+Outbox Publisher (scheduled @1s in every deploying service — Ingestion API, Serverless Engine, and Core Backend)
        │
        ▼
 Service Bus (queue or topic)
@@ -109,7 +107,7 @@ SELECT status
    FOR UPDATE SKIP LOCKED
 ```
 
-If the row exists in the expected status, **skip** processing and ACK the message. Otherwise UPDATE with an idempotent guard (`WHERE status < expected_status`) so two concurrent consumers can never advance the same `aggregateId`. This is the same idempotency strategy for both the Ingestion → Scoring and the Core Backend → OCR Worker hops.
+If the row exists in the expected status, **skip** processing and ACK the message. Otherwise UPDATE with an idempotent guard (`WHERE status < expected_status`) so two concurrent consumers can never advance the same `aggregateId`. This is the same idempotency strategy for all hops: Ingestion → Serverless Engine (scoring), Serverless Engine → Core Backend (case creation), Core Backend → OCR Worker (document extraction).
 
 **Why SELECT ... FOR UPDATE SKIP LOCKED, not the alternatives** flagged in #16:
 
@@ -147,7 +145,7 @@ The ADR text **does not** carry `max_delivery_count = 3` literal into Java/Pytho
 ### Positive
 - Outbox Pattern guarantees no observed event loss even if Service Bus is down for the entire project window.
 - Standard tier unlocks topic/subscription/forwarding for future modules without re-architecting.
-- Idempotency key strategy works across both branches (Ingestion → Core, Core → OCR Worker).
+- Idempotency key strategy works across every hop (Ingestion → Serverless Engine, Serverless Engine → Core Backend, Core Backend → OCR Worker).
 - One pattern (`outbox_events`) covers both in-monolith and out-of-monolith payloads.
 
 ### Negative
@@ -167,11 +165,15 @@ The ADR text **does not** carry `max_delivery_count = 3` literal into Java/Pytho
 
 ## References
 
-- `architecture/04-event-driven-communication.md` — domain event catalog
-- `patterns/03-outbox-pattern.md` — full Outbox Pattern implementation
+- `../architecture/04-event-driven-communication.md` — domain event catalog
+- `../patterns/03-outbox-pattern.md` — full Outbox Pattern implementation
 - Historical GitHub Issue [Team-Centinela/Centinela-docs#4](https://github.com/Team-Centinela/Centinela-docs/issues/4) (existing ADR draft on messaging) — superseded
 - [#12](https://github.com/Team-Centinela/Centinela-Code/issues/12) ADR-003 issue tracker — Supersedes [Team-Centinela/Centinela-docs#4](https://github.com/Team-Centinela/Centinela-docs/issues/4)
 - `ASSIGNMENT.md` §T.1, §T.3 — inter-component contract
 - `ASSIGNMENT.md` §E — access patterns influencing this decision
 - `infrastructure/README.md` — Azure resource budget and IaC ownership (Day-1 quota link)
 - Sub-issues that close the implementation side of this ADR: #39 (`spring-cloud-stream` pin in `services/pom.xml`), #40 (Outbox Publisher with shutdown recovery + cold-start handling). Both roll up to epic #37.
+
+## Status
+
+**ACCEPTED** — Ratified during Sprint 0 ADR review (#16) after blockers #22, #25, #26, and #27 were resolved. Sub-issues #39 (spring-cloud-stream pin) and #40 (Outbox Publisher implementation) remain on epic #37 / `feature/architecture` branch track and will close when implementation lands.

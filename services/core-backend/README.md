@@ -1,42 +1,44 @@
 # Core Backend (Modular Monolith)
 
-Per ADR-001 (`docs/decision-log/ADR-001-modular-monolith-hexagonal.md`), this is the **primary deployment artifact**. It hosts all modules that have not been selectively extracted.
+Per ADR-001 (`../../docs/decision-log/ADR-001-modular-monolith-hexagonal.md`), this is the **primary deployment artifact**. It hosts the modules that have not been selectively extracted. The Rule Engine lives in its own extracted service, the **Serverless Engine** (`../serverless-engine/`); see `../../docs/architecture/05-selective-extraction.md`.
 
 ## Modules in this deployment
 
-Per `docs/architecture/02-modular-monolith.md`:
+Per `../../docs/architecture/02-modular-monolith.md`:
 
 | Module | Responsibility |
 |---|---|
 | `app.cases`     | Fraud case lifecycle and analyst workflow |
 | `app.alerts`    | Alert rendering and notification fan-out |
-| `app.scoring`   | Pipeline Pattern (FR-1..FR-4) → AggregatedFraudScore |
-| `app.rules`     | Rule configuration loading + admin API |
-| `app.reporting` | Read-replica queries; aggregate views |
+| `app.reporting` | Read-only queries via `reporting_reader` role |
 | `app.auth`      | JWT issuance, role lookup |
 | `app.admin`     | Cross-module admin endpoints, audit log access |
-| `app.transactions` | Application layer for transaction query API (Ingestion owns writes) |
+| `app.transactions` | Application layer for transaction query API (Ingestion API owns writes; Serverless Engine owns scoring writes) |
+
+> Scoring, the rule pipeline, and the explainer are **not** in this module set. They live in the **Serverless Engine** extracted service (`../serverless-engine/`). See `../../docs/architecture/05-selective-extraction.md` and `../../docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md`.
 
 ## Communication
 
 Per ADR-001 §Decision:
 
 - **In-monolith** module coordination uses Spring's `ApplicationEventPublisher` (in-process, transactional) — no Service Bus latency within the monolith.
-- **Cross-deployment** hops (Ingestion API, OCR Worker) use Azure Service Bus via the Outbox pattern (`patterns/03-outbox-pattern.md`).
+- **Cross-deployment** hops (Ingestion API, Serverless Engine, OCR Worker) use Azure Service Bus via the Outbox pattern (`../../docs/patterns/03-outbox-pattern.md`).
 - Direct method calls between modules are **forbidden** — only ports/adapters at the boundary.
 
-See `architecture/04-event-driven-communication.md` and `decision-log/ADR-003-async-messaging-reliability.md`.
+See `../../docs/architecture/04-event-driven-communication.md` and `../../docs/decision-log/ADR-003-async-messaging-reliability.md`.
 
 **Dependency pinning**: per ADR-003 §3.1 client library pinning (issue #26), the Core Backend uses `com.azure.spring:spring-cloud-azure-starter-servicebus` (Spring Cloud Azure Service Bus binder) over `spring-cloud-stream` 4.x. Versions are pinned in the parent POM `services/pom.xml` (`<spring-cloud-azure.version>5.19.0</...>`, `<azure-messaging-servicebus.version>7.17.7</...>` — see PR #36). The explicit `spring-cloud-stream` pin and per-service README cross-reference lands in sub-issue #39 (epic #37).
 
 Topics and queues owned by Core Backend:
 - Topic: `case-events` (subscriptions: `reporting-updates`, `alerts`)
-- Queue: `transactions-raw` (consumer)
 - Queue: `documents-pending` (publisher)
+
+Consumer:
+- Subscription: `case-events/reporting-updates`, `case-events/alerts`
 
 ## Testing per module
 
-Per `best-practices/02-testing-strategy.md`:
+Per `../../docs/best-practices/02-testing-strategy.md`:
 - Domain code: 100% line coverage requirement
 - Use cases: 95% line coverage
 - Adapters: smoke + integration tests against the real engine (PostgreSQL Testcontainers dev profile when applicable)
@@ -58,8 +60,6 @@ core-backend/
 │   └── modules/
 │       ├── cases/
 │       ├── alerts/
-│       ├── scoring/
-│       ├── rules/
 │       ├── reporting/
 │       ├── auth/
 │       ├── admin/

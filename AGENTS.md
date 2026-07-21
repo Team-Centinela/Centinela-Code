@@ -7,7 +7,7 @@ tags:
   - ai-agent
   - context-enrichment
 created: 2026-07-15
-last_reviewed: 2026-07-16
+last_reviewed: 2026-07-21
 ---
 # Centinela Monorepo — Agent Behavior
 
@@ -30,11 +30,7 @@ Centinela-Code/
 │   ├── best-practices/        ← code organization, testing, errors, logs
 │   ├── decision-log/          ← ADRs (ADR-001..005+, all loaded on session start)
 │   └── ASSIGNMENT.md          ← the fixed project constraints
-├── services/                  ← runtime services
-│   ├── ingestion/             ← Spring Boot, extracted per ADR-001
-│   ├── core-backend/          ← Spring Boot modular monolith host
-│   ├── ocr-worker/            ← FastAPI Python, extracted per ADR-001
-│   └── frontend/              ← Static SPA
+├── services/                  ← runtime services (5 artifacts; see `services/README.md` for the canonical table + ADR-009 for compute substrate)
 ├── infrastructure/            ← Terraform IaC
 └── .github/                   ← workflows and issue templates
 ```
@@ -52,6 +48,10 @@ This monorepo mixes *persistent* (lives forever) with *temporal* (expires with t
 | Released code | `main` |
 
 **If a piece of information will still matter in 6 months, write a markdown file in `docs/`. If it expires with the next sprint, write a GitHub Issue. If neither fits well, write neither — keep it in chat.**
+
+### Service README imprint rule
+
+Every extracted service (per ADR-001 §Selective Extraction) **must** have a `services/<name>/README.md` describing what it owns and why it was extracted **before** the corresponding ADR can be closed. This keeps the "I/O of every deployable artifact" imprint current with the docs tree. If a service row exists in `services/README.md` but its directory is missing, that is a doc-code drift bug — track it as an issue.
 
 ## Obsidian mirror warning
 
@@ -73,10 +73,10 @@ When you start a new AI session, perform this bootstrap **before answering any p
 
 - **"What area am I in?"** → `docs/architecture/01-overview.md`
 - **"What stack is decided?"** → `docs/architecture/06-technology-stack.md`
-- **"Why this module is separate?"** → `docs/architecture/05-selective-extraction.md` + `services/<name>/README.md`
+- **"Why is this module separate?"** → `docs/architecture/05-selective-extraction.md` + `services/<name>/README.md` (currently extracted services: Ingestion API, Serverless Engine / Rule Engine, OCR Worker)
 - **"Where do these events go?"** → `docs/architecture/04-event-driven-communication.md` + `docs/decision-log/ADR-003-async-messaging-reliability.md`
-- **"How is this rule evaluated?"** → `docs/patterns/04-pipeline-pattern.md` + `docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md`
-- **"How do I publish an event reliably?"** → `docs/patterns/03-outbox-pattern.md`
+- **"How is this rule evaluated? Where does the Pipeline Pattern live?"** → `docs/patterns/04-pipeline-pattern.md` + `docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md`. The Pipeline is **not** in the Core Backend — it ships in the Serverless Engine (`services/serverless-engine/`) and consumes `transactions-raw` from the Ingestion API.
+- **"How do I publish an event reliably?"** → `docs/patterns/03-outbox-pattern.md` — every deploying service (Ingestion API, Serverless Engine, Core Backend) runs its own publisher.
 - **"Where does my data live?"** → `docs/decision-log/ADR-002-postgresql-only-db.md`
 - **"Why am I working in a monorepo?"** → `docs/decision-log/ADR-005-monorepo-unification.md`
 - **"What is the absolute must-and-must-not?"** → `docs/ASSIGNMENT.md`
@@ -93,6 +93,12 @@ When you start a new AI session, perform this bootstrap **before answering any p
 - **Reference, never duplicate.** If a fact is already a GitHub Issue or Project, link to it via `#N` (within the same repo) or via the full URL. Do not paste the same content into a markdown file.
 - **Read the ADR before the code it describes.** Implementation that conflicts with the matching ADR is wrong; update one of the two through a GitHub Issue, not by ignoring the conflict.
 - **Stay within the written budget.** $60 over 21 days. Every IaC change proposed must include a cost row in `infrastructure/README.md`.
+- **ADRs are the canonical source for decisions.** Architecture pages, `README.md`, `services/README.md`, `infrastructure/README.md`, and this file may *summarize*, but must not contain a duplicate full table or long rationale paragraph that already lives in an ADR. When tempted to copy, replace with one line plus a link, e.g. `See ADR-009 §9.1.`
+- **Relative links resolve from the linking file's directory.** Three concrete shapes that recur — keep them straight, lychee will fail otherwise:
+  - From `docs/decision-log/*.md`, cross-ADR references are bare filenames (`ADR-002-postgresql-only-db.md`), never `decision-log/ADR-002-...`.
+  - From `docs/architecture/` or `docs/patterns/`, references into other docs subdirectories start with `../` (`../decision-log/ADR-002-...`, `../patterns/03-outbox-pattern.md`).
+  - From `services/<name>/`, references to `docs/` start with `../../docs/`. The same goes for any file two levels deep (e.g. `services/<name>/sub/README.md`).
+- **Cross-doc PRs must enumerate the doc-effect.** If a PR touches more than one of {ADRs, architecture pages, service READMEs, AGENTS.md}, the body must list each affected file and the reason — so a reviewer can see the textual consequence in one PR view instead of digging through commits. Single concern per commit (Commit Hygiene §1) plus cross-doc disclosure is the separation; both are required.
 
 ## Never
 
@@ -125,6 +131,33 @@ Long sessions accumulate noise and stale references. When a session hits the sym
 2. The new session will load AGENTS.md (via opencode.json `instructions`), then the snapshot, then continue.
 
 Do not let a session grind on past 60 turns without pausing to assess the snapshot.
+
+## Commit hygiene
+
+The doc tree and the issue tracker are collaborative. Every commit must keep the two reconcilable. Three rules govern how this is done:
+
+1. **Single concern per commit, with cross-referenced docs.**
+   A commit addresses exactly one thing — one ADR amendment, one missed cross-link, one cost-row update, one logical behavioral fix. When the same commit touches both an ADR and the affected pattern/architecture page, the commit message must call out every file so a future reader can trace the textual consequence of the decision in one `git show`. Mixing unrelated changes (e.g., a status-heading fix and a cost table bump, or a new module skeleton and an unrelated IaC tweak) is a defect — split before committing.
+
+2. **Tracking issues close when their docs land.**
+   Every ADR amendment, every cross-doc reconciliation, and every ADR blocker ends in a tracking issue (issue label `adr` or `documentation, adr`). The issue's acceptance criteria are exactly the textual state the docs must reach. When a commit lands the docs that satisfy those criteria, the issue closes in the *same* release cycle — either by a `gh issue close` with a body linking the commit, or by a comment that records the commit SHA. A "doc-fix" commit without a tracking-issue close is a sign the audit trail is breaking.
+
+3. **Tiny format-only fixes get their own commit.**
+   A one-line whitespace fix, a duplicate-heading removal, a wording tweak, a link broken by a directory rename — none of these is too small to deserve its own commit. Bundling them into a larger PR hides them from `git log -- <file>` and forces a future reviewer to dig through unrelated changes. Each format-only commit gets a `docs:` or `fix(minor):` prefix and a focused subject that names the file and the change.
+
+## Docs CI
+
+A GitHub Actions workflow (`.github/workflows/docs-link-check.yml`) runs `lychee` on every push and PR that touches `.md` files. The workflow **fails the build** when a broken link is found. Two rules govern local work:
+
+1. **Relative paths must resolve from the file's own directory.**
+   - From a file in `docs/decision-log/`, cross-ADR references are bare filenames (`ADR-002-postgresql-only-db.md`), not `decision-log/ADR-002-...`.
+   - From a file in `docs/architecture/` or `docs/patterns/`, references to other docs subdirectories start with `../` (`../decision-log/ADR-002-...`, `../patterns/03-outbox-pattern.md`).
+   - From a file in `services/<name>/`, references to `docs/` start with `../../docs/`.
+   - This file (`AGENTS.md`), `README.md`, and `infrastructure/README.md` are at the repo root and use `docs/...` directly.
+   - The config `.lychee.toml` at the repo root drives the checker. Run locally with: `docker run --rm -v $PWD:/input lycheeverse/lychee --config /input/.lychee.toml --verbose '/input/**/*.md'`.
+
+2. **No link-check CI skip without an issue.**
+   If a legitimate external URL is flaky and causes false failures, the solution is to add an `exclude` pattern in `.lychee.toml` with a comment linking the tracking issue — not to disable the check or silence the action.
 
 ## Notes on this repo
 

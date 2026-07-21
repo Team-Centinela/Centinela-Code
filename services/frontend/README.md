@@ -1,6 +1,6 @@
 # Frontend (Analyst Dashboard)
 
-Static SPA, served from CDN. Consult `architecture/01-overview.md`  "External Entry Points" for the scope.
+Static SPA, served from CDN. Consult `../../docs/architecture/01-overview.md`  "External Entry Points" for the scope.
 
 ## Why static SPA
 

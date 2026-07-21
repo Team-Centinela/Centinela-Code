@@ -21,6 +21,7 @@ public class TransactionMapper {
         entity.setMerchantId(domain.getMerchantId());
         entity.setDescription(domain.getDescription());
         entity.setStatus(TransactionEntity.TransactionStatus.valueOf(domain.getStatus().name()));
+        entity.setVersion(domain.getVersion());
         return entity;
     }
 
@@ -33,7 +34,8 @@ public class TransactionMapper {
                 new GeoLocation(entity.getLatitude(), entity.getLongitude()),
                 TransactionType.valueOf(entity.getType().name()),
                 entity.getMerchantId(),
-                entity.getDescription()
+                entity.getDescription(),
+                entity.getVersion()
         );
     }
 }

@@ -33,13 +33,26 @@ public class TransactionService {
     }
 
     public TransactionResponse create(TransactionRequest request) {
+        Currency currency;
+        try {
+            currency = Currency.getInstance(request.getCurrency());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid currency code: " + request.getCurrency());
+        }
+        TransactionType type;
+        try {
+            type = TransactionType.valueOf(request.getType());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid transaction type: " + request.getType()
+                    + ". Allowed values: " + java.util.Arrays.toString(TransactionType.values()));
+        }
         Transaction transaction = new Transaction(
                 TransactionId.generate(),
                 request.getAccountId(),
-                new Money(request.getAmount(), Currency.getInstance(request.getCurrency())),
+                new Money(request.getAmount(), currency),
                 Instant.now(),
                 new GeoLocation(request.getLatitude(), request.getLongitude()),
-                TransactionType.valueOf(request.getType()),
+                type,
                 request.getMerchantId(),
                 request.getDescription()
         );

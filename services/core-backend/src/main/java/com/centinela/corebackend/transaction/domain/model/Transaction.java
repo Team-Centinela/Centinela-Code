@@ -15,10 +15,17 @@ public class Transaction {
     private final String merchantId;
     private final String description;
     private TransactionStatus status;
+    private Long version;
 
     public Transaction(TransactionId id, String accountId, Money amount, Instant timestamp,
                        GeoLocation location, TransactionType type, String merchantId,
                        String description) {
+        this(id, accountId, amount, timestamp, location, type, merchantId, description, null);
+    }
+
+    public Transaction(TransactionId id, String accountId, Money amount, Instant timestamp,
+                       GeoLocation location, TransactionType type, String merchantId,
+                       String description, Long version) {
         this.id = id;
         this.accountId = accountId;
         this.amount = amount;
@@ -28,6 +35,7 @@ public class Transaction {
         this.merchantId = merchantId;
         this.description = description;
         this.status = TransactionStatus.PENDING;
+        this.version = version;
     }
 
     public TransactionId getId() { return id; }
@@ -39,6 +47,7 @@ public class Transaction {
     public String getMerchantId() { return merchantId; }
     public String getDescription() { return description; }
     public TransactionStatus getStatus() { return status; }
+    public Long getVersion() { return version; }
 
     public void markEvaluated() {
         this.status = TransactionStatus.EVALUATED;

@@ -11,21 +11,23 @@ public class Account {
     private final Currency currency;
     private BigDecimal balance;
     private final Instant createdAt;
+    private Long version;
 
     public Account(AccountId id, String owner, Currency currency, BigDecimal initialBalance) {
-        this.id = id;
-        this.owner = owner;
-        this.currency = currency;
-        this.balance = initialBalance;
-        this.createdAt = Instant.now();
+        this(id, owner, currency, initialBalance, Instant.now(), null);
     }
 
     public Account(AccountId id, String owner, Currency currency, BigDecimal balance, Instant createdAt) {
+        this(id, owner, currency, balance, createdAt, null);
+    }
+
+    public Account(AccountId id, String owner, Currency currency, BigDecimal balance, Instant createdAt, Long version) {
         this.id = id;
         this.owner = owner;
         this.currency = currency;
         this.balance = balance;
         this.createdAt = createdAt;
+        this.version = version;
     }
 
     public void debit(BigDecimal amount) {
@@ -50,4 +52,5 @@ public class Account {
     public Currency getCurrency() { return currency; }
     public BigDecimal getBalance() { return balance; }
     public Instant getCreatedAt() { return createdAt; }
+    public Long getVersion() { return version; }
 }

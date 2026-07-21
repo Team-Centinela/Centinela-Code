@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS oltp.transactions (
     account_id  VARCHAR(50) NOT NULL,
     amount      NUMERIC(18,2) NOT NULL,
     currency    VARCHAR(3) NOT NULL,
-    timestamp   TIMESTAMPTZ NOT NULL,
+    timestamp   TIMESTAMP NOT NULL,
     latitude    DOUBLE PRECISION NOT NULL,
     longitude   DOUBLE PRECISION NOT NULL,
     type        VARCHAR(20) NOT NULL,

@@ -3,6 +3,7 @@ package com.centinela.corebackend.transaction.infrastructure.web;
 import com.centinela.corebackend.transaction.application.dto.TransactionRequest;
 import com.centinela.corebackend.transaction.application.dto.TransactionResponse;
 import com.centinela.corebackend.transaction.application.service.TransactionService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,7 +19,7 @@ public class TransactionController {
     }
 
     @PostMapping
-    public ResponseEntity<TransactionResponse> createTransaction(@RequestBody TransactionRequest request) {
+    public ResponseEntity<TransactionResponse> createTransaction(@Valid @RequestBody TransactionRequest request) {
         TransactionResponse response = transactionService.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

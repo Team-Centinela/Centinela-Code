@@ -38,10 +38,16 @@ public class AccountService {
     }
 
     public AccountResponse create(CreateAccountRequest request) {
+        Currency currency;
+        try {
+            currency = Currency.getInstance(request.getCurrency().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid currency code: " + request.getCurrency());
+        }
         Account account = new Account(
                 new AccountId(request.getAccountId()),
                 request.getOwner(),
-                Currency.getInstance(request.getCurrency().toUpperCase(Locale.ROOT)),
+                currency,
                 request.getInitialBalance()
         );
         accountRepository.save(account);

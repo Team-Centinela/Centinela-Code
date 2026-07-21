@@ -45,6 +45,10 @@ public class TransactionEntity {
     @Column(nullable = false, length = 20)
     private TransactionStatus status;
 
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
     public TransactionEntity() {}
 
     public UUID getId() { return id; }
@@ -69,6 +73,8 @@ public class TransactionEntity {
     public void setDescription(String description) { this.description = description; }
     public TransactionStatus getStatus() { return status; }
     public void setStatus(TransactionStatus status) { this.status = status; }
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
 
     public enum TransactionType {
         PURCHASE, WITHDRAWAL, TRANSFER, REFUND, PAYMENT

@@ -16,6 +16,7 @@ public class AccountMapper {
         entity.setCurrency(domain.getCurrency().getCurrencyCode());
         entity.setBalance(domain.getBalance());
         entity.setCreatedAt(domain.getCreatedAt());
+        entity.setVersion(domain.getVersion());
         return entity;
     }
 
@@ -25,7 +26,8 @@ public class AccountMapper {
                 entity.getOwner(),
                 Currency.getInstance(entity.getCurrency()),
                 entity.getBalance(),
-                entity.getCreatedAt()
+                entity.getCreatedAt(),
+                entity.getVersion()
         );
     }
 }

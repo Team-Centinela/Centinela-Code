@@ -24,6 +24,6 @@ assignees: []
 ## References
 
 - docs/architecture/0X-name.md
-- patterns/0X-name.md
-- decision-log/ADR-N-name.md
+- docs/patterns/0X-name.md
+- docs/decision-log/ADR-N-name.md
 - …

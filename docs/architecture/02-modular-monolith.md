@@ -28,31 +28,34 @@ module-name/
     └── config/           # Spring configuration for this module
 ```
 
+> The hexagonal package convention used by every module — `domain/` / `application/` / `port/` / `adapter/` with strict layer rules — is canonical in `architecture/03-hexagonal-architecture.md` §Package Convention.
+
 ## Modules and Their Responsibilities
 
 | Module | Responsibility | Database Schema |
 |--------|---------------|-----------------|
 | **Transaction** | Receive, validate, and persist incoming transactions for evaluation | `oltp` (PostgreSQL) |
-| **Rule Engine** | Evaluate fraud rules (velocity, outlier, geo, blacklist), calculate risk scores | `rules_config` (PostgreSQL) |
 | **Case** | Manage fraud case lifecycle — creation, assignment, investigation, resolution | `cases` (PostgreSQL) |
 | **Alert** | Generate and dispatch real-time fraud alerts to analysts | `alerts` (PostgreSQL) |
-| **Reporting** | Serve analytics queries, dashboard data, and report exports | `reporting` (PostgreSQL read-replica) |
+| **Reporting** | Serve analytics queries, dashboard data, and report exports | `reporting` (PostgreSQL, read-only role `reporting_reader`) |
 | **Auth** | Handle authentication, authorization, and API key management | `auth` (PostgreSQL) |
 
-> Storage justification for choosing a single PostgreSQL engine is consolidated in `decision-log/ADR-002-postgresql-only-db.md`.
+> The Rule Engine is **not** an in-monolith module. It lives in its own extracted service — the *Serverless Engine* — per the qualification criteria in `architecture/05-selective-extraction.md`. It uses the same hexagonal layering and the same event contracts as the modules shown here.
+
+> Storage justification for choosing a single PostgreSQL engine is consolidated in `../decision-log/ADR-002-postgresql-only-db.md`.
 
 ## Communication Rules Between Modules
 
 1. **No direct in-memory calls** between modules
 2. All cross-module interaction uses **Domain Events** published to Azure Service Bus
-3. A module can only trigger behavior in another module by publishing an event
+3. A module can only trigger behavior in another module by publishing an event (including behaviour in an extracted service)
 4. Each module owns its database schema exclusively (schema-per-module)
 
 ## Trade-offs
 
 | Benefit | Trade-off |
 |---------|-----------|
-| Single deployment, simple CI/CD | Entire application deploys even for single-module changes |
-| No network latency between modules | All modules share the same JVM and resources |
-| Strong ACID consistency within a module | Only eventual consistency between modules |
+| Single deployment for the in-house workflow | Each extracted Service (Ingestion API, Serverless Engine, OCR Worker) deploys on its own revision |
+| No network latency between in-monolith modules | Cross-deployment hops pay broker round-trip latency |
+| Strong ACID consistency within a module | Only eventual consistency between modules and external services |
 | Modules can be extracted later | Requires upfront discipline to maintain boundaries |

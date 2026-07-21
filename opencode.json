@@ -17,7 +17,7 @@
     "tail_turns": 25
   },
   "permission": {
-    "edit": "ask",
+    "edit": "allow",
     "bash": {
       "git status": "allow",
       "git diff": "allow",
@@ -26,8 +26,7 @@
       "gh pr*": "allow",
       "ls *": "allow",
       "rg *": "allow",
-      "cat *": "allow",
-      "*": "ask"
+      "cat *": "allow"
     }
   }
 }

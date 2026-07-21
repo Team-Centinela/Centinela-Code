@@ -47,20 +47,20 @@ public record GeoLocation(double latitude, double longitude) {
 A cluster of domain objects treated as a single unit. The aggregate root is the only way to modify anything inside the boundary.
 
 ```java
-public class Transaction {                      // Aggregate root
-    private final TransactionId id;
-    private final Money amount;
-    private final GeoLocation location;
-    private final AccountId accountId;
-    private FraudStatus fraudStatus;
+// Aggregate root in the Serverless Engine's domain.
+public class FraudScore {
+    private final TransactionId transactionId;
+    private final double value;                         // clamped [0, 100]
+    private final List<TriggeredRule> triggeredRules;   // rawEvidence persisted by the engine
+    private final Instant decidedAt;
 
-    public FraudEvaluation evaluate(RuleEngine engine) {
-        FraudEvaluation eval = engine.evaluate(this);
-        this.fraudStatus = eval.isFraudulent() ? FraudStatus.FLAGGED : FraudStatus.CLEAR;
-        return eval;
+    public boolean opensCase(ScoreThreshold threshold) {
+        return value >= threshold.value();
     }
 }
 ```
+
+The Serverless Engine emits `FraudScore`; the Core Backend consumes it and writes a `FraudCase`. Each aggregate is owned by exactly one service; cross-service consistency is achieved through the domain event, not by sharing aggregates.
 
 ### Domain Event — Something Meaningful Happened
 

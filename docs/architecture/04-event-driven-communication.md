@@ -6,33 +6,38 @@ Modules and services communicate asynchronously by publishing and consuming **Do
 
 Direct inter-module calls create tight coupling: if the Rule Engine is down, Transaction ingestion blocks. Synchronous calls also make it impossible to extract modules into separate services later. Event-driven communication decouples producers from consumers — each module operates independently and reacts to events at its own pace.
 
-> Broker tier, deduplication, and outbox semantics are codified in `decision-log/ADR-003-async-messaging-reliability.md`.
+> Broker tier, deduplication, and outbox semantics are codified in `../decision-log/ADR-003-async-messaging-reliability.md`.
 
 ## Event Flow
 
 ```
-Ingestion API              Core Backend (Monolith)
-     │                          │
-     │  TransactionReceived      │
-     ├─────────────────────────▶ │  Transaction Module
-     │                          │       │
-     │                          │       │ FraudEvaluationCompleted
-     │                          │       ▼
-     │                          │  Rule Engine
-     │                          │       │
-     │                          │       │ FraudAlertRaised
-     │                          │       ▼
-     │                          │   Case Module
-     │                          │
-     │                          │  All communication through Azure Service Bus
+Ingestion API          Serverless Engine (Rule Engine)   Core Backend (Monolith)
+      │                          │                              │
+      │  TransactionReceived     │                              │
+      ├─────────────────────────▶│                              │
+      │                          │                              │
+      │                  EVALUATE PIPELINE                      │
+      │                  (FR-1 → FR-4 → FR-3 → FR-2)            │
+      │                          │                              │
+      │                          │ FraudEvaluationCompleted     │
+      │                          ├─────────────────────────────▶│  Case Module
+      │                          │                              │       │
+      │                          │                              │       ▼
+      │                          │                              │  Alert Module
+      │                          │                              │       │
+      │                          │                              │       │ FraudAlertRaised
+      │                          │                              │       ▼
+      │                          │                              │   Case Module
+      │                          │                              │
+      │                          │  all hops via Azure Service Bus│
 ```
 
 ## Domain Events Catalog
 
 | Event | Producer | Consumers | What It Triggers |
 |-------|----------|-----------|------------------|
-| `TransactionReceived` | Ingestion API | Rule Engine | Starts fraud evaluation |
-| `FraudEvaluationCompleted` | Rule Engine | Case Module, Alert Module | Creates case if score > threshold, sends alert |
+| `TransactionReceived` | Ingestion API | Serverless Engine (Rule Engine) | Starts fraud evaluation |
+| `FraudEvaluationCompleted` | Serverless Engine (Rule Engine) | Case Module, Alert Module | Creates case if score > threshold, sends alert |
 | `FraudAlertRaised` | Alert Module | Case Module, Reporting | Links alert to case, updates dashboard |
 | `CaseAssigned` | Case Module | Reporting | Analyst assignment recorded for reports |
 | `CaseResolved` | Case Module | Reporting, Alert | Updates case status, closes related alerts |

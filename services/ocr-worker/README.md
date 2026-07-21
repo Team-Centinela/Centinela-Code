@@ -4,12 +4,9 @@ Extracted per ADR-001 §"Currently Extracted Services / Document OCR Worker".
 
 ## Why it is extracted
 
-- **Different technology**: Azure AI Document Intelligence SDK is
-  Python-first (`azure-ai-documentintelligence` PyPI package).
-- **Failure isolation**: OCR latency (~3–8 s/doc) does not block
-  scoring or case-management latency budgets.
-- **Independent scaling**: OCR is the slowest step in the case-creation
-  pipeline. Scale up independently.
+- **Different technology**: Azure AI Document Intelligence SDK is Python-first (`azure-ai-documentintelligence` PyPI package).
+- **Failure isolation**: OCR latency (~3–8 s/doc) does not block scoring or case-management latency budgets.
+- **Independent scaling**: OCR is the slowest step in the case-creation pipeline. Scale up independently.
 
 ## What it owns
 
@@ -31,6 +28,7 @@ Extracted per ADR-001 §"Currently Extracted Services / Document OCR Worker".
 
 - **Implementation**: Sprint 1 ([#4](https://github.com/Team-Centinela/Centinela-Code/issues/4)) + Sprint 3 ([#6](https://github.com/Team-Centinela/Centinela-Code/issues/6))
 - Will appear under `ocr` label
+- **Dependency pinning**: per ADR-003 §3.1 (issue #26), OCR Worker uses PyPI `azure-servicebus` 7.x async client. Pinned in `services/ocr-worker/pyproject.toml` once implementation lands (sub-issue #40 / epic #37).
 
 ## File layout (target)
 

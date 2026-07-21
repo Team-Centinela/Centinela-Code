@@ -81,3 +81,47 @@ public class JpaTransactionRepository implements TransactionRepository {
 | Changing database | Affects Service layer | Only replace JpaTransactionRepository |
 | Adding new delivery mechanism (e.g., GraphQL) | New controller, may duplicate logic | New adapter implementing same port |
 | Framework upgrade risk | Annotations everywhere | Only adapter layer changes |
+
+## Package Convention (all modules)
+
+Every module under `modules/<module-name>/` follows the same four-package layout:
+
+```
+com.centinela.core.modules.<module>/
+  domain/           # Pure Java aggregates, value objects, domain services
+  application/      # Use cases / inbound ports (interfaces)
+  port/             # Outbound port interfaces
+  adapter/
+    persistence/    # JPA / JDBC adapters implementing port interfaces
+    messaging/      # Outbox publisher, event listeners (Spring events + Service Bus)
+    rest/           # REST controllers (only if module exposes HTTP endpoints)
+```
+
+**Concrete example — case module (in-monolith):**
+
+```
+com.centinela.core.modules.cases/
+  domain/
+    FraudCase.java                # aggregate root
+    CaseStatus.java               # value object
+  application/
+    OpenCaseUseCase.java         # inbound port interface
+  port/
+    CaseRepository.java           # outbound port interface
+  adapter/
+    persistence/
+      JpaCaseRepository.java     # @Repository implements CaseRepository
+    messaging/
+      CaseOpenedPublisher.java   # publishes via outbox on ApplicationEvent
+    rest/
+      CaseController.java         # GET/POST /api/v1/cases — analyst-facing
+```
+
+The same layout applies to other in-monolith modules (Transaction, Alert, Reporting, Auth) and to each extracted service (Ingestion API, Serverless Engine, OCR Worker) — the **only** difference is the deployment unit, not the package convention. The Serverless Engine combines the inbound port (`ScoreTransactionUseCase`) with a `transactions-raw` Service Bus consumer adapter instead of (or in addition to) a REST adapter; see `docs/architecture/05-selective-extraction.md` *Serverless Engine*.
+
+### Rules
+
+1. **No cross-module imports of `domain/` or `application/`.** Module A must never `import com.centinela.core.modules.b.domain.*`. Cross-module coordination happens through domain events only.
+2. **Domain layer has zero framework imports.** No Spring, JPA, or Azure SDK annotations in `domain/`.
+3. **Ports are Java interfaces.** `application/` contains interfaces the module exposes; `port/` contains interfaces the module depends on.
+4. **Adapters are the only layer with framework imports.** `adapter/persistence/` may use JPA, `adapter/messaging/` may use Spring events and Azure SDK.

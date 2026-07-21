@@ -26,9 +26,9 @@ between them without context fragmentation.
 | **Delivery model**     | Modular monolith + selective extraction (ADR-001) |
 | **Storage**            | Azure PostgreSQL Flexible Server (B1ms, schema-per-module) (ADR-002) |
 | **Async backbone**     | Azure Service Bus Standard tier (Topics required for `case-events`) (ADR-003) |
-| **Rule Engine**        | Pipeline Pattern w/ deterministic NL Explainer (ADR-004) |
+| **Rule Engine**        | Pipeline Pattern w/ deterministic NL Explainer (ADR-004), packaged as the *Serverless Engine* — a third extracted service on Azure Container Apps Consumption |
 | **Repo posture**       | Single monorepo (ADR-005) |
-| **Deployment model**   | Azure Container Apps + Static Web Apps |
+| **Deployment model**   | All four backends on Azure Container Apps Consumption + Static Web Apps for the frontend |
 
 ## Repository Navigation
 
@@ -44,7 +44,12 @@ Centinela-Code/
 │   ├── best-practices/    ← 4 convention files
 │   ├── decision-log/      ← ADRs (Architecture Decision Records)
 │   └── ASSIGNMENT.md      ← project-fixed constraints
-├── services/              ← runtime services (4)
+├── services/              ← runtime services (4 + frontend)
+│   ├── ingestion/         ← Spring Boot, ACA Consumption, HTTP-scaled
+│   ├── serverless-engine/ ← Spring Boot, ACA Consumption, KEDA azure-servicebus on transactions-raw
+│   ├── core-backend/      ← Spring Boot modular monolith, ACA Consumption, HTTP-scaled
+│   ├── ocr-worker/        ← FastAPI, ACA Consumption, KEDA azure-servicebus on documents-pending
+│   └── frontend/          ← React + Vite SPA, Azure Static Web Apps
 ├── infrastructure/        ← Terraform IaC
 ├── .github/               ← CI workflows + Issue templates
 └── .opencode/             ← context map + project-specific AI skills
@@ -68,14 +73,16 @@ Centinela-Code/
 
 | ADR | Title | Status |
 |---|---|---|
-| [ADR-001](docs/decision-log/ADR-001-modular-monolith-hexagonal.md) | Modular Monolith + Hexagonal | DRAFT → pending Sprint 0 review |
-| [ADR-002](docs/decision-log/ADR-002-postgresql-only-db.md) | Unified PostgreSQL Persistence | DRAFT → pending Sprint 0 review |
-| [ADR-003](docs/decision-log/ADR-003-async-messaging-reliability.md) | Async Messaging & Reliability | DRAFT → pending Sprint 0 review |
-| [ADR-004](docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md) | Rule Engine — Pipeline Pattern | DRAFT → pending Sprint 0 review |
+| [ADR-001](docs/decision-log/ADR-001-modular-monolith-hexagonal.md) | Modular Monolith + Hexagonal (incl. three extracted services) | ACCEPTED (Sprint 0) |
+| [ADR-002](docs/decision-log/ADR-002-postgresql-only-db.md) | Unified PostgreSQL Persistence | APPROVED (Sprint 0) |
+| [ADR-003](docs/decision-log/ADR-003-async-messaging-reliability.md) | Async Messaging & Reliability | ACCEPTED (Sprint 0) |
+| [ADR-004](docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md) | Rule Engine — Pipeline Pattern (Serverless Engine) | ACCEPTED (Sprint 0) |
 | [ADR-005](docs/decision-log/ADR-005-monorepo-unification.md) | Monorepo Unification | EXECUTED (2026-07-15) |
+| [ADR-006](docs/decision-log/ADR-006-security-auth.md) | Security & Auth — API Keys, Idempotency-Key, Key Vault, Auth Module | ACCEPTED (Sprint 0) |
+| [ADR-007](docs/decision-log/ADR-007-observability-cost-telemetry.md) | Observability & Cost Telemetry — App Insights, W3C TraceContext, Budget Alerts | ACCEPTED (Sprint 0) |
+| [ADR-009](docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md) | Compute Substrate — ACA Consumption + SWA Free | ACCEPTED (Sprint 0) |
 
-> ADR-006 (Security & Auth), ADR-007 (Observability/Cost), and ADR-008
-> (Config & Secrets) are tracked as issues and will land after Sprint 0.
+> Status values here are a convenience snapshot. The canonical status lives in each ADR file.
 
 ## What is *not* in this repo
 

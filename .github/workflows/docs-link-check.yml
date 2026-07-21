@@ -1,0 +1,26 @@
+name: docs-link-check
+
+on:
+  push:
+    branches: [developer, main]
+    paths:
+      - '**.md'
+  pull_request:
+    branches: [developer, main]
+    paths:
+      - '**.md'
+
+jobs:
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --config .lychee.toml
+            --no-progress
+            --verbose
+            -- './**/*.md'
+          fail: true
+          jobSummary: true

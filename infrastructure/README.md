@@ -10,7 +10,7 @@ Per `../docs/architecture/06-technology-stack.md` the key resources are:
 | Azure Database for PostgreSQL Flexible Server | B1ms, nightly auto-stop, dev-only prod |
 | Azure Service Bus (Standard tier) | Required: tier supports Topics |
 | Azure Blob Storage | `documents-worm` container, LRS Hot, WORM policy (7y time-based) |
-| Azure Container Apps (Consumption) | Hosts all four backends: Ingestion API (HTTP), Serverless Engine (KEDA `azure-servicebus` on `transactions-raw`), Core Backend (HTTP), OCR Worker (KEDA `azure-servicebus` on `documents-pending`). Managed KEDA scaler; per-second billing; scale to zero. The Serverless Engine's Maven `<module>` registration is tracked at [#51](https://github.com/Team-Centinela/Centinela-Code/issues/51). |
+| Azure Container Apps (Consumption) | All four backends with KEDA HTTP/Service Bus scalers; per-second billing; scale to zero. Full deployment table and scaler breakdown: ADR-009 §9.1. Serverless Engine Maven module: [#51](https://github.com/Team-Centinela/Centinela-Code/issues/51). |
 | Azure Static Web Apps | Frontend CDN |
 | Azure Application Insights | Observability + cost telemetry |
 | Azure Key Vault | Secrets only; keys managed by IaC |
@@ -39,15 +39,7 @@ See the ADRs for each technology's rationale:
 | Azure Application Insights | Pay-per-gig, first 5 GB/month free | **~$2** | |
 | **Total** | | **~$15–24** | Well under the $60 ceiling. |
 
-Key cost-saving mechanisms:
-
-- Container Apps **scale to zero** on the Consumption plan: Serverless Engine and OCR Worker scale on KEDA `azure-servicebus` (active-message count of the inbound queue); Ingestion API and Core Backend scale on concurrent HTTP requests.
-- First 180,000 vCPU-seconds, 360,000 GiB-seconds, and 2 M requests / month / subscription are **free** — covers the expected workload through the 21-day project.
-- PostgreSQL **auto-stop** after 1h idle; resumes on first connection.
-- Resource Group **budget alarm** at 50%, 80%, 100% of $60 → email the team.
-- All resources tagged `cost-center=fraud-detection`, `environment=dev` for cost attribution.
-
-See [`ADR-009-compute-substrate-container-apps-static-web-apps.md`](../docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md) for the full compute justification and alternatives analysis.
+Key cost-saving mechanisms (scale-to-zero, free grants, PostgreSQL auto-stop, budget alerts at 50/80/90/100% of $60) are canonical in [`../docs/decision-log/ADR-007-observability-cost-telemetry.md`](../docs/decision-log/ADR-007-observability-cost-telemetry.md) §7.7 and [`../docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md`](../docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md) §Cost Impact.
 
 ## Day-1 region & quota verification
 

@@ -79,13 +79,10 @@ Centinela-Code/
 | [ADR-004](docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md) | Rule Engine — Pipeline Pattern (Serverless Engine) | ACCEPTED (Sprint 0) |
 | [ADR-005](docs/decision-log/ADR-005-monorepo-unification.md) | Monorepo Unification | EXECUTED (2026-07-15) |
 | [ADR-006](docs/decision-log/ADR-006-security-auth.md) | Security & Auth — API Keys, Idempotency-Key, Key Vault, Auth Module | ACCEPTED (Sprint 0) |
-| [ADR-007](docs/decision-log/ADR-007-observability-cost-telemetry.md) | Observability & Cost Telemetry — App Insights, W3C TraceContext, Budget Alerts | DRAFT (pending Sprint 0 review) |
+| [ADR-007](docs/decision-log/ADR-007-observability-cost-telemetry.md) | Observability & Cost Telemetry — App Insights, W3C TraceContext, Budget Alerts | ACCEPTED (Sprint 0) |
 | [ADR-009](docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md) | Compute Substrate — ACA Consumption + SWA Free | ACCEPTED (Sprint 0) |
 
-> ADR-008 (Config & Secrets) is tracked as an issue and will land if needed after Sprint 1.
-
-> ADR-006 (Security & Auth), ADR-007 (Observability/Cost), and ADR-008
-> (Config & Secrets) are tracked as issues and will land after Sprint 0.
+> Status values here are a convenience snapshot. The canonical status lives in each ADR file.
 
 ## What is *not* in this repo
 

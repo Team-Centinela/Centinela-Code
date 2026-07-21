@@ -35,14 +35,7 @@ Technologies selected and the rationale for each choice.
 
 ### Azure Container Apps (Consumption)
 
-- All four backends run as **fully managed serverless containers** — no AKS / Kubernetes control plane to operate. ASSIGNED scope (`ASSIGNMENT.md` §3 *Out of Scope*) explicitly forbids managed cluster orchestrators; Azure Container Apps is a different (PaaS) category.
-- Each backend's replica count scales:
-  - **HTTP**: on concurrent inbound request count for the Ingestion API and Core Backend REST endpoints.
-  - **KEDA `azure-servicebus`**: on the queue/topic-subscription active-message count for the Serverless Engine (`transactions-raw`) and the OCR Worker (`documents-pending`).
-- Scales to **zero replicas** when there is no traffic; the first 180,000 vCPU-seconds, 360,000 GiB-seconds, and 2 M requests / month per subscription are free, keeping compute spend effectively nil for bursty workloads inside the $60 budget.
-- Built-in KEDA scalers (no YAML of our own beyond the `az containerapp update ... --scale-rule-type azure-servicebus` form) make cold-start recovery an Azure-managed concern.
-- One Azure Container Apps **Environment** hosts the four backends together, sharing the same VNet (none currently used) and unified observability wiring through Application Insights.
-- See `../decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md` for the full decision record, alternatives analysis, and cost comparison.
+All four backends run as fully managed serverless containers on one ACA Environment — KEDA built-in for HTTP/Service Bus scaling, scale to zero at idle, first 180k vCPU-seconds/month per subscription free. Full rationale, alternatives, and cost impact: [`../decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md`](../decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md).
 
 ### Spring Boot (Java 21)
 - Team already knows Java and Spring ecosystem
@@ -56,18 +49,14 @@ Technologies selected and the rationale for each choice.
 - Rapid development cycles for ML/AI integration
 
 ### Azure Database for PostgreSQL Flexible Server (B1ms)
-- ACID compliance for transactional fraud data
-- PostGIS extension enables geolocation-based fraud checks
-- Hash partitioning by `accountId` resolves the "Get recent transactions for account X" access pattern
-- `JSONB` columns store flexible rule evidence payload (`../patterns/04-pipeline-pattern.md`)
-- Automated backups, point-in-time restore, and high-availability options
-- Single engine for the entire system (ADR-002 supersedes earlier polyglot proposals)
+Single engine for the entire system (B1ms with schema-per-module, auto-stop after 1h idle). Full rationale, partition strategy, and polyglot rejection: [`../decision-log/ADR-002-postgresql-only-db.md`](../decision-log/ADR-002-postgresql-only-db.md).
 
 ### Azure Service Bus (Standard tier)
 - Required tier — Basic **does not** support Topics (`case-events` needs them)
-- Native dead-letter queues, scheduled delivery, session support, and topic subscriptions
-- Standard base charge ≈ $10/month; first 13M ops/month free — fits inside the $60 budget (ADR-003)
+- Standard base charge ≈ $10/month; first 13M ops/month free — fits inside the $60 budget
 - KEDA's `azure-servicebus` scaler requires `Manage` policy on the connection string so KEDA can poll queue depth; the IaC under `infrastructure/modules/servicebus` provisions this.
+
+See [`../decision-log/ADR-003-async-messaging-reliability.md`](../decision-log/ADR-003-async-messaging-reliability.md) for full tier rationale and reliability design.
 
 ### Azure Blob Storage (LRS Hot, WORM policy)
 - Holds verification document **blobs only**

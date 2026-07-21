@@ -30,12 +30,7 @@ Centinela-Code/
 │   ├── best-practices/        ← code organization, testing, errors, logs
 │   ├── decision-log/          ← ADRs (ADR-001..005+, all loaded on session start)
 │   └── ASSIGNMENT.md          ← the fixed project constraints
-├── services/                  ← runtime services (all on Azure Container Apps Consumption + Static Web Apps; see ADR-009)
-│   ├── ingestion/             ← Spring Boot, ACA Consumption HTTP-scaled, extracted per ADR-001
-│   ├── serverless-engine/     ← Spring Boot, ACA Consumption KEDA azure-servicebus on transactions-raw, extracted per ADR-001
-│   ├── core-backend/          ← Spring Boot modular monolith host, ACA Consumption HTTP-scaled
-│   ├── ocr-worker/            ← FastAPI Python, ACA Consumption KEDA azure-servicebus on documents-pending, extracted per ADR-001
-│   └── frontend/              ← Static SPA on Azure Static Web Apps Free
+├── services/                  ← runtime services (5 artifacts; see `services/README.md` for the canonical table + ADR-009 for compute substrate)
 ├── infrastructure/            ← Terraform IaC
 └── .github/                   ← workflows and issue templates
 ```

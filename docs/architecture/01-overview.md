@@ -55,17 +55,7 @@ Centinela uses a **Modular Monolith with Hexagonal Architecture** as the deploym
                                   └────────────────┘
 ```
 
-The four **deployable artifacts** of the platform:
-
-| Artifact | Type | Deployment |
-|---|---|---|
-| **Ingestion API** | Spring Boot (Java 21) | Azure Container Apps (Consumption), HTTP-scaled |
-| **Serverless Engine** (Rule Engine) | Spring Boot (Java 21) | Azure Container Apps (Consumption), KEDA-scaled on `transactions-raw` |
-| **Core Backend** | Spring Boot (Java 21) modular monolith | Azure Container Apps (Consumption), HTTP-scaled, hosts Case / Alert / Reporting / Auth / Transaction modules |
-| **OCR Worker** | FastAPI (Python 3.12) | Azure Container Apps (Consumption), KEDA-scaled on `documents-pending` |
-| **Frontend** | React + TypeScript (Vite SPA) | Azure Static Web Apps |
-
-All four backends share a single PostgreSQL Flexible Server, one Service Bus namespace, one Blob Storage account, one Key Vault, and one Application Insights workspace — operational cohesion without coupling between deployments.
+The five deployable artifacts (full table in [`services/README.md`](../../services/README.md)) share a single PostgreSQL Flexible Server, one Service Bus namespace, one Blob Storage account, one Key Vault, and one Application Insights workspace — operational cohesion without coupling between deployments. Compute substrate: all four backends on Azure Container Apps Consumption (ADR-009); frontend on Azure Static Web Apps Free.
 
 ## Principles That Guide Decisions
 
@@ -80,16 +70,7 @@ All four backends share a single PostgreSQL Flexible Server, one Service Bus nam
 
 ## Operational Posture
 
-Real-time fraud detection is the user-facing promise (§ASSIGNMENT.md §1.2). The 21-day, $60 budget constraint (§ASSIGNMENT.md §3) is the *cost-care* promise. The architecture reconciles them by treating real-time as an **active-period** invariant, not a 24/7 one:
-
-| Concern | Active period (when the team is testing) | Quiet period (weekday nights + weekends) |
-|---|---|---|
-| **Compute** | All four Container Apps at ≥1 replica; KEDA-driven scale-out for the Serverless Engine and OCR Worker. | Container Apps scale to zero replicas. **No compute cost.** |
-| **Database** | B1ms PostgreSQL Flexible Server **running**. CRUD + Outbox Publisher work normally. | B1ms PostgreSQL Flexible Server **stopped** via Azure Automation runbook (`#10`). Ingestion API returns `503` + `Retry-After` until next planned start. |
-| **Outbox Publisher** | Drains `outbox_events` every 1 s (`../patterns/03-outbox-pattern.md`). | Paused (DB offline). Restarts on the first poll after `start` and drains the backlog in seconds. |
-| **Service Bus** | Standard tier, always on (≈$7/21 d; required for Topics). | Standard tier, always on. Messages remain on the broker; consumers are idle. |
-
-The Outbox Pattern is **safe across planned DB restarts** because no events can be inserted while the DB is offline (the writer's `BEGIN` fails). On restart, the Outbox Publisher's existing `SELECT … WHERE status='PENDING'` enumerates every backlog row and drains it. Consumer-side idempotency (`../patterns/06-idempotency-key.md`) absorbs the post-restart burst. Detailed phase-by-phase table: `../patterns/03-outbox-pattern.md` §"Behavior under planned PostgreSQL downtime". See `../decision-log/ADR-002-postgresql-only-db.md` §"Planned DB downtime & outbox restart-drain".
+Real-time fraud detection is the user-facing promise (§ASSIGNMENT.md §1.2). The $60/21-day budget (§ASSIGNMENT.md §3) is the *cost-care* promise. The architecture reconciles them by treating real-time as an **active-period** invariant, not a 24/7 one: Container Apps scale to zero at idle (ADR-009), PostgreSQL auto-stops after 1h idle (ADR-002), and the Outbox Pattern drains any backlog safely on restart (`../patterns/03-outbox-pattern.md` §"Behavior under planned PostgreSQL downtime"). Consumer-side idempotency (`../patterns/06-idempotency-key.md`) absorbs the post-restart burst. Full operational posture: `../patterns/03-outbox-pattern.md` §"Behavior under planned PostgreSQL downtime (B1ms auto-stop)" and `../decision-log/ADR-002-postgresql-only-db.md` §"Planned DB downtime & outbox restart-drain".
 
 ## Related Documents
 

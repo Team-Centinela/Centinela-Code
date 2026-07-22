@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: centinela-core-backend
+  flyway:
+    schemas: cases, alerts, reporting, auth, rules_config
+    locations: classpath:db/migration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:centinela}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+server:
+  port: 8082

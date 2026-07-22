@@ -13,9 +13,24 @@ Per `../../docs/architecture/02-modular-monolith.md`:
 | `app.reporting` | Read-only queries via `reporting_reader` role |
 | `app.auth`      | JWT issuance, role lookup |
 | `app.admin`     | Cross-module admin endpoints, audit log access |
-| `app.transactions` | Application layer for transaction query API (Ingestion API owns writes; Serverless Engine owns scoring writes) |
 
-> Scoring, the rule pipeline, and the explainer are **not** in this module set. They live in the **Serverless Engine** extracted service (`../serverless-engine/`). See `../../docs/architecture/05-selective-extraction.md` and `../../docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md`.
+> The `app.transactions` module is **not** in Core Backend per ADR-002 alignment. Transaction writes and the query API live in the **Ingestion API** (`../ingestion/`), which owns the `oltp` schema. See §ADR-002 Reconciliation below.
+
+Scoring, the rule pipeline, and the explainer are **not** in this module set. They live in the **Serverless Engine** extracted service (`../serverless-engine/`). See `../../docs/architecture/05-selective-extraction.md` and `../../docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md`.
+
+## ADR-002 Reconciliation
+
+Per **ADR-002 §Storage matrix** (`../../docs/decision-log/ADR-002-postgresql-only-db.md`), the sanctioned Core-Backend-owned schemas are:
+
+| Schema | Owner |
+|---|---|
+| `cases` | Cases module |
+| `alerts` | Alerts module |
+| `reporting` | Reporting module |
+| `auth` | Auth module |
+| `rules_config` | Rules configuration module |
+
+No `accounts` or `transactions` schemas are present in Core Backend — those belong in the `oltp` schema owned by the **Ingestion API** (`../../docs/architecture/01-overview.md` §System Components).
 
 ## Communication
 
@@ -27,42 +42,4 @@ Per ADR-001 §Decision:
 
 See `../../docs/architecture/04-event-driven-communication.md` and `../../docs/decision-log/ADR-003-async-messaging-reliability.md`.
 
-**Dependency pinning**: per ADR-003 §3.1 client library pinning (issue #26), the Core Backend uses `com.azure.spring:spring-cloud-azure-starter-servicebus` (Spring Cloud Azure Service Bus binder) over `spring-cloud-stream` 4.x. Versions are pinned in the parent POM `services/pom.xml` (`<spring-cloud-azure.version>5.19.0</...>`, `<azure-messaging-servicebus.version>7.17.7</...>` — see PR #36). The explicit `spring-cloud-stream` pin and per-service README cross-reference lands in sub-issue #39 (epic #37).
-
-Topics and queues owned by Core Backend:
-- Topic: `case-events` (subscriptions: `reporting-updates`, `alerts`)
-- Queue: `documents-pending` (publisher)
-
-Consumer:
-- Subscription: `case-events/reporting-updates`, `case-events/alerts`
-
-## Testing per module
-
-Per `../../docs/best-practices/02-testing-strategy.md`:
-- Domain code: 100% line coverage requirement
-- Use cases: 95% line coverage
-- Adapters: smoke + integration tests against the real engine (PostgreSQL Testcontainers dev profile when applicable)
-
-## Owned GitHub Issues
-
-- **Implementation**: Sprint 1 ([#4](https://github.com/Team-Centinela/Centinela-Code/issues/4)) through Sprint 3 ([#6](https://github.com/Team-Centinela/Centinela-Code/issues/6))
-- Core Backend has *no* dedicated quick-start issue; its work is part of sprints 1–3.
-
-## File layout
-
-TBD at Sprint 1 (`gh issue list --label backend`). Likely structure:
-
-```
-core-backend/
-├── src/main/java/com/centinela/core/
-│   ├── Application.java
-│   ├── platform/   # Spring Boot base configuration, security wiring
-│   └── modules/
-│       ├── cases/
-│       ├── alerts/
-│       ├── reporting/
-│       ├── auth/
-│       ├── admin/
-│       └── transactions/
-└── pom.xml
-```
+**Dependency pinning**: per ADR-003 §3.1 client library pinning (issue #26), the Core Backend uses `com.azure.spring:spring-cloud-azure-starter-servicebus`.

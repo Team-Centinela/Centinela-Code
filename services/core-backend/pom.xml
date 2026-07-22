@@ -13,7 +13,7 @@
 
     <artifactId>centinela-core-backend</artifactId>
     <name>Centinela Core Backend</name>
-    <description>Modular monolith host — Transaction, Rule Engine, Case, Alert, Reporting, Auth modules</description>
+    <description>Modular monolith host — Case, Alert, Reporting, Auth, Rules Config modules</description>
 
     <dependencies>
         <dependency>
@@ -23,6 +23,11 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
             <scope>runtime</scope>
         </dependency>
 
@@ -46,6 +51,12 @@
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-identity</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-stream-test-binder</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <dependency>

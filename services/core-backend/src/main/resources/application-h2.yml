@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:centinela;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+    hikari:
+      schema: PUBLIC
+
+  flyway:
+    enabled: true
+    schemas: cases,alerts,reporting,auth,rules_config
+    create-schemas: true
+    locations: classpath:db/migration-h2
+    baseline-on-migrate: true
+
+  autoconfigure:
+    exclude:
+      - com.azure.spring.cloud.autoconfigure.implementation.servicebus.AzureServiceBusAutoConfiguration
+      - com.azure.spring.cloud.autoconfigure.implementation.servicebus.AzureServiceBusMessagingAutoConfiguration
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        default_schema: oltp

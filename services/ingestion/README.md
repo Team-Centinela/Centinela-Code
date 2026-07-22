@@ -49,4 +49,4 @@ References:
 - `../../docs/architecture/05-selective-extraction.md` §"Ingestion API"
 - `../../docs/decision-log/ADR-002-postgresql-only-db.md` §"Storage matrix"
 - `../../docs/decision-log/ADR-003-async-messaging-reliability.md` §"3.2 Outbox"
-- **Dependency pinning**: per ADR-003 §3.1 (issue #26), Ingestion API shares the Core Backend Spring Cloud Azure Service Bus binder chain (`spring-cloud-azure-starter-servicebus` 5.19.0 + `spring-cloud-stream` 4.x). Versions declared in parent POM `services/pom.xml`.
+- **Dependency pinning**: per ADR-003 §3.1 (issue #26, #39), Ingestion API shares the Core Backend Spring Cloud Azure Service Bus binder chain (`spring-cloud-azure-starter-servicebus` 5.19.0 + `spring-cloud-stream` 4.3.3 + `azure-messaging-servicebus` 7.17.7). Versions declared in parent POM `services/pom.xml`.

@@ -16,6 +16,8 @@ Per `../../docs/architecture/02-modular-monolith.md`:
 | `app.transactions` | Application layer for transaction query API (Ingestion API owns writes; Serverless Engine owns scoring writes) |
 
 > Scoring, the rule pipeline, and the explainer are **not** in this module set. They live in the **Serverless Engine** extracted service (`../serverless-engine/`). See `../../docs/architecture/05-selective-extraction.md` and `../../docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md`.
+>
+> **ADR-002 Reconciliation — `accounts` schema**: The `accounts` schema and `account/` module were introduced by PR #43 before ADR-002 was finalized. Per ADR-002 §Storage matrix, `accounts` is **not** a sanctioned schema — account data belongs in the `oltp` schema owned by the Ingestion API (#53). Decision #61(b) confirmed the `account/` module as non-franchise; the schema and module have been deleted from this deployment. Outbox-only audit per ADR-003 is the canonical audit path.
 
 ## Communication
 

@@ -7,11 +7,11 @@ spring:
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:postgres}
     hikari:
-      schema: oltp
+      schema: public
 
   flyway:
     enabled: true
-    schemas: oltp,outbox
+    schemas: cases,alerts,reporting,auth,rules_config
     create-schemas: true
     locations: classpath:db/migration
     baseline-on-migrate: true
@@ -23,7 +23,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        default_schema: oltp
+        default_schema: public
 
   cloud:
     azure:

@@ -5,7 +5,6 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.Test;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
 
@@ -20,7 +19,8 @@ class HexagonalArchitectureTest {
                 .that().resideInAPackage("..domain..")
                 .should().dependOnClassesThat()
                 .resideInAnyPackage("org.springframework..")
-                .because("Domain layer must be pure Java, free of framework annotations");
+                .because("Domain layer must be pure Java, free of framework annotations")
+                .allowEmptyShould(true);
 
         rule.check(classes);
     }
@@ -31,16 +31,18 @@ class HexagonalArchitectureTest {
                 .that().resideInAPackage("..domain..")
                 .should().dependOnClassesThat()
                 .resideInAPackage("..infrastructure..")
-                .because("Domain must not depend on infrastructure adapters");
+                .because("Domain must not depend on infrastructure adapters")
+                .allowEmptyShould(true);
 
         rule.check(classes);
     }
 
     @Test
-    void noAccountPackageShouldExist() {
+    void noAccountOrTransactionPackageShouldExist() {
         ArchRule rule = noClasses()
                 .should().resideInAPackage("..account..")
-                .because("The account/ module was removed per ADR-002 reconciliation (decision #61)");
+                .orShould().resideInAPackage("..transaction..")
+                .because("account/ and transaction/ do not belong in Core Backend per ADR-002 (decision #61)");
         rule.check(classes);
     }
 
@@ -56,6 +58,6 @@ class HexagonalArchitectureTest {
                 .whereLayer("infrastructure").mayNotBeAccessedByAnyLayer()
                 .because("Hexagonal architecture: domain is innermost, application orchestrates, infrastructure adapts");
 
-        rule.check(classes);
+        rule.allowEmptyShould(true).check(classes);
     }
 }

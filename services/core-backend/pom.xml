@@ -13,7 +13,7 @@
 
     <artifactId>centinela-core-backend</artifactId>
     <name>Centinela Core Backend</name>
-    <description>Modular monolith host — Transaction, Rule Engine, Case, Alert, Reporting, Auth modules</description>
+    <description>Modular monolith host — Case, Alert, Reporting, Auth, Rules Config modules</description>
 
     <dependencies>
         <dependency>
@@ -51,15 +51,6 @@
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-identity</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
         <dependency>

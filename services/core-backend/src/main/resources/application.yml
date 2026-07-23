@@ -11,7 +11,7 @@ spring:
 
   flyway:
     enabled: true
-    schemas: cases,alerts,reporting,auth,rules_config
+    schemas: cases,alerts,reporting,auth,rules_config,outbox
     create-schemas: true
     locations: classpath:db/migration
     baseline-on-migrate: true
@@ -34,6 +34,13 @@ spring:
 
 server:
   port: 8080
+
+outbox:
+  publisher:
+    interval-ms: 1000
+    batch-size: 100
+    max-attempts: 10
+    stale-threshold-minutes: 5
 
 logging:
   level:

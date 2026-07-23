@@ -45,5 +45,12 @@ logging:
   level:
     com.centinela: DEBUG
 
+outbox:
+  publisher:
+    interval-ms: 1000
+    batch-size: 100
+    max-attempts: 10
+    stale-threshold-minutes: 5
+
 applicationinsights:
   connection-string: ${APPLICATIONINSIGHTS_CONNECTION_STRING:}

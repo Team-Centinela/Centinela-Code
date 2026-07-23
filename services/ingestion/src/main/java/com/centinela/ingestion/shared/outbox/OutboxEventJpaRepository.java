@@ -1,6 +1,5 @@
 package com.centinela.ingestion.shared.outbox;
 
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -15,12 +14,14 @@ import java.util.UUID;
 @Repository
 public interface OutboxEventJpaRepository extends JpaRepository<OutboxEventEntity, UUID> {
 
-    @Query("""
-        SELECT e FROM OutboxEventEntity e
-        WHERE e.status = 'PENDING'
-        ORDER BY e.createdAt ASC
-        """)
-    List<OutboxEventEntity> findPendingForPublish(Pageable pageable);
+    @Query(value = """
+        SELECT * FROM outbox.outbox_events
+        WHERE status = 'PENDING'
+        ORDER BY created_at ASC
+        LIMIT :limit OFFSET :offset
+        FOR UPDATE SKIP LOCKED
+        """, nativeQuery = true)
+    List<OutboxEventEntity> findPendingForPublish(@Param("limit") int limit, @Param("offset") int offset);
 
     long countByStatus(OutboxEventEntity.Status status);
 

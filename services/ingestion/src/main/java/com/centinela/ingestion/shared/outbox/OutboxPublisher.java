@@ -12,7 +12,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import org.springframework.data.domain.PageRequest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -121,7 +120,7 @@ public class OutboxPublisher {
             }
         }
 
-        List<OutboxEventEntity> events = outboxRepository.findPendingForPublish(PageRequest.of(0, batchSize));
+        List<OutboxEventEntity> events = outboxRepository.findPendingForPublish(batchSize, 0);
         if (events.isEmpty()) {
             updateMetrics(0, 0);
             return;

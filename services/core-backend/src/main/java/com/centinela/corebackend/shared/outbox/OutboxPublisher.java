@@ -31,6 +31,7 @@ public class OutboxPublisher {
     private final int batchSize;
     private final int maxAttempts;
     private final Duration staleThreshold;
+    private final long drainTimeoutMs;
     private final AtomicInteger pendingCount = new AtomicInteger(0);
     private final AtomicLong oldestPendingAgeSeconds = new AtomicLong(0);
     private volatile boolean publisherDegraded = false;
@@ -41,7 +42,8 @@ public class OutboxPublisher {
                            MeterRegistry meterRegistry,
                            @Value("${outbox.publisher.batch-size:100}") int batchSize,
                            @Value("${outbox.publisher.max-attempts:10}") int maxAttempts,
-                           @Value("${outbox.publisher.stale-threshold-minutes:5}") int staleThresholdMinutes) {
+                           @Value("${outbox.publisher.stale-threshold-minutes:5}") int staleThresholdMinutes,
+                           @Value("${outbox.publisher.drain-timeout-ms:10000}") long drainTimeoutMs) {
         this.outboxRepository = outboxRepository;
         this.serviceBusPublisher = serviceBusPublisher;
         this.jdbcTemplate = jdbcTemplate;
@@ -49,6 +51,7 @@ public class OutboxPublisher {
         this.batchSize = batchSize;
         this.maxAttempts = maxAttempts;
         this.staleThreshold = Duration.ofMinutes(staleThresholdMinutes);
+        this.drainTimeoutMs = drainTimeoutMs;
         registerMetrics();
     }
 
@@ -95,9 +98,9 @@ public class OutboxPublisher {
 
     @PreDestroy
     public void onShutdown() {
-        log.info("OutboxPublisher shutting down - draining pending events...");
+        log.info("OutboxPublisher shutting down - draining pending events (timeout={}ms)...", drainTimeoutMs);
         try {
-            Thread.sleep(2000);
+            Thread.sleep(drainTimeoutMs);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

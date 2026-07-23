@@ -51,6 +51,7 @@ outbox:
     batch-size: 100
     max-attempts: 10
     stale-threshold-minutes: 5
+    drain-timeout-ms: 10000
 
 applicationinsights:
   connection-string: ${APPLICATIONINSIGHTS_CONNECTION_STRING:}

@@ -13,7 +13,7 @@ interface ProcessedEventJpaRepository extends JpaRepository<ProcessedEventEntity
     @Modifying
     @Transactional
     @Query(value = """
-        INSERT INTO processed_events (consumer, idempotency_key, processed_at)
+        INSERT INTO outbox.processed_events (consumer, idempotency_key, processed_at)
         VALUES (:consumer, :key, NOW())
         ON CONFLICT (consumer, idempotency_key) DO NOTHING
         """, nativeQuery = true)

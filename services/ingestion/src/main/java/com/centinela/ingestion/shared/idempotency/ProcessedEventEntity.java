@@ -11,7 +11,7 @@ import java.time.Instant;
 import java.util.Objects;
 
 @Entity
-@Table(name = "processed_events")
+@Table(name = "processed_events", schema = "outbox")
 @IdClass(ProcessedEventEntity.ProcessedEventId.class)
 class ProcessedEventEntity {
 

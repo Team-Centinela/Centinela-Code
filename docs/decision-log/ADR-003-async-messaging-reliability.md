@@ -67,23 +67,23 @@ INSERT (status=PENDING,        │  Scheduled tick @1s  │
   attempts=0,                  │  SELECT ... FOR      │
   last_attempt_at=NULL)        │   UPDATE SKIP        │
  ─────────────────────────────►│   LOCKED             │
-                               │   WHERE status=      │
-                               │   'PENDING'          │
-                               │   ORDER BY id        │
-                               │   LIMIT 100          │
-                               └──────────┬───────────┘
-                                          │
-                ┌─────────────────────────┼─────────────────────────┐
-                ▼                         ▼                         ▼
-  publish OK                   broker transient 5xx          JVM shutdown /
-  ───────────────              ──────────────────            unclean crash
-  UPDATE status=PUBLISHED,     attempts++,                    ──────────────
-  published_at=NOW()           backoff (exp, max 10/60s)     row stays
-                                                              status=PENDING,
-  After 10 attempts                                           attempts>0
-  ────────────────
-  UPDATE status=DEAD_LETTER,
-  alert fired
+                                │   WHERE status=      │
+                                │   'PENDING'          │
+                                │   ORDER BY id        │
+                                │   LIMIT 100          │
+                                └──────────┬───────────┘
+                                           │
+                 ┌─────────────────────────┼─────────────────────────┐
+                 ▼                         ▼                         ▼
+   publish OK                   broker transient 5xx          JVM shutdown /
+   ───────────────              ──────────────────            unclean crash
+   UPDATE status=PUBLISHED,     attempts++,                    ──────────────
+   published_at=NOW()           backoff (exp, max 10/60s)     row stays
+                                                               status=PENDING,
+   After 10 attempts                                           attempts>0
+   ────────────────
+   UPDATE status=DEAD_LETTER,
+   alert fired
 ```
 
 **Recovery / cold-start semantics** (addresses scenarios flagged in #25):
@@ -97,7 +97,25 @@ The recovery step does not require a schema change beyond `last_attempt_at TIMES
 
 ### 3.3 Idempotency Key strategy
 
-Every domain event carries an `aggregateId` (e.g. `transactionId`) used as the Idempotency Key. The consumer of every queue and topic subscription dedupes via the **SELECT-then-conditional-UPDATE** strategy (per #16's "pick one of Sessions / INSERT ON CONFLICT / SELECT FOR UPDATE" question — we pick SELECT FOR UPDATE, anchored on `aggregateId`):
+Every domain event carries an `aggregateId` (e.g. `transactionId`) used as the Idempotency Key. Two strategies are used, depending on the consumer's ownership of the target table:
+
+#### 3.3.1 Inbound message dedup — `processed_events` ledger
+
+Consumers that receive events from a queue or topic subscription dedup via a `processed_events` ledger table with an atomic `INSERT ... ON CONFLICT DO NOTHING`. This is the primary mechanism for event-driven consumers:
+
+```sql
+INSERT INTO processed_events (consumer, idempotency_key, processed_at)
+VALUES (:consumer, :aggregateId, NOW())
+ON CONFLICT (consumer, idempotency_key) DO NOTHING;
+```
+
+Returns 1 if inserted (first-time processing), 0 if duplicate. The `IdempotencyService` wraps this as a `@Transactional` method. On duplicate, the handler ACKs and skips. On INSERT failure, the exception aborts the transaction and the message is redelivered.
+
+This is the correct choice here because the consumer **is** the writer of the `processed_events` row — there is no canonical business row to gate on at the moment of ingestion.
+
+#### 3.3.2 Business status gating — `SELECT ... FOR UPDATE SKIP LOCKED`
+
+For consumers that mutate an existing business table (e.g. case creation or alert advancement), the **SELECT-then-conditional-UPDATE** strategy is used:
 
 ```
 SELECT status
@@ -107,15 +125,15 @@ SELECT status
    FOR UPDATE SKIP LOCKED
 ```
 
-If the row exists in the expected status, **skip** processing and ACK the message. Otherwise UPDATE with an idempotent guard (`WHERE status < expected_status`) so two concurrent consumers can never advance the same `aggregateId`. This is the same idempotency strategy for all hops: Ingestion → Serverless Engine (scoring), Serverless Engine → Core Backend (case creation), Core Backend → OCR Worker (document extraction).
+If the row exists in the expected status, **skip** processing and ACK the message. Otherwise UPDATE with an idempotent guard (`WHERE status < expected_status`). This strategy is reserved for business-table writers where the consumer advances application state.
 
-**Why SELECT ... FOR UPDATE SKIP LOCKED, not the alternatives** flagged in #16:
+**Why not the alternatives** flagged in #16:
 
 - *Sessions-keyed-by-aggregateId* — sessions add session-create-then-renew cost and break the binder's at-least-once retry contract when a consumer crashes mid-session. Rejected.
-- *INSERT ON CONFLICT* — requires the consumer to be the writer of the canonical row, which it is not (`cases`/`alerts` are mutated under explicit use-case code). Rejected.
+- *INSERT ON CONFLICT on business tables* — requires the consumer to be the writer of the canonical row, which it is not (`cases`/`alerts` are mutated under explicit use-case code). Rejected for business tables; used for the `processed_events` ledger (§3.3.1).
 - *Plain SELECT (no FOR UPDATE)* — leaves a TOCTOU window for at-least-once duplicates. Rejected in favour of the locked read.
 
-Concrete conditional-UPDATE shape lands in #41 (consumer-side idempotency implementation, sub-issue of #37).
+Implementation of both strategies lands in #41 (consumer-side idempotency, sub-issue of #37). The `processed_events` ledger and `IdempotencyService` live in each service's `shared/idempotency/` package.
 
 ### 3.4 Failure handling escalator
 

@@ -26,6 +26,11 @@ spring:
         default_schema: public
 
   cloud:
+    stream:
+      bindings:
+        transactionsRaw-in-0:
+          destination: transactions-raw
+          group: core-backend
     azure:
       servicebus:
         connection-string: ${AZURE_SERVICEBUS_CONNECTION_STRING:}

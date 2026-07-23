@@ -27,28 +27,33 @@ For each async command or event consumed, persist a small "processed events" led
 
 ```sql
 CREATE TABLE processed_events (
-    consumer       VARCHAR(100) NOT NULL,        -- 'serverless-engine', 'case-module', 'alert-module', 'ocr-worker', etc.
+    consumer        VARCHAR(100) NOT NULL,        -- 'core-backend', 'serverless-engine', 'ocr-worker', etc.
     idempotency_key VARCHAR(255) NOT NULL,      -- transactionId / caseId / documentId / eventId
-    processed_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    processed_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (consumer, idempotency_key)
 );
 ```
 
+```sql
+-- INSERT ON CONFLICT DO NOTHING is the atomic dedup primitive.
+-- Returns 1 if inserted (first time), 0 if already existed (duplicate).
+INSERT INTO processed_events (consumer, idempotency_key, processed_at)
+VALUES ('core-backend', :idempotencyKey, NOW())
+ON CONFLICT (consumer, idempotency_key) DO NOTHING;
 ```
-Consumer-side handler (pseudocode):
 
+If the INSERT succeeds (row 1), the message is processed. If it returns 0 (duplicate exists), the handler ACKs and skips. This is a single atomic statement — no TOCTOU race.
+
+The `IdempotencyService` wraps this as:
+
+```java
 @Transactional
-public void onMessage(EventEnvelope env) {
-    String id = env.aggregateId();
-    if (processedRepo.exists("serverless-engine", id)) {
-        return;                                   // already processed; safe to ack
-    }
-    runScoring(id);
-    processedRepo.save("serverless-engine", id);
+public boolean tryProcess(String consumer, String idempotencyKey) {
+    return repository.tryInsert(consumer, idempotencyKey) == 1;
 }
 ```
 
-Failure of either DB insert raises an exception that aborts the `@Transactional`, which causes the Service Bus message NOT to be ACKed → automatic redelivery.
+Failure of the INSERT raises an exception that aborts the `@Transactional`, which causes the Service Bus message NOT to be ACKed → automatic redelivery.
 
 ## Why not just rely on Service Bus deduplication?
 
@@ -78,4 +83,11 @@ A second layer of consumer-side idempotency is mandatory.
 
 ## Status
 
-**DRAFT** — first implementation in the Serverless Engine consumer of `transactions-raw`. Pattern is reused thereafter by every other consumer.
+**LIVE** — implemented via `IdempotencyService` + `processed_events` table in core-backend. Used by `TransactionsRawConsumer`. Reused by every subsequent consumer (add a `ProcessedEventJpaRepository` + `IdempotencyService` in the consuming service, wire into the handler).
+
+## Related Code
+
+- `services/core-backend/src/main/java/com/centinela/corebackend/shared/idempotency/IdempotencyService.java`
+- `services/core-backend/src/main/java/com/centinela/corebackend/shared/idempotency/ProcessedEventEntity.java`
+- `services/core-backend/src/main/java/com/centinela/corebackend/shared/idempotency/ProcessedEventJpaRepository.java`
+- `services/core-backend/src/main/java/com/centinela/corebackend/adapter/messaging/TransactionsRawConsumer.java`

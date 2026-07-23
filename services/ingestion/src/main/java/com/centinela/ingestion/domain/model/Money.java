@@ -2,6 +2,7 @@ package com.centinela.ingestion.domain.model;
 
 import java.math.BigDecimal;
 import java.util.Currency;
+import java.util.Locale;
 import java.util.Objects;
 
 public final class Money {

@@ -1,4 +1,4 @@
-package com.centinela.ingestion.shared.idempotency;
+package com.centinela.shared.messaging.idempotency;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

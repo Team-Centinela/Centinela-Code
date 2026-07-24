@@ -1,4 +1,4 @@
-package com.centinela.ingestion.shared.idempotency;
+package com.centinela.shared.messaging.idempotency;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

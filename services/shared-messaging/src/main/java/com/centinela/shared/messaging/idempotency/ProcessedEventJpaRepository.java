@@ -1,4 +1,4 @@
-package com.centinela.ingestion.shared.idempotency;
+package com.centinela.shared.messaging.idempotency;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;

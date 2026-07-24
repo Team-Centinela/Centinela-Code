@@ -1,4 +1,4 @@
-package com.centinela.ingestion.shared.outbox;
+package com.centinela.shared.messaging.outbox;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -76,7 +76,7 @@ public class OutboxPublisher {
                 log.info("Database connection established on attempt {}", attempts + 1);
             } catch (Exception e) {
                 attempts++;
-                log.warn("Database not ready (attempt {}: {}", attempts, maxAttempts, e.getMessage());
+                log.warn("Database not ready (attempt {}: {})", attempts, maxAttempts, e.getMessage());
                 if (attempts < maxAttempts) {
                     try {
                         Thread.sleep(1000);
@@ -127,18 +127,22 @@ public class OutboxPublisher {
         }
 
         log.debug("Claimed {} pending outbox events for publishing", events.size());
+
+        // First pass: mark all as ATTEMPTING (increment attempts, set lastAttemptAt)
+        Instant now = Instant.now();
+        for (OutboxEventEntity event : events) {
+            event.setLastAttemptAt(now);
+            event.incrementAttempts();
+        }
+        outboxRepository.saveAllAndFlush(events);
+
+        // Second pass: publish to Service Bus
         int published = 0;
         for (OutboxEventEntity event : events) {
             try {
-                event.setLastAttemptAt(Instant.now());
-                event.incrementAttempts();
-                outboxRepository.saveAndFlush(event);
-
                 serviceBusPublisher.publish(event.getEventType(), event.getAggregateId(), event.getPayload());
-
                 event.setStatus(OutboxEventEntity.Status.PUBLISHED);
                 event.setSentAt(Instant.now());
-                outboxRepository.saveAndFlush(event);
                 published++;
             } catch (Exception e) {
                 log.warn("Failed to publish outbox event {}: {}", event.getId(), e.getMessage());
@@ -146,9 +150,13 @@ public class OutboxPublisher {
                     event.setStatus(OutboxEventEntity.Status.DEAD_LETTER);
                     log.error("Event {} moved to DEAD_LETTER after {} attempts", event.getId(), maxAttempts);
                 }
-                outboxRepository.saveAndFlush(event);
+                // else keep as PENDING for retry
             }
         }
+
+        // Single batch flush for all status updates
+        outboxRepository.saveAllAndFlush(events);
+
         updateMetrics(outboxRepository.countByStatus(OutboxEventEntity.Status.PENDING), getOldestPendingAge());
         log.debug("Published {} out of {} claimed events", published, events.size());
     }

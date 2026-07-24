@@ -26,6 +26,10 @@ spring:
         default_schema: oltp
 
   cloud:
+    stream:
+      bindings:
+        fraud-evaluation-out-0:
+          destination: fraud-evaluation
     azure:
       servicebus:
         connection-string: ${AZURE_SERVICEBUS_CONNECTION_STRING:}

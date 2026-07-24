@@ -1,6 +1,6 @@
 package com.centinela.corebackend.adapter.messaging;
 
-import com.centinela.corebackend.shared.idempotency.IdempotencyService;
+import com.centinela.shared.messaging.idempotency.IdempotencyService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;

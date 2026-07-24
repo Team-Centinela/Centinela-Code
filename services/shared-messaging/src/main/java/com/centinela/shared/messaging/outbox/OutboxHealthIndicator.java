@@ -1,4 +1,4 @@
-package com.centinela.ingestion.shared.outbox;
+package com.centinela.shared.messaging.outbox;
 
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;

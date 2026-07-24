@@ -31,6 +31,8 @@ spring:
         transactionsRaw-in-0:
           destination: transactions-raw
           group: core-backend
+        fraud-evaluation-out-0:
+          destination: fraud-evaluation
     azure:
       servicebus:
         connection-string: ${AZURE_SERVICEBUS_CONNECTION_STRING:}

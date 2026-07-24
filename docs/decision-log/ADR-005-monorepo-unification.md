@@ -78,3 +78,7 @@ The next-generation `AGENTS.md` in the monorepo becomes the only one and removes
 - `AGENTS.md` § "Persistent vs temporal — where content belongs"
 - `README.md` § "How to contribute"
 - Historical GitHub Issue [Team-Centinela/Centinela-docs#17](https://github.com/Team-Centinela/Centinela-docs/issues/17) (ADR-008 draft) — superseded by this ADR-005
+
+## Status
+
+**EXECUTED** (2026-07-15) — by the AI session that finalized this Markdown. Team-Centinela/Centinela-docs now archived. Issue transfer and ADR review tracked at [#16](https://github.com/Team-Centinela/Centinela-Code/issues/16) and [#20](https://github.com/Team-Centinela/Centinela-Code/issues/20).

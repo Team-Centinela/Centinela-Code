@@ -1,4 +1,4 @@
-package com.centinela.corebackend.shared.outbox;
+package com.centinela.shared.messaging.outbox;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;

@@ -1,4 +1,4 @@
-package com.centinela.corebackend.shared.outbox;
+package com.centinela.shared.messaging.outbox;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,7 +12,7 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity(name = "SharedOutboxEvent")
+@Entity
 @Table(name = "outbox_events", schema = "outbox")
 class OutboxEventEntity {
 

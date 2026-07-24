@@ -22,6 +22,7 @@
     <modules>
         <module>core-backend</module>
         <module>ingestion</module>
+        <module>serverless-engine</module>
     </modules>
 
 <properties>

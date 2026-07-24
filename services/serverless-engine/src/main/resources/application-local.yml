@@ -6,11 +6,16 @@ spring:
     driver-class-name: org.h2.Driver
 
   flyway:
-    enabled: false
+    enabled: true
+    locations: classpath:db/migration/common
+    create-schemas: true
+    baseline-on-migrate: true
+    placeholders:
+      uuid-func: RANDOM_UUID
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect

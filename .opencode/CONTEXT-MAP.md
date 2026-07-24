@@ -27,11 +27,13 @@ session.
 
 ## Read first on session start
 
-1. `../AGENTS.md` (root) — global behavior rules
-2. `../docs/AGENTS.md` — `docs/` rules
-3. `../docs/architecture/01-overview.md` — what is this thing
+1. `../AGENTS.md` (root) — global behavior rules (now includes ADR-010 `Always` clauses)
+2. `../docs/AGENTS.md` — `docs/` rules (now includes PR↔Issue↔Azure traceability)
+3. `../docs/architecture/01-overview.md` — what is this thing (now includes Lane-Ownership Overlay)
 4. `../docs/architecture/06-technology-stack.md` — what runs it
-5. **All** ADRs in `../docs/decision-log/`
+5. **All** ADRs in `../docs/decision-log/` (now including `ADR-010 — Issue & PR Discipline`)
+6. `../docs/best-practices/05-pr-and-issue-discipline.md` — role matrix + companion infra convention
+7. `../../.github/agent-preflight.md` — three-rule AI preflight before any work
 
 ## Topic → Doc routing
 
@@ -52,17 +54,37 @@ session.
 | Tests | `../docs/best-practices/02-testing-strategy.md` |
 | Errors | `../docs/best-practices/03-error-handling.md` |
 | Logging/observability | `../docs/best-practices/04-logging-and-monitoring.md` |
+| What PR / issue discipline do I follow? | `../docs/best-practices/05-pr-and-issue-discipline.md` + `../docs/patterns/07-azure-impact-companion-issue.md` + `../docs/decision-log/ADR-010-issue-pr-discipline.md`. AI agents read `../../.github/agent-preflight.md` first. |
 
 ## Issue ↔ Doc linkage (mandatory)
 
 Per the issue templates (`.github/ISSUE_TEMPLATE/`):
 - **ADR / Epic issue** → must list at least one ADR.
-- **Sprint task** → must list at least one ADR or
-  architecture/pattern doc.
+- **Task-managed** (lane work) → must list `Blocked by:` (closed-only), `Has azure-impact: yes/no`, and `Companion infra issue:` when azure-impact is yes. **Always** link to the lane's epic.
+- **Infra-change** (companion) → `EXPECTED DELIVERY` + `COST-ATTRIBUTION`.
+- **Ceremony** → `standup` / `retro` / `refinement` body filled only with comments.
+- **ADR-amend** → drift diff recorded, ADR being amended clearly stated.
 - **Bug** → must list the affected module/section.
 
 When you read an issue to start work, harvest these doc references
 *before* your first edit.
+
+## Per-lane workstream epics (Sprint 1)
+
+| Lane | Issue | Owner |
+|---|---|---|
+| A (governance) | #134 | @SrLampi1001 |
+| B (Ingestion)  | #135 | @3105jero |
+| C (Engine)     | #136 | @SebastianT2006 (+ domain by @3105jero) |
+| D (Core)       | #138 | @JjuanGarcia77 |
+| E (Platform)   | #137 | @Santiagodxz |
+
+Companion infra issues per ADR-010 §10.3 (each is a paired `[X.A*]` issue in the same sprint):
+
+- Lane B: #139 (B.A1), #140 (B.A2), #141 (B.A3)
+- Lane C: #142 (C.A1), #143 (C.A2), #144 (C.A3)
+- Lane D: #145 (D.A1), #146 (D.A2), #147 (D.A3)
+- Lane E: #148 (E.A1), #149 (E.A2), #150 (E.A3)
 
 ## Quick GitHub CLI cheatsheet
 

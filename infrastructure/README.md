@@ -24,6 +24,7 @@ See the ADRs for each technology's rationale:
 | ADR-009 | Compute substrate (ACA Consumption + SWA Free) |
 | ADR-006 | Auth & secrets |
 | ADR-007 | Observability & cost caps |
+| ADR-010 | Issue & PR discipline (companion infra issues, blockers, cost attribution) |
 
 ## Cost guardrails
 
@@ -40,6 +41,32 @@ See the ADRs for each technology's rationale:
 | **Total** | | **~$15–24** | Well under the $60 ceiling. |
 
 Key cost-saving mechanisms (scale-to-zero, free grants, PostgreSQL auto-stop, budget alerts at 50/80/90/100% of $60) are canonical in [`../docs/decision-log/ADR-007-observability-cost-telemetry.md`](../docs/decision-log/ADR-007-observability-cost-telemetry.md) §7.7 and [`../docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md`](../docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md) §Cost Impact.
+
+## Per-issue cost attribution (per ADR-010 §10.5)
+
+Every companion infra issue records its spend in one of two modes:
+
+- **Mode (a)** — add a row to this document's §"Cost guardrails" table (one row per Azure-impact change), referencing the `centinela:lp` and `centinela:issue` tags.
+- **Mode (b)** — tag the affected Azure resource(s) with the schema below. Back-trace from Azure Cost Analysis (filter by `Resource Tags.centinela:lp`, group by `Resource Tags.centinela:issue`).
+
+```
+centinela:lp        = "<lane letter>"        # "lane-b", "lane-c", etc.
+centinela:epic      = "[<lane>.0]"           # the per-lane epic issue ref
+centinela:issue     = "<companion issue>"    # the companion issue, "[B.A1]"
+centinela:sprint    = "sprint-<N>"
+centinela:start     = "<yyyy-mm-dd>"
+centinela:close     = "<yyyy-mm-dd, filled at close>"
+centinela:action    = "create|update|delete"
+```
+
+For Tier-1 resources (RG, Service Bus Standard namespace, ACA Environment, Key Vault, App Insights workspace) the **gold standard is (a)+(b)**. For lower-tier changes either is the floor.
+
+Per-lane cost rows (live):
+
+| lane | service | sprint | resource delta (or note) | cost | companion | start | spent |
+|---|---|---|---|---|---|---|---|
+| lane-a | governance | _process_ | PR #120/#121/#127 acknowledge path | _doc only_ | _regex 131_ | 2026-07-25 | — |
+| _pending_ | _pending_ | sprint-1 | _companion issues [B.A1] etc. land rows here as they close_ | _TBD_ | _TBD_ | _TBD_ | _TBD_ |
 
 ## Day-1 region & quota verification
 

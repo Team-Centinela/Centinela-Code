@@ -73,3 +73,30 @@ Active Issues in the Centinela repo should reference the affected
 `docs/` files (e.g. *"ADR-002 supersedes content under
 `architecture/06-technology-stack.md` §Cosmos DB"*). The Issue
 Templates in `.github/ISSUE_TEMPLATE/` make ADR linkage mandatory.
+
+## PR↔Issue ↔ Azure traceability (per ADR-010)
+
+When a code PR alters the deployment surface — env var, secret,
+secret-name ref, container build context, Service Bus binding, KEDA
+config, ACA Managed Identity role assignment — the PR **must**:
+
+1. Carry the `azure-impact: yes` label and a `Companion infra issue: #—`
+   line referencing a paired `infra`-labelled companion issue.
+2. Mirror the `EXPECTED DELIVERY` block from `task-managed.md` into
+   both the issue and the companion.
+3. Pick a `centinela:*` cost-attribution mode (doc-row or Azure tags);
+   the companion issue records the cost.
+
+PRs that change code without an accompanying doc touch on the affected
+ADR / pattern / service README are an *audit-trail break* — see
+[ADR-010 §10.4](../decision-log/ADR-010-issue-pr-discipline.md) and
+[`docs/best-practices/05-pr-and-issue-discipline.md`](../best-practices/05-pr-and-issue-discipline.md).
+
+## Cross-doc PRs
+
+If a PR touches more than one of {ADRs, architecture pages, service
+READMEs, AGENTS.md}, the body must enumerate every affected file and
+the reason — so a reviewer can read the textual consequence in one PR
+view instead of digging through commits. Single concern per commit
+(Commit Hygiene §1) plus cross-doc disclosure is the separation; both
+are required.

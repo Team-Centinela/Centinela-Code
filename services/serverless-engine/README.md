@@ -1,6 +1,6 @@
 # Serverless Engine (Rule Engine)
 
-> **Status:** directory placeholder — the Maven module is not yet registered in `services/pom.xml`. Tracking issue: **#51** (`[services] Register serverless-engine Maven module in services/pom.xml`). Until #51 closes, this directory is informational only.
+> **Status:** active module — registered in `services/pom.xml` as child of `centinela-parent` (closes #51). All dependency versions are inherited from the parent POM single source of truth per ADR-001 §"Decision #4", ADR-003 §3.1, ADR-009 §9.1.
 
 Pulled out per **ADR-001 §Decision #4** as the third extracted service. Lives in its own Spring Boot application on Azure Container Apps (Consumption) with a **KEDA `azure-servicebus` scaler** bound to the `transactions-raw` queue. Per `../../docs/architecture/05-selective-extraction.md`, this service is the *only* deployment unit for the Pipeline Pattern defined in `../../docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md`.
 
@@ -11,7 +11,7 @@ Pulled out per **ADR-001 §Decision #4** as the third extracted service. Lives i
 - **Failure isolation** — a regression in case-management code must not stall scoring (and vice versa).
 - **Independent deploy** — `rule_configs` data changes weekly; the Pipeline code changes monthly; the Core Backend changes on a different cadence.
 
-## What it owns (when #51 closes and the module is wired)
+## What it owns (with #51 closed and the module wired)
 
 | Capability | Backing |
 |---|---|
@@ -37,15 +37,16 @@ Pulled out per **ADR-001 §Decision #4** as the third extracted service. Lives i
 
 ## Owned GitHub Issues
 
-- **Implementation:** #42 — Implement Rule Engine Pipeline (FR-1..FR-4). **Blocked by** #51 (this directory's `<module>` registration).
-- **Implementation:** #40 — Outbox Publisher with shutdown recovery (serverless-engine's own publisher per ADR-003 §3.2).
-- **Implementation:** #41 — Consumer-side idempotency for the `transactions-raw` consumer.
+- **Registration:** #51 / #88 — Maven module registered in `services/pom.xml` (**CLOSED**)
+- **Implementation:** #42 — Implement Rule Engine Pipeline (FR-1..FR-4)
+- **Implementation:** #40 — Outbox Publisher with shutdown recovery (serverless-engine's own publisher per ADR-003 §3.2)
+- **Implementation:** #41 — Consumer-side idempotency for the `transactions-raw` consumer
 
 ## File layout (target)
 
 ```
 serverless-engine/
-├── pom.xml                              # child of services/pom.xml (issue #51)
+├── pom.xml                              # child of services/pom.xml (issue #51 / #88)
 ├── README.md
 ├── Dockerfile                           # ACA-compatible; JVM 21 eclipse-temurin
 ├── src/main/java/com/centinela/serverless/
@@ -63,4 +64,4 @@ serverless-engine/
     └── ...                              # Unit + integration tests (per ../../docs/best-practices/02-testing-strategy.md)
 ```
 
-Per **ADR-001 §Action Plan**, the parent-POM registration (#51) blocks any source code in this directory from being built. Until #51 closes, this file documents intent only.
+Per **ADR-001 §Action Plan**, the parent-POM registration (#51 / #88) blocks any source code in this directory from being built. Now that #88 is closed, this file documents the active service contract.

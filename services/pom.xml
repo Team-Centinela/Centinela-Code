@@ -20,6 +20,7 @@
     <description>Parent POM for Centinela fraud detection platform services</description>
 
     <modules>
+        <module>shared-messaging</module>
         <module>core-backend</module>
         <module>ingestion</module>
     </modules>

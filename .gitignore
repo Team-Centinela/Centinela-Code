@@ -28,6 +28,10 @@ build/
 .gradle/
 out/
 
+# Negate Java source "out" directories (used for adapter/out/ packages)
+!services/*/src/main/java/**/out/
+!services/*/src/test/java/**/out/
+
 # Python
 __pycache__/
 *.py[cod]

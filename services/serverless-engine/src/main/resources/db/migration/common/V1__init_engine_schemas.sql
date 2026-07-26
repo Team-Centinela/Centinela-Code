@@ -37,9 +37,11 @@ CREATE TABLE triggered_rules.triggered_rules (
     id UUID DEFAULT ${uuid-func}() PRIMARY KEY,
     transaction_id UUID NOT NULL,
     rule_code VARCHAR(50) NOT NULL,
-    score DECIMAL(5,2) NOT NULL,
+    score INT NOT NULL,
     raw_evidence JSON NOT NULL,
     evaluated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX uq_triggered_rule_per_tx ON triggered_rules.triggered_rules (transaction_id, rule_code);
 
 CREATE INDEX idx_triggered_transaction ON triggered_rules.triggered_rules (transaction_id, evaluated_at DESC);

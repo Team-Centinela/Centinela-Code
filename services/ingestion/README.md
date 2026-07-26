@@ -44,7 +44,19 @@ ingestion/
 └── Dockerfile
 ```
 
+## Architecture Verification
+
+Hexagonal-layer purity is enforced by `src/test/java/com/centinela/ingestion/archunit/HexagonalArchitectureTest.java` (4 ArchUnit rules):
+1. Domain must not depend on Spring, JPA, or Azure packages
+2. Domain classes must not carry Spring stereotype annotations
+3. Domain must not access infrastructure adapters
+4. Layered ordering: `domain` ← `application` ← `infrastructure`
+
+Run: `mvn test` (executes as part of the full suite, no special profile needed).
+
 References:
+- [ADR-001 §Hexagonal](../../docs/decision-log/ADR-001-modular-monolith-hexagonal.md) — port/adapter layout mandatory for Ingestion API
+- [Hexagonal Architecture](../../docs/architecture/03-hexagonal-architecture.md) — domain is the innermost ring
 - `../../docs/architecture/01-overview.md` §"Ingestion"
 - `../../docs/architecture/05-selective-extraction.md` §"Ingestion API"
 - `../../docs/decision-log/ADR-002-postgresql-only-db.md` §"Storage matrix"

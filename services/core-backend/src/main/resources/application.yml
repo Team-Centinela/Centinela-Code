@@ -14,7 +14,10 @@ spring:
     schemas: cases,alerts,reporting,auth,rules_config,outbox
     create-schemas: true
     locations: classpath:db/migration
-    baseline-on-migrate: true
+    # Disabled so Flyway runs V1..V3 from version 0 against a fresh database
+    # (init.sql pre-creates the schemas, which `true` would interpret as
+    # "non-empty, baseline instead"). Tracked by #176.
+    baseline-on-migrate: false
 
   jpa:
     hibernate:

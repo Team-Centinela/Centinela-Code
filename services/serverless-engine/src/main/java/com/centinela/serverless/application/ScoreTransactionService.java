@@ -1,5 +1,6 @@
 package com.centinela.serverless.application;
 
+import com.centinela.serverless.adapter.out.persistence.RawEvidenceValidator;
 import com.centinela.serverless.domain.event.TransactionReceivedEvent;
 import com.centinela.serverless.domain.model.FraudDecision;
 import com.centinela.serverless.domain.model.Recommendation;
@@ -120,6 +121,12 @@ public class ScoreTransactionService {
         TransactionReceivedEvent event = deserialize(payload);
         EvaluationContext ctx = new EvaluationContext(event);
         FraudDecision decision = pipeline.execute(ctx);
+
+        // ADR-004 §4.2: every fired rule must carry the pinned rawEvidence key
+        // set for its rule code. Reject the message before persistence so a
+        // schema drift surfaces as a binder DLQ instead of an Analytics query
+        // that returns null on the join.
+        RawEvidenceValidator.validateAll(decision.triggeredRules());
 
         triggeredRuleRepository.saveAll(decision.triggeredRules(), decision.transactionId());
         log.debug("Stored {} triggered rule(s) for transaction {} (recommendation={}, score={})",

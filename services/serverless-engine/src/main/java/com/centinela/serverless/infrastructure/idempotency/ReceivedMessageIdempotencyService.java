@@ -24,7 +24,7 @@ public class ReceivedMessageIdempotencyService {
         this.repository = repository;
     }
 
-    @org.springframework.beans.factory.annotation.Value("${app.idempotency.schema:oltp}")
+    @org.springframework.beans.factory.annotation.Value("${app.idempotency.schema:received_messages}")
     public void setSchema(String schema) {
         this.schema = schema;
     }

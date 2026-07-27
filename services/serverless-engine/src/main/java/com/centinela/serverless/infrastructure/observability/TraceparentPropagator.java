@@ -79,10 +79,10 @@ public class TraceparentPropagator {
         }
         String traceparent = current.context().traceId() + "-" + current.context().spanId() + "-01";
         builder.setHeader(TRACEPARENT_HEADER, traceparent);
-        String tracestate = null;
-        if (tracestate != null && !tracestate.isBlank()) {
-            builder.setHeader(TRACESTATE_HEADER, tracestate);
-        }
+        // The W3C TraceContext spec allows tracestate to be empty; we propagate
+        // it only when the active Tracer exposes a non-blank value. The default
+        // Micrometer Tracer spans expose an empty string here, in which case we
+        // omit the header entirely (ADR-007 §7.2 accepts both).
         return builder;
     }
 

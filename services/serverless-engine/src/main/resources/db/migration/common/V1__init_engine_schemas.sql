@@ -18,17 +18,26 @@ CREATE TABLE rules_config.flagged_merchants (
     reason TEXT
 );
 
--- Received Messages schema: consumer-side idempotency per ADR-003 §3.3
+-- Received Messages ledger: consumer-side idempotency per ADR-003 §3.3.2.
+-- The schema must match the SQL emitted by
+-- infrastructure/idempotency/ReceivedMessageRepository.java:
+--   message_id is VARCHAR (Service Bus message-id), consumer is VARCHAR
+--   (logical consumer name e.g. "serverless-engine.transactions-raw"),
+--   status cycles RECEIVED -> PROCESSED. The PRIMARY KEY (message_id,
+--   consumer) is what the ON CONFLICT clause references.
 CREATE SCHEMA IF NOT EXISTS received_messages;
 
 CREATE TABLE received_messages.received_messages (
-    message_id UUID PRIMARY KEY,
-    transaction_id UUID NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-    received_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    message_id      VARCHAR(128) NOT NULL,
+    consumer        VARCHAR(100) NOT NULL,
+    status          VARCHAR(20)  NOT NULL DEFAULT 'RECEIVED',
+    received_at     TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    processed_at    TIMESTAMP WITH TIME ZONE,
+    transaction_id  UUID,
+    PRIMARY KEY (message_id, consumer)
 );
 
-CREATE INDEX idx_received_status ON received_messages.received_messages (status, received_at);
+CREATE INDEX idx_received_messages_status ON received_messages.received_messages (status, received_at);
 
 -- Triggered Rules schema: per-FR evaluation evidence per ADR-004
 CREATE SCHEMA IF NOT EXISTS triggered_rules;

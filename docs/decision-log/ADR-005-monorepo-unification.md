@@ -81,4 +81,4 @@ The next-generation `AGENTS.md` in the monorepo becomes the only one and removes
 
 ## Status
 
-**EXECUTED** (2026-07-15) — by the AI session that finalized this Markdown. [Team-Centinela/Centinela-docs](https://github.com/Team-Centinela/Centinela-docs) now archived. Issue transfer and ADR review tracked at [#16](https://github.com/Team-Centinela/Centinela-Code/issues/16) and [#20](https://github.com/Team-Centinela/Centinela-Code/issues/20).
+**EXECUTED** (2026-07-15) — by the AI session that finalized this Markdown. Team-Centinela/Centinela-docs now archived. Issue transfer and ADR review tracked at [#16](https://github.com/Team-Centinela/Centinela-Code/issues/16) and [#20](https://github.com/Team-Centinela/Centinela-Code/issues/20).

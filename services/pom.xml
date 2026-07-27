@@ -19,7 +19,14 @@
     <name>Centinela Parent</name>
     <description>Parent POM for Centinela fraud detection platform services</description>
 
+    <!--
+        Single source of truth for dependency versions.
+        Every sibling module inherits <dependencyManagement> from this parent
+        and MUST NOT duplicate version strings. See ADR-001 §"Decision #4",
+        ADR-003 §3.1, ADR-009 §9.1.
+    -->
     <modules>
+        <module>shared-messaging</module>
         <module>core-backend</module>
         <module>ingestion</module>
         <module>serverless-engine</module>

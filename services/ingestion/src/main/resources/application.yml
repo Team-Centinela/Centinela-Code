@@ -26,6 +26,10 @@ spring:
         default_schema: oltp
 
   cloud:
+    stream:
+      bindings:
+        fraud-evaluation-out-0:
+          destination: fraud-evaluation
     azure:
       servicebus:
         connection-string: ${AZURE_SERVICEBUS_CONNECTION_STRING:}
@@ -44,6 +48,14 @@ server:
 logging:
   level:
     com.centinela: DEBUG
+
+outbox:
+  publisher:
+    interval-ms: 1000
+    batch-size: 100
+    max-attempts: 10
+    stale-threshold-minutes: 5
+    drain-timeout-ms: 10000
 
 applicationinsights:
   connection-string: ${APPLICATIONINSIGHTS_CONNECTION_STRING:}

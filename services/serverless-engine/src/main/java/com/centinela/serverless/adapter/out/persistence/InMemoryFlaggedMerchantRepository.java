@@ -2,7 +2,6 @@ package com.centinela.serverless.adapter.out.persistence;
 
 import com.centinela.serverless.domain.port.FlaggedMerchant;
 import com.centinela.serverless.domain.port.FlaggedMerchantRepository;
-import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
@@ -14,7 +13,6 @@ import java.util.Optional;
  * <p>TODO(@3105jero): replace with the JPA query against
  * {@code rules_config.flagged_merchants}.</p>
  */
-@Repository
 public class InMemoryFlaggedMerchantRepository implements FlaggedMerchantRepository {
 
     @Override

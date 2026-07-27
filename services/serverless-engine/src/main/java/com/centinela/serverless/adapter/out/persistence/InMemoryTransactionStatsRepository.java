@@ -2,7 +2,6 @@ package com.centinela.serverless.adapter.out.persistence;
 
 import com.centinela.serverless.domain.port.TransactionStats;
 import com.centinela.serverless.domain.port.TransactionStatsRepository;
-import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
@@ -16,7 +15,6 @@ import java.util.Optional;
  * {@code AVG(amount)} + sample size + standard deviation from
  * {@code oltp.transactions} partitioned by {@code account_id}.</p>
  */
-@Repository
 public class InMemoryTransactionStatsRepository implements TransactionStatsRepository {
 
     @Override

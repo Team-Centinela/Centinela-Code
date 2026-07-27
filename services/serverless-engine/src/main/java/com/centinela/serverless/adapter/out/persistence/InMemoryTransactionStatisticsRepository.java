@@ -1,7 +1,6 @@
 package com.centinela.serverless.adapter.out.persistence;
 
 import com.centinela.serverless.domain.port.TransactionStatisticsRepository;
-import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 
@@ -14,7 +13,6 @@ import java.time.Instant;
  * {@code COUNT(*)} from {@code oltp.transactions} partitioned by
  * {@code account_id} (hash partition per ADR-002 + #17).</p>
  */
-@Repository
 public class InMemoryTransactionStatisticsRepository implements TransactionStatisticsRepository {
 
     @Override

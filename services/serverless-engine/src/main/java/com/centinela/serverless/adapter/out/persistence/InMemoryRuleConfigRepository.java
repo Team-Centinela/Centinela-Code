@@ -2,7 +2,6 @@ package com.centinela.serverless.adapter.out.persistence;
 
 import com.centinela.serverless.domain.port.RuleConfig;
 import com.centinela.serverless.domain.port.RuleConfigRepository;
-import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
@@ -18,7 +17,6 @@ import java.util.Optional;
  * is fully functional but operators cannot tune the four FR parameters
  * from the UI — they would have to redeploy.</p>
  */
-@Repository
 public class InMemoryRuleConfigRepository implements RuleConfigRepository {
 
     @Override

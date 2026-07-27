@@ -42,36 +42,52 @@ public class ReceivedMessageIdempotencyService {
      *   <li>If no row exists → insert with {@code INSERT ... ON CONFLICT DO NOTHING}. A
      *       return code of 1 wins the claim; 0 means a concurrent insert won and we must skip.</li>
      * </ol>
+     *
+     * <p>Returned row invariants:</p>
+     * <ul>
+     *   <li>{@code ClaimResult.outcome() == CLAIMED} ⇒ {@code ClaimResult.row()} is non-null
+     *       and is the freshly inserted row, ready to be passed to {@link #markProcessed(ReceivedMessageRepository.Row)}
+     *       when the surrounding business work commits.</li>
+     *   <li>Any other outcome ⇒ {@code ClaimResult.row()} is {@code null}.</li>
+     * </ul>
      */
     @Transactional(propagation = Propagation.REQUIRED)
-    public Outcome claim(String consumer, String messageId, UUID transactionId) {
+    public ClaimResult claim(String consumer, String messageId, UUID transactionId) {
         List<ReceivedMessageRepository.Row> rows = repository.lockForUpdateSkipping(schema, messageId, consumer);
         if (!rows.isEmpty()) {
             ReceivedMessageRepository.Row existing = rows.get(0);
             if ("PROCESSED".equals(existing.status())) {
                 log.debug("Duplicate detection for consumer={} key={} — already PROCESSED, skipping",
                         consumer, messageId);
-                return Outcome.DUPLICATE_DONE;
+                return new ClaimResult(Outcome.DUPLICATE_DONE, null);
             }
             log.debug("Duplicate detection for consumer={} key={} — row is RECEIVED but was "
                     + "skipped because another worker holds the lock", consumer, messageId);
-            return Outcome.INFLIGHT_OTHER;
+            return new ClaimResult(Outcome.INFLIGHT_OTHER, null);
         }
 
         ReceivedMessageRepository.Row inserted = repository.insertIfAbsent(schema, messageId, consumer, transactionId);
         if (inserted != null) {
             log.debug("Claimed consumer={} key={} for transaction {}", consumer, messageId, transactionId);
-            return Outcome.CLAIMED;
+            return new ClaimResult(Outcome.CLAIMED, inserted);
         }
         log.debug("Race lost: consumer={} key={} — concurrent insert won the claim; skipping",
                 consumer, messageId);
-        return Outcome.RACE_LOST;
+        return new ClaimResult(Outcome.RACE_LOST, null);
     }
 
+    /**
+     * Advance the {@code received_messages} row from {@code RECEIVED} to {@code PROCESSED}
+     * in the caller's transaction. Must be called from a transactional context
+     * ({@code Propagation.MANDATORY}); fails fast otherwise so a misconfigured caller
+     * cannot create an orphaned PROCESSED row.
+     */
     @Transactional(propagation = Propagation.MANDATORY)
-    public Optional<ReceivedMessageRepository.Row> markProcessed(ReceivedMessageRepository.Row row) {
+    public void markProcessed(ReceivedMessageRepository.Row row) {
+        if (row == null) {
+            throw new IllegalArgumentException("row must not be null");
+        }
         repository.markProcessed(schema, row);
-        return Optional.of(row);
     }
 
     public enum Outcome {
@@ -79,5 +95,11 @@ public class ReceivedMessageIdempotencyService {
         DUPLICATE_DONE,
         INFLIGHT_OTHER,
         RACE_LOST
+    }
+
+    public record ClaimResult(Outcome outcome, ReceivedMessageRepository.Row row) {
+        public boolean claimed() {
+            return outcome == Outcome.CLAIMED;
+        }
     }
 }

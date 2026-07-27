@@ -15,8 +15,10 @@ class ReceivedMessageIdempotencyServiceUnitTest {
                 .withExistingRow(new ReceivedMessageRepository.Row("msg-1", "consumer", "PROCESSED", null));
         ReceivedMessageIdempotencyService service = new ReceivedMessageIdempotencyService(repo);
         service.setSchema("oltp");
-        var outcome = service.claim("consumer", "msg-1", UUID.randomUUID());
-        assertThat(outcome).isEqualTo(ReceivedMessageIdempotencyService.Outcome.DUPLICATE_DONE);
+        var result = service.claim("consumer", "msg-1", UUID.randomUUID());
+        assertThat(result.outcome()).isEqualTo(ReceivedMessageIdempotencyService.Outcome.DUPLICATE_DONE);
+        assertThat(result.row()).isNull();
+        assertThat(result.claimed()).isFalse();
     }
 
     @Test
@@ -25,8 +27,9 @@ class ReceivedMessageIdempotencyServiceUnitTest {
                 .withExistingRow(new ReceivedMessageRepository.Row("msg-2", "consumer", "RECEIVED", null));
         ReceivedMessageIdempotencyService service = new ReceivedMessageIdempotencyService(repo);
         service.setSchema("oltp");
-        var outcome = service.claim("consumer", "msg-2", UUID.randomUUID());
-        assertThat(outcome).isEqualTo(ReceivedMessageIdempotencyService.Outcome.INFLIGHT_OTHER);
+        var result = service.claim("consumer", "msg-2", UUID.randomUUID());
+        assertThat(result.outcome()).isEqualTo(ReceivedMessageIdempotencyService.Outcome.INFLIGHT_OTHER);
+        assertThat(result.row()).isNull();
     }
 
     @Test
@@ -34,8 +37,13 @@ class ReceivedMessageIdempotencyServiceUnitTest {
         StubRepository repo = new StubRepository();
         ReceivedMessageIdempotencyService service = new ReceivedMessageIdempotencyService(repo);
         service.setSchema("oltp");
-        var outcome = service.claim("consumer", "msg-3", UUID.randomUUID());
-        assertThat(outcome).isEqualTo(ReceivedMessageIdempotencyService.Outcome.CLAIMED);
+        var result = service.claim("consumer", "msg-3", UUID.randomUUID());
+        assertThat(result.outcome()).isEqualTo(ReceivedMessageIdempotencyService.Outcome.CLAIMED);
+        assertThat(result.claimed()).isTrue();
+        assertThat(result.row()).isNotNull();
+        assertThat(result.row().messageId()).isEqualTo("msg-3");
+        assertThat(result.row().consumer()).isEqualTo("consumer");
+        assertThat(result.row().status()).isEqualTo("RECEIVED");
     }
 
     @Test
@@ -43,8 +51,9 @@ class ReceivedMessageIdempotencyServiceUnitTest {
         StubRepository repo = new StubRepository().withInsertReturningNull();
         ReceivedMessageIdempotencyService service = new ReceivedMessageIdempotencyService(repo);
         service.setSchema("oltp");
-        var outcome = service.claim("consumer", "msg-4", UUID.randomUUID());
-        assertThat(outcome).isEqualTo(ReceivedMessageIdempotencyService.Outcome.RACE_LOST);
+        var result = service.claim("consumer", "msg-4", UUID.randomUUID());
+        assertThat(result.outcome()).isEqualTo(ReceivedMessageIdempotencyService.Outcome.RACE_LOST);
+        assertThat(result.row()).isNull();
     }
 
     /** Test double — short-circuits the JDBC layer to exercise the outcome logic. */

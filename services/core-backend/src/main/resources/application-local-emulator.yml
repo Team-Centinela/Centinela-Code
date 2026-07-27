@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://centinela-postgres:5432/centinela
+    username: postgres
+    password: postgres
+  cloud:
+    azure:
+      servicebus:
+        connection-string: ${AZURE_SERVICEBUS_CONNECTION_STRING}
+        processor:
+          auto-startup: false

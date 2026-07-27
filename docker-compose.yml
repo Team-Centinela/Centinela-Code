@@ -104,6 +104,72 @@ services:
       timeout: 5s
       retries: 6
 
+  # ---- Spring Boot services (Phase 0 follow-up) --------------------------
+  # Per PR #171 §"Deliberate divergences" #1, the Spring Boot services land
+  # on this branch once Dockerfiles + per-service application-local-emulator.yml
+  # are written. Each service:
+  #   - build context is the repo root, so `services/pom.xml` is reachable
+  #   - `depends_on` waits for `postgres` healthy and `servicebus` started
+  #   - `SPRING_PROFILES_ACTIVE=local-emulator` flips the application to the
+  #     yml profile that points at the centinela bridge network
+  #   - SB Emulator connection string hardcoded (Phase 0 dev-only per PR #171
+  #     Production Safety contract; production uses Azure Key Vault)
+  # SAS key here is the static key the Microsoft SB Emulator sample ships with.
+  ingestion:
+    build:
+      context: .
+      dockerfile: services/ingestion/Dockerfile
+    container_name: centinela-ingestion
+    depends_on:
+      postgres:
+        condition: service_healthy
+      servicebus:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: local-emulator
+      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+    ports:
+      - "${INGESTION_PORT:-8081}:8081"
+    networks:
+      - centinela
+
+  core-backend:
+    build:
+      context: .
+      dockerfile: services/core-backend/Dockerfile
+    container_name: centinela-core-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      servicebus:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: local-emulator
+      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+    ports:
+      - "${CORE_BACKEND_PORT:-8080}:8080"
+    networks:
+      - centinela
+
+  serverless-engine:
+    build:
+      context: .
+      dockerfile: services/serverless-engine/Dockerfile
+    container_name: centinela-serverless-engine
+    depends_on:
+      postgres:
+        condition: service_healthy
+      servicebus:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: local-emulator
+      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+      SPRING_CLOUD_STREAM_ENABLED: "true"
+    ports:
+      - "${SERVERLESS_ENGINE_PORT:-8082}:8082"
+    networks:
+      - centinela
+
 networks:
   centinela:
     name: centinela

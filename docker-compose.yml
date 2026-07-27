@@ -1,13 +1,25 @@
-version: "3.9"
+name: centinela-local-emulators
 
 # Local development only — never use this file or these credentials in production.
 # Secrets (credentials, connection strings) must come from Azure Key Vault in any non-dev environment.
-# Flyway migrations handle all schema management at application startup.
+# Flyway migrations handle all schema management at application startup; this file only
+# brings up the 4 Azure emulators that local development and Phase-0.1 Testcontainers tests need.
+#
+# Services (the 3 Spring Boot apps) are intentionally NOT included yet — they will land in
+# a follow-up commit alongside their Dockerfiles and per-service `application-local-emulator.yml`.
+# Run them with `mvn spring-boot:run -Dspring-boot.run.profiles=local-emulator` against this network
+# in the meantime; Phase-0.1 Testcontainers tests connect on their own.
+#
+# SB Emulator topology follows the official Microsoft sample at
+# https://github.com/Azure/azure-service-bus-emulator-installer/blob/main/Docker-Compose-Template/docker-compose-default.yml
+# (SQL Server hostname MUST be `sqledge` via env var `SQL_SERVER`, not a `SQL_DATA_SOURCE` connection string;
+# a Config.json file is mounted to declare queues and topics).
 
 services:
+
   postgres:
-    image: postgres:16-alpine
-    container_name: centinela-db
+    image: postgis/postgis:16-3.4-alpine
+    container_name: centinela-postgres
     environment:
       POSTGRES_DB: centinela
       POSTGRES_USER: postgres
@@ -16,11 +28,86 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - centinela
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d centinela && psql -U postgres -d centinela -c 'SELECT 1'"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+
+  servicebus:
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
+    container_name: centinela-servicebus
+    depends_on:
+      sqledge:
+        condition: service_started
+    ports:
+      - "5672:5672"   # AMQP
+      - "5300:5300"   # Management HTTP + health endpoint
+    volumes:
+      # The SB Emulator expects a JSON config describing queues/topics/subscriptions.
+      # Without it, the emulator starts but `transactions-raw` etc. don't exist; you must
+      # then create them via the Administration Client SDK at app startup.
+      - ./docker/servicebus/Config.json:/ServiceBus_Emulator/ConfigFiles/Config.json:ro
+    environment:
+      ACCEPT_EULA: "Y"
+      SQL_SERVER: "sqledge"
+      MSSQL_SA_PASSWORD: "Strong!Passw0rd"
+      # EMULATOR_HTTP_PORT controls the management/health port (default 5300).
+      EMULATOR_HTTP_PORT: "5300"
+    networks:
+      - centinela
+    restart: on-failure
+    # No in-container healthcheck: the SB Emulator is a single-binary CBL image with no shell,
+    # so Docker can't curl localhost:5300/health reliably from inside. Probe externally:
+    #   curl -fs http://localhost:5300/health  -> {"status":"healthy","message":"Service is healthy."}
+    # `docker compose ps` will show it as "Up" only; that's sufficient for the dev workflow.
+
+  sqledge:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    container_name: centinela-sqledge
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Strong!Passw0rd"
+    ports:
+      - "1433:1433"
+    networks:
+      - centinela
+    healthcheck:
+      # SQL Edge ships without sqlcmd in this image; rely on a bash /dev/tcp TCP probe.
+      # Warmup is ~90-120s on cold start, so budget ~5 minutes total.
+      test: ["CMD-SHELL", "timeout 3 bash -c 'echo > /dev/tcp/localhost/1433' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  floci-az:
+    image: floci/floci-az:latest
+    container_name: centinela-floci-az
+    ports:
+      - "4577:4577"
+    environment:
+      FLOCI_AZ_STORAGE_MODE: "hybrid"
+      FLOCI_AZ_SERVICES_BLOB_ENABLED: "true"
+      FLOCI_AZ_SERVICES_QUEUE_ENABLED: "true"
+      FLOCI_AZ_SERVICES_TABLE_ENABLED: "true"
+      FLOCI_AZ_SERVICES_KEYVAULT_ENABLED: "true"
+      FLOCI_AZ_SERVICES_APPCONFIG_ENABLED: "true"
+      FLOCI_AZ_SERVICES_MONITOR_ENABLED: "true"
+    networks:
+      - centinela
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:4577/_floci/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+networks:
+  centinela:
+    name: centinela
+    driver: bridge
 
 volumes:
   postgres_data:

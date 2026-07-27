@@ -21,6 +21,15 @@ spring:
         dialect: org.hibernate.dialect.H2Dialect
         default_schema: PUBLIC
 
+  # The test profile excludes both the Service Bus autoconfig below and
+  # the Spring Cloud Stream binder (via enabled: false) so the consumer
+  # bean defined in adapter/in/consumer/TransactionsRawConsumer.java is
+  # not materialized in unit/integration tests. Production uses
+  # application.yml's default of SPRING_CLOUD_STREAM_ENABLED=true.
+  cloud:
+    stream:
+      enabled: false
+
   autoconfigure:
     exclude:
       - com.azure.spring.cloud.autoconfigure.implementation.servicebus.AzureServiceBusAutoConfiguration

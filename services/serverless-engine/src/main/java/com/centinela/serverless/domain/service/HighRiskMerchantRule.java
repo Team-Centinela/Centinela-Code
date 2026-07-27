@@ -32,10 +32,12 @@ public final class HighRiskMerchantRule implements PipelineStage {
         var flagged = flaggedRepo.findByMerchantId(merchantId);
         if (flagged.isPresent()) {
             int score = loadScore();
+            // ADR-004 §4.2: FR-4 rawEvidence schema is pinned to
+            //   merchant_id, risk_label, current_score_added.
             Map<String, Object> evidence = new LinkedHashMap<>();
-            evidence.put("merchantId", merchantId);
-            evidence.put("flagged", true);
-            evidence.put("flaggedSince", flagged.get().flaggedAt().toString());
+            evidence.put("merchant_id", merchantId);
+            evidence.put("risk_label", flagged.get().riskCategory());
+            evidence.put("current_score_added", score);
             return Optional.of(new TriggeredRule(RULE_CODE, score, evidence, Instant.now()));
         }
         return Optional.empty();

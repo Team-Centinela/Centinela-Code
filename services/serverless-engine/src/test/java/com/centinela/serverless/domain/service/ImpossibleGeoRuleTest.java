@@ -143,12 +143,17 @@ class ImpossibleGeoRuleTest {
 
         assertTrue(result.isPresent());
         Map<String, Object> evidence = result.get().rawEvidence();
-        assertNotNull(evidence.get("currentLocation"));
-        assertNotNull(evidence.get("previousLocation"));
-        assertEquals(true, evidence.get("physicallyImpossible"));
-        assertTrue(evidence.containsKey("distanceKm"));
-        assertTrue(evidence.containsKey("timeDeltaMinutes"));
-        assertTrue(evidence.containsKey("maxPossibleKm"));
+        // ADR-004 §4.2 FR-3 schema. NYC is the previous, LA is the current.
+        assertEquals(NYC_LAT, evidence.get("last_txn_lat"));
+        assertEquals(NYC_LNG, evidence.get("last_txn_lon"));
+        assertEquals(prevTx.timestamp().toString(), evidence.get("last_txn_at"));
+        assertEquals(LA_LAT, evidence.get("current_lat"));
+        assertEquals(LA_LNG, evidence.get("current_lon"));
+        assertNotNull(evidence.get("distance_km"));
+        assertNotNull(evidence.get("elapsed_seconds"));
+        assertNotNull(evidence.get("implied_speed_kmh"));
+        assertNotNull(evidence.get("max_allowed_speed_kmh"));
+        assertNotNull(evidence.get("current_score_added"));
     }
 
     @Test

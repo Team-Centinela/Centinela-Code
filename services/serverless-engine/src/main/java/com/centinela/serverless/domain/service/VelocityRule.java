@@ -33,10 +33,13 @@ public final class VelocityRule implements PipelineStage {
         long count = txRepo.countByAccountIdSince(ctx.sourceTransaction().accountId(), since);
 
         if (count > cfg.maxTxPerWindow) {
+            // ADR-004 §4.2: FR-1 rawEvidence schema is pinned to
+            //   window_seconds, txn_count, threshold, current_score_added.
             Map<String, Object> evidence = new LinkedHashMap<>();
-            evidence.put("windowMinutes", cfg.windowMinutes);
-            evidence.put("transactionCount", (int) count);
+            evidence.put("window_seconds", cfg.windowMinutes * 60L);    // window stored in minutes in the rule config; expose as seconds per ADR-004.
+            evidence.put("txn_count", (int) count);
             evidence.put("threshold", cfg.maxTxPerWindow);
+            evidence.put("current_score_added", cfg.score);
             return Optional.of(new TriggeredRule(RULE_CODE, cfg.score, evidence, Instant.now()));
         }
         return Optional.empty();

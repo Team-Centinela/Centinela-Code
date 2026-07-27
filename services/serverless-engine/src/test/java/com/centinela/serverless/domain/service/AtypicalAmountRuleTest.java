@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class AtypicalAmountRuleTest {
 
     private static final TransactionStats STATS = new TransactionStats(
-            new BigDecimal("100.00"), new BigDecimal("20.00")
+            new BigDecimal("100.00"), new BigDecimal("20.00"), 50L
     );
     private static final TransactionReceivedEvent TX = new TransactionReceivedEvent(
             UUID.randomUUID(), "acc-atypical", new BigDecimal("200.00"), "USD",
@@ -91,7 +91,7 @@ class AtypicalAmountRuleTest {
 
     @Test
     void shouldNotTriggerWhenStdDevIsZero() {
-        var zeroStats = new TransactionStats(new BigDecimal("100.00"), BigDecimal.ZERO);
+        var zeroStats = new TransactionStats(new BigDecimal("100.00"), BigDecimal.ZERO, 5L);
         var statsRepo = new StubStatsRepo(Optional.of(zeroStats));
         var cfgRepo = new StubConfigRepo(Optional.empty());
         var rule = new AtypicalAmountRule(statsRepo, cfgRepo);
@@ -113,11 +113,14 @@ class AtypicalAmountRuleTest {
 
         assertTrue(result.isPresent());
         Map<String, Object> evidence = result.get().rawEvidence();
-        assertEquals(200.0, evidence.get("amount"));
-        assertEquals(100.0, evidence.get("historicalAvg"));
-        assertEquals(20.0, evidence.get("historicalStdDev"));
-        assertEquals(5.0, evidence.get("zScore"));
-        assertEquals(2.5, evidence.get("threshold"));
+        // ADR-004 §4.2: only the pinned FR-2 keys may be present (plus the
+        // rule's `current_score_added`).
+        assertEquals(200.0, evidence.get("current_amount_usd"));
+        assertEquals(100.0, evidence.get("historical_avg_usd"));
+        assertEquals(20.0, evidence.get("std_dev_usd"));
+        assertEquals(50L, evidence.get("historical_sample_size"));
+        assertEquals(5.0, evidence.get("z_score"));
+        assertEquals(25, evidence.get("current_score_added"));
     }
 
     @Test
@@ -154,8 +157,11 @@ class AtypicalAmountRuleTest {
 
         assertTrue(result.isPresent());
         assertEquals(AtypicalAmountRule.DEFAULT_SCORE, result.get().score());
-        assertEquals(AtypicalAmountRule.DEFAULT_ZSCORE_THRESHOLD,
-                ((Number) result.get().rawEvidence().get("threshold")).doubleValue());
+        // ADR-004 §4.2 FR-2: the new schema has no separate `threshold` key.
+        // z_score is the computed value for the actual tx, not the threshold.
+        // Here amount=200, avg=100, stdDev=20 => z_score = |200-100|/20 = 5.0.
+        assertEquals(5.0, ((Number) result.get().rawEvidence().get("z_score")).doubleValue(), 0.01);
+        assertEquals(25, result.get().rawEvidence().get("current_score_added"));
     }
 
     private record StubStatsRepo(Optional<TransactionStats> stats) implements TransactionStatsRepository {

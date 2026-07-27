@@ -2,6 +2,7 @@ package com.centinela.serverless.application;
 
 import com.centinela.serverless.domain.event.TransactionReceivedEvent;
 import com.centinela.serverless.domain.model.FraudDecision;
+import com.centinela.serverless.domain.model.Recommendation;
 import com.centinela.serverless.domain.model.TriggeredRule;
 import com.centinela.serverless.domain.port.OutboxEventAppender;
 import com.centinela.serverless.domain.port.TriggeredRuleRepository;
@@ -11,6 +12,9 @@ import com.centinela.serverless.infrastructure.idempotency.ReceivedMessageIdempo
 import com.centinela.serverless.infrastructure.idempotency.ReceivedMessageRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -19,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Application-layer orchestration for scoring a single {@code transactions-raw}
@@ -55,17 +60,45 @@ public class ScoreTransactionService {
     private final OutboxEventAppender outboxAppender;
     private final ReceivedMessageIdempotencyService idempotency;
     private final ObjectMapper objectMapper;
+    private final MeterRegistry meterRegistry;
+    private final Counter scoredCounter;
+    private final Counter caseCreatedCounter;
+    private final Counter storedOnlyCounter;
+    private final Timer totalTimer;
 
     public ScoreTransactionService(FraudPipeline pipeline,
                                   TriggeredRuleRepository triggeredRuleRepository,
                                   OutboxEventAppender outboxAppender,
                                   ReceivedMessageIdempotencyService idempotency,
-                                  ObjectMapper objectMapper) {
+                                  ObjectMapper objectMapper,
+                                  MeterRegistry meterRegistry) {
         this.pipeline = pipeline;
         this.triggeredRuleRepository = triggeredRuleRepository;
         this.outboxAppender = outboxAppender;
         this.idempotency = idempotency;
         this.objectMapper = objectMapper;
+        this.meterRegistry = meterRegistry;
+        // Metrics described in docs/decision-log/ADR-007-observability-cost-telemetry.md
+        // section 7.4 (business metrics). Both counters are pre-registered with the
+        // full set of result-tag values so the metric exists at zero, which keeps
+        // PromQL queries like sum by (result)(...) consistent from the first message.
+        this.scoredCounter = Counter.builder("centinela.transactions.evaluated")
+                .description("Transactions processed through rule pipeline")
+                .tag("result", "scored")
+                .register(meterRegistry);
+        this.caseCreatedCounter = Counter.builder("centinela.transactions.evaluated")
+                .description("Transactions processed through rule pipeline")
+                .tag("result", "case_created")
+                .register(meterRegistry);
+        this.storedOnlyCounter = Counter.builder("centinela.transactions.evaluated")
+                .description("Transactions processed through rule pipeline")
+                .tag("result", "stored_only")
+                .register(meterRegistry);
+        this.totalTimer = Timer.builder("centinela.evaluation.duration_ms")
+                .description("Rule pipeline total latency (pipeline + persist + outbox append)")
+                .tag("stage", "total")
+                .publishPercentiles(0.5, 0.95, 0.99)
+                .register(meterRegistry);
     }
 
     /**
@@ -83,6 +116,7 @@ public class ScoreTransactionService {
             throw new IllegalArgumentException(
                     "ledgerRow must not be null; the caller must gate on claim().claimed()");
         }
+        long startNanos = System.nanoTime();
         TransactionReceivedEvent event = deserialize(payload);
         EvaluationContext ctx = new EvaluationContext(event);
         FraudDecision decision = pipeline.execute(ctx);
@@ -100,12 +134,46 @@ public class ScoreTransactionService {
 
         idempotency.markProcessed(ledgerRow);
 
+        // ADR-007 §7.4: emit business metrics. Mapping rules:
+        //   Recommendation.BLOCK -> case_created (the saga has opened a case)
+        //   Recommendation.FLAG  -> scored with extra rule hits
+        //   Recommendation.APPROVE -> scored (rule pipeline ran, nothing tripped)
+        // 'stored_only' is reserved for the future when the engine persists a
+        // transaction without running the rule pipeline (today this never happens
+        // and the counter stays at zero); keeping it in the meter means PromQL
+        // queries are stable across a future feature addition.
+        evaluateCounter(decision.recommendation()).increment();
+        recordRuleTriggers(decision.triggeredRules());
+        totalTimer.record(System.nanoTime() - startNanos, TimeUnit.NANOSECONDS);
+
         log.info("transactionId={} recommendation={} score={} firedRules=[{}]",
                 decision.transactionId(),
                 decision.recommendation(),
                 decision.totalScore(),
                 decision.triggeredRules().stream().map(TriggeredRule::ruleCode).toList());
         return decision;
+    }
+
+    private Counter evaluateCounter(Recommendation recommendation) {
+        return switch (recommendation) {
+            case BLOCK -> caseCreatedCounter;
+            case FLAG, APPROVE -> scoredCounter;
+        };
+    }
+
+    private void recordRuleTriggers(java.util.List<TriggeredRule> rules) {
+        // BASE's FraudPipeline only adds a TriggeredRule to the context if it
+        // fired (see FraudPipeline.execute + AggregatorStage.evaluate). The
+        // TriggeredRule record does not carry an isFired() flag, so every
+        // TriggeredRule in this list is implicitly 'fired'.
+        for (TriggeredRule rule : rules) {
+            Counter.builder("centinela.rule.triggered")
+                    .description("Per-rule trigger counts")
+                    .tag("rule_code", rule.ruleCode())
+                    .tag("result", "fired")
+                    .register(meterRegistry)
+                    .increment();
+        }
     }
 
     private TransactionReceivedEvent deserialize(String payload) {

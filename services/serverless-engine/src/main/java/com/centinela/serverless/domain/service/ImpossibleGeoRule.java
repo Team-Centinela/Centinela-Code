@@ -43,13 +43,22 @@ public final class ImpossibleGeoRule implements PipelineStage {
         double maxPossibleKm = cfg.maxSpeedKmph * (timeDeltaMinutes / 60.0);
 
         if (distanceKm > maxPossibleKm) {
+            // ADR-004 §4.2: FR-3 rawEvidence schema is pinned to
+            //   last_txn_lat, last_txn_lon, last_txn_at, current_lat, current_lon,
+            //   distance_km, elapsed_seconds, implied_speed_kmh,
+            //   max_allowed_speed_kmh, current_score_added.
             Map<String, Object> evidence = new LinkedHashMap<>();
-            evidence.put("currentLocation", Map.of("lat", current.latitude(), "lng", current.longitude()));
-            evidence.put("previousLocation", Map.of("lat", previous.latitude(), "lng", previous.longitude()));
-            evidence.put("distanceKm", round1(distanceKm));
-            evidence.put("timeDeltaMinutes", timeDeltaMinutes);
-            evidence.put("maxPossibleKm", round1(maxPossibleKm));
-            evidence.put("physicallyImpossible", true);
+            evidence.put("last_txn_lat", previous.latitude());
+            evidence.put("last_txn_lon", previous.longitude());
+            evidence.put("last_txn_at", previous.timestamp().toString());
+            evidence.put("current_lat", current.latitude());
+            evidence.put("current_lon", current.longitude());
+            evidence.put("distance_km", round1(distanceKm));
+            evidence.put("elapsed_seconds", timeDeltaMinutes * 60L);
+            double kmPerHour = distanceKm / (timeDeltaMinutes / 60.0);
+            evidence.put("implied_speed_kmh", round1(kmPerHour));
+            evidence.put("max_allowed_speed_kmh", cfg.maxSpeedKmph);
+            evidence.put("current_score_added", cfg.score);
             return Optional.of(new TriggeredRule(RULE_CODE, cfg.score, evidence, Instant.now()));
         }
         return Optional.empty();

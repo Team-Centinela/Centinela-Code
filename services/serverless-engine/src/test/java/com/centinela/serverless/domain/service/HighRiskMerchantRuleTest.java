@@ -96,9 +96,10 @@ class HighRiskMerchantRuleTest {
 
         assertTrue(result.isPresent());
         Map<String, Object> evidence = result.get().rawEvidence();
-        assertEquals("merchant-fraud-1", evidence.get("merchantId"));
-        assertEquals(true, evidence.get("flagged"));
-        assertEquals("2026-01-15T10:00:00Z", evidence.get("flaggedSince"));
+        // ADR-004 §4.2 FR-4 schema
+        assertEquals("merchant-fraud-1", evidence.get("merchant_id"));
+        assertEquals("HIGH", evidence.get("risk_label"));
+        assertEquals(HighRiskMerchantRule.DEFAULT_SCORE, evidence.get("current_score_added"));
     }
 
     @Test

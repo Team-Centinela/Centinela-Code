@@ -45,12 +45,16 @@ public final class AtypicalAmountRule implements PipelineStage {
 
         var cfg = loadConfig();
         if (zScore > cfg.zScoreThreshold) {
+            // ADR-004 §4.2: FR-2 rawEvidence schema is pinned to
+            //   historical_avg_usd, historical_sample_size, current_amount_usd,
+            //   std_dev_usd, z_score, current_score_added.
             Map<String, Object> evidence = new LinkedHashMap<>();
-            evidence.put("amount", amount.doubleValue());
-            evidence.put("historicalAvg", stats.avg().doubleValue());
-            evidence.put("historicalStdDev", stats.stdDev().doubleValue());
-            evidence.put("zScore", BigDecimal.valueOf(zScore).setScale(2, RoundingMode.HALF_UP).doubleValue());
-            evidence.put("threshold", cfg.zScoreThreshold);
+            evidence.put("current_amount_usd", amount.doubleValue());
+            evidence.put("historical_avg_usd", stats.avg().doubleValue());
+            evidence.put("std_dev_usd", stats.stdDev().doubleValue());
+            evidence.put("historical_sample_size", stats.sampleSize());
+            evidence.put("z_score", BigDecimal.valueOf(zScore).setScale(2, RoundingMode.HALF_UP).doubleValue());
+            evidence.put("current_score_added", cfg.score);
             return Optional.of(new TriggeredRule(RULE_CODE, cfg.score, evidence, Instant.now()));
         }
         return Optional.empty();

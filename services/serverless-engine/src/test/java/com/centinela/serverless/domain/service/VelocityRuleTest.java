@@ -86,9 +86,11 @@ class VelocityRuleTest {
         assertTrue(result.isPresent());
         TriggeredRule tr = result.get();
         assertEquals(20, tr.score());
-        assertEquals(5, tr.rawEvidence().get("windowMinutes"));
+        // ADR-004 §4.2: window is exposed in seconds (windowMinutes * 60 = 300 here).
+        assertEquals(300L, tr.rawEvidence().get("window_seconds"));
         assertEquals(10, tr.rawEvidence().get("threshold"));
-        assertEquals(11, tr.rawEvidence().get("transactionCount"));
+        assertEquals(11, tr.rawEvidence().get("txn_count"));
+        assertEquals(20, tr.rawEvidence().get("current_score_added"));
     }
 
     @Test
@@ -108,8 +110,9 @@ class VelocityRuleTest {
         assertTrue(result.isPresent());
         TriggeredRule tr = result.get();
         assertEquals(35, tr.score());
-        assertEquals(10, tr.rawEvidence().get("windowMinutes"));
+        assertEquals(600L, tr.rawEvidence().get("window_seconds"));  // 10 min * 60
         assertEquals(5, tr.rawEvidence().get("threshold"));
+        assertEquals(35, tr.rawEvidence().get("current_score_added"));
     }
 
     @Test
@@ -141,9 +144,11 @@ class VelocityRuleTest {
 
         assertTrue(result.isPresent());
         Map<String, Object> evidence = result.get().rawEvidence();
-        assertTrue(evidence.containsKey("windowMinutes"));
-        assertTrue(evidence.containsKey("transactionCount"));
+        // ADR-004 §4.2: only the pinned key set may appear (plus extra keys).
+        assertTrue(evidence.containsKey("window_seconds"));
+        assertTrue(evidence.containsKey("txn_count"));
         assertTrue(evidence.containsKey("threshold"));
+        assertTrue(evidence.containsKey("current_score_added"));
     }
 
     @Test
@@ -158,7 +163,9 @@ class VelocityRuleTest {
 
         assertTrue(result.isPresent());
         TriggeredRule tr = result.get();
-        assertEquals(VelocityRule.DEFAULT_WINDOW_MINUTES, tr.rawEvidence().get("windowMinutes"));
+        // Disabled rule -> compile-time defaults. Window exposed in seconds.
+        assertEquals(Long.valueOf(VelocityRule.DEFAULT_WINDOW_MINUTES * 60L),
+                tr.rawEvidence().get("window_seconds"));
         assertEquals(VelocityRule.DEFAULT_SCORE, tr.score());
     }
 

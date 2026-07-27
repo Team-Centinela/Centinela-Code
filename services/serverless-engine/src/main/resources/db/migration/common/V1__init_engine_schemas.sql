@@ -18,17 +18,26 @@ CREATE TABLE rules_config.flagged_merchants (
     reason TEXT
 );
 
--- Received Messages schema: consumer-side idempotency per ADR-003 §3.3
+-- Received Messages ledger: consumer-side idempotency per ADR-003 §3.3.2.
+-- The schema must match the SQL emitted by
+-- infrastructure/idempotency/ReceivedMessageRepository.java:
+--   message_id is VARCHAR (Service Bus message-id), consumer is VARCHAR
+--   (logical consumer name e.g. "serverless-engine.transactions-raw"),
+--   status cycles RECEIVED -> PROCESSED. The PRIMARY KEY (message_id,
+--   consumer) is what the ON CONFLICT clause references.
 CREATE SCHEMA IF NOT EXISTS received_messages;
 
 CREATE TABLE received_messages.received_messages (
-    message_id UUID PRIMARY KEY,
-    transaction_id UUID NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-    received_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    message_id      VARCHAR(128) NOT NULL,
+    consumer        VARCHAR(100) NOT NULL,
+    status          VARCHAR(20)  NOT NULL DEFAULT 'RECEIVED',
+    received_at     TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    processed_at    TIMESTAMP WITH TIME ZONE,
+    transaction_id  UUID,
+    PRIMARY KEY (message_id, consumer)
 );
 
-CREATE INDEX idx_received_status ON received_messages.received_messages (status, received_at);
+CREATE INDEX idx_received_messages_status ON received_messages.received_messages (status, received_at);
 
 -- Triggered Rules schema: per-FR evaluation evidence per ADR-004
 CREATE SCHEMA IF NOT EXISTS triggered_rules;
@@ -45,3 +54,25 @@ CREATE TABLE triggered_rules.triggered_rules (
 CREATE UNIQUE INDEX uq_triggered_rule_per_tx ON triggered_rules.triggered_rules (transaction_id, rule_code);
 
 CREATE INDEX idx_triggered_transaction ON triggered_rules.triggered_rules (transaction_id, evaluated_at DESC);
+
+-- Outbox schema: shared with Ingestion API and Core Backend per ADR-002 (single PostgreSQL
+-- across all services) and ADR-003 §3.2 (every service that publishes events runs the
+-- Outbox Pattern). The CREATE is idempotent so when Ingestion's V1 lands first the
+-- statements are no-ops on the shared B1ms instance.
+CREATE SCHEMA IF NOT EXISTS outbox;
+
+CREATE TABLE IF NOT EXISTS outbox.outbox_events (
+    id               UUID PRIMARY KEY,
+    event_type       VARCHAR(255) NOT NULL,
+    aggregate_id     VARCHAR(255) NOT NULL,
+    aggregate_type   VARCHAR(255) NOT NULL,
+    payload          JSONB NOT NULL,
+    created_at       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    sent_at          TIMESTAMP WITH TIME ZONE,
+    attempts         INT NOT NULL DEFAULT 0,
+    last_attempt_at  TIMESTAMP WITH TIME ZONE,
+    status           VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+);
+
+CREATE INDEX IF NOT EXISTS idx_outbox_pending
+    ON outbox.outbox_events (status, created_at);

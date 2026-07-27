@@ -31,6 +31,14 @@ spring:
         connection-string: ${AZURE_SERVICEBUS_CONNECTION_STRING:}
         processor:
           auto-startup: false
+    stream:
+      enabled: ${SPRING_CLOUD_STREAM_ENABLED:true}
+      bindings:
+        transactionsRawIn-in-0:
+          destination: transactions-raw
+          group: ${AZURE_SERVICEBUS_CONSUMER_GROUP:serverless-engine}
+        case-events-out-0:
+          destination: case-events
 
 server:
   port: 8082

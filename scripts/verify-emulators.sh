@@ -13,6 +13,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
+if [[ -f "$REPO_ROOT/.env" ]]; then
+    set -a
+    source "$REPO_ROOT/.env"
+    set +a
+fi
+
+POSTGRES_PORT=${POSTGRES_PORT:-5432}
+SERVICEBUS_AMQP_PORT=${SERVICEBUS_AMQP_PORT:-5672}
+SERVICEBUS_MGMT_PORT=${SERVICEBUS_MGMT_PORT:-5300}
+SQLEDGE_PORT=${SQLEDGE_PORT:-1433}
+FLOCI_AZ_PORT=${FLOCI_AZ_PORT:-4577}
+
 if [[ -t 1 ]]; then
     RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; CYAN=$'\033[36m'; GRAY=$'\033[90m'; RESET=$'\033[0m'
 else
@@ -78,7 +90,7 @@ fi
 printf "\n${YELLOW}[3/5] Service Bus Emulator...${RESET}\n"
 sb_ok=0
 for i in $(seq 1 30); do
-    if body=$(curl -fsS http://localhost:5300/health 2>/dev/null); then
+    if body=$(curl -fsS "http://localhost:${SERVICEBUS_MGMT_PORT}/health" 2>/dev/null); then
         printf "  ${GREEN}[PASS]${RESET} SB Emulator /health -> %s\n" "$body"
         PASS=$((PASS+1))
         sb_ok=1
@@ -117,7 +129,7 @@ done
 printf "\n${YELLOW}[4/5] Floci-AZ (Blob + KV + AppConfig + Monitor)...${RESET}\n"
 floci_ok=0
 for i in $(seq 1 15); do
-    if body=$(curl -fsS http://localhost:4577/_floci/health 2>/dev/null); then
+    if body=$(curl -fsS "http://localhost:${FLOCI_AZ_PORT}/_floci/health" 2>/dev/null); then
         printf "  ${GREEN}[PASS]${RESET} Floci-AZ /health -> %s\n" "$body"
         PASS=$((PASS+1))
         floci_ok=1

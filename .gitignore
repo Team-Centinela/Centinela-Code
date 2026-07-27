@@ -11,6 +11,8 @@ GitHub-PR/
 # Local secrets / scratch
 *.env
 *.local
+# .env.example is the template (checked in); .env above is gitignored
+!.env.example
 
 # Local context compression snapshots created by the AI agent workflow
 # (see docs/AGENTS.md §"Context compression ritual"). They never leave the

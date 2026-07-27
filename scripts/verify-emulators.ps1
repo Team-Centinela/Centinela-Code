@@ -15,6 +15,23 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path "$ScriptDir/..").Path
 Set-Location -LiteralPath $RepoRoot
 
+$EnvFile = Join-Path $RepoRoot '.env'
+if (Test-Path -LiteralPath $EnvFile) {
+    Get-Content $EnvFile | ForEach-Object {
+        if ($_ -match '^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.+?)\s*$') {
+            $name = $Matches[1]
+            $value = $Matches[2] -replace '^["''](.*)["'']$', '$1'
+            Set-Item -Path "Env:$name" -Value $value
+        }
+    }
+}
+
+$PostgresPort = if ($env:POSTGRES_PORT) { $env:POSTGRES_PORT } else { '5432' }
+$ServiceBusAmqpPort = if ($env:SERVICEBUS_AMQP_PORT) { $env:SERVICEBUS_AMQP_PORT } else { '5672' }
+$ServiceBusMgmtPort = if ($env:SERVICEBUS_MGMT_PORT) { $env:SERVICEBUS_MGMT_PORT } else { '5300' }
+$SqlEdgePort = if ($env:SQLEDGE_PORT) { $env:SQLEDGE_PORT } else { '1433' }
+$FlociAzPort = if ($env:FLOCI_AZ_PORT) { $env:FLOCI_AZ_PORT } else { '4577' }
+
 $Script:Curl = 'curl.exe'
 $Pass = 0
 $Fail = 0
@@ -68,7 +85,7 @@ if ($exts -eq "2") { Write-Pass "postgis + uuid-ossp extensions" } else { Write-
 
 Write-Host ""
 Write-Host "[3/5] Service Bus Emulator..." -ForegroundColor Yellow
-$null = Test-HttpStatus -Url "http://localhost:5300/health" -Label "SB Emulator /health"
+$null = Test-HttpStatus -Url "http://localhost:${ServiceBusMgmtPort}/health" -Label "SB Emulator /health"
 
 $sbLog = docker logs centinela-servicebus --tail 2000 2>&1
 foreach ($q in 'transactions-raw','documents-pending','documents-pending-pub','fraud-evaluation') {
@@ -86,7 +103,7 @@ foreach ($s in 'core-backend-sub','ingestion-sub') {
 
 Write-Host ""
 Write-Host "[4/5] Floci-AZ (Blob + KV + AppConfig + Monitor)..." -ForegroundColor Yellow
-$null = Test-HttpStatus -Url "http://localhost:4577/_floci/health" -Label "Floci-AZ /health" -MaxAttempts 15 -DelaySeconds 2
+$null = Test-HttpStatus -Url "http://localhost:${FlociAzPort}/_floci/health" -Label "Floci-AZ /health" -MaxAttempts 15 -DelaySeconds 2
 
 Write-Host ""
 Write-Host "[5/5] SQL Edge (state store for SB Emulator)..." -ForegroundColor Yellow

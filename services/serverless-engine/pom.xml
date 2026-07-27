@@ -13,7 +13,7 @@
 
     <artifactId>centinela-serverless-engine</artifactId>
     <name>Centinela Serverless Engine</name>
-    <description>Rule Pipeline (FR-1..FR-4) consumer of transactions-raw — KEDA-scaled scoring core per ADR-004</description>
+    <description>Evaluates fraud rules (FR-1..FR-4), calculates risk scores, publishes FraudEvaluationCompleted — extracted per ADR-001</description>
 
     <dependencies>
         <dependency>
@@ -70,6 +70,13 @@
             <artifactId>azure-identity</artifactId>
         </dependency>
 
+        <!-- PostGIS for ST_DWithin in FR-3 Impossible Geo -->
+        <dependency>
+            <groupId>net.postgis</groupId>
+            <artifactId>postgis-jdbc</artifactId>
+            <version>2024.1.0</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-stream-test-binder</artifactId>
@@ -80,6 +87,28 @@
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit-junit5</artifactId>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
         </dependency>
     </dependencies>
 

@@ -9,10 +9,12 @@ spring:
 
   flyway:
     enabled: true
-    schemas: oltp,outbox,auth
+    schemas: rules_config,received_messages,triggered_rules
     create-schemas: true
-    locations: classpath:db/migration
+    locations: classpath:db/migration/common,classpath:db/migration/pg
     baseline-on-migrate: true
+    placeholders:
+      uuid-func: gen_random_uuid
 
   jpa:
     hibernate:
@@ -21,7 +23,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        default_schema: oltp
+        default_schema: rules_config
 
   cloud:
     azure:
@@ -29,13 +31,6 @@ spring:
         connection-string: ${AZURE_SERVICEBUS_CONNECTION_STRING:}
         processor:
           auto-startup: false
-    stream:
-      bindings:
-        transactionsRaw-in-0:
-          destination: transactions-raw
-          group: serverless-engine
-        case-events-out-0:
-          destination: case-events
 
 server:
   port: 8082
@@ -44,32 +39,5 @@ logging:
   level:
     com.centinela: DEBUG
 
-outbox:
-  publisher:
-    interval-ms: 1000
-    batch-size: 100
-    max-attempts: 10
-    stale-threshold-minutes: 5
-    drain-timeout-ms: 10000
-
-fraud:
-  rule:
-    score-threshold: ${FRAUD_SCORE_THRESHOLD:60.0}
-    score-max: 100.0
-    fr1:
-      window-seconds: 600
-      velocity-threshold: 5
-    fr2:
-      z-threshold: 2.5
-    fr3:
-      max-km-per-hour: 900.0
-    fr4:
-      hard-flag-score: 80.0
-
 applicationinsights:
   connection-string: ${APPLICATIONINSIGHTS_CONNECTION_STRING:}
-
-management:
-  tracing:
-    sampling:
-      probability: 1.0

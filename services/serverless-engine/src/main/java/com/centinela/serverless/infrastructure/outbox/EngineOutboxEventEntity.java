@@ -13,7 +13,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity(name = "EngineOutboxEvent")
-@Table(name = "outbox_events")
+@Table(name = "outbox_events", schema = "outbox")
 class EngineOutboxEventEntity {
 
     @Id

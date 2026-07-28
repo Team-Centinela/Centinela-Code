@@ -128,6 +128,44 @@ ADR-010 (Issue & PR Discipline) Markdown is currently on branch `feat/adr-010-is
 
 **Enforcement path**: `infrastructure/REGION-QUOTA-CHECK.md` and `[E.A*]` companions `#148 / #149 / #150` should each include an explicit "ADR-010 merged" checkbox. The `[Lane-A]` epic #134 tracks the merge as one of its acceptance criteria. A new tracking issue to land the merge should be opened in Phase 1 (Lane A) with the label `adr, governance, lane-a, sprint-1` and a `Blocked by:` line that explicitly references this ADR-011 §11.7.
 
+### 11.8 Azure resource retirement awareness + migration playbook
+
+**The SQL Edge retirement documented in §11.4 is one instance of a class of risk**: Azure-managed services can be retired at any time with typically 12 months notice (sometimes less). Centinela's planned Azure footprint per ADR-002 / 003 / 006 / 007 / 009 depends on resources that could be retired during the 21-day project window or in the future. **Retirement awareness is part of the §11.6 budget-protection contract** — if Cost Management alerts + Action Group runs (layer 5) or auto-stop PostgreSQL (layer 4) silently fail because those services retire, the $60 ceiling is no longer protected.
+
+**Centinela-affected retirements as of 2026-07-28** (per [retire.azu.fyi](https://retire.azu.fyi/), last updated 2026-07-27 — *real, legitimate third-party retirement tracker* maintained by [@kongou_ae](https://twitter.com/kongou_ae)):
+
+| # | Retirement | Date | Affected Centinela component | Source |
+|---|---|---|---|---|
+| 1 | Some Azure Service Bus SDK libraries — migrate to latest SDKs | 2026-09-30 | `spring-cloud-azure-starter-servicebus` pinning per ADR-003 §3.1 | [link](https://azure.microsoft.com/en-us/updates/retirement-notice-update-your-azure-service-bus-sdk-libraries-by-30-september-2026/) |
+| 2 | Migrate to Azure AI Document Intelligence v3.1 GA | 2026-08 | OCR Worker SDK per ADR-006 §6.4 (`document-intelligence-key` from KV) | [link](https://azure.microsoft.com/en-us/updates/migrate-to-azure-ai-document-intelligence-v31-ga-version/) |
+| 3 | GPv1 and Legacy Blob storage account creation | 2026-10 | Storage account per ADR-002 — must provision **GPv2** explicitly (GPv1 is the default; need `account_kind=StorageV2`) | [link](https://azure.microsoft.com/en-us/updates/564441/) |
+| 4 | Transition to ContainerLogV2 table | 2026-09-30 | Log Analytics writes per ADR-007 §7.1 | [link](https://azure.microsoft.com/en-us/updates/transition-to-the-containerlogv2-table-by-30-september-2026/) |
+| 5 | Azure SQL Edge (emulator dep) | 2025-09-30 (already retired) | `centinela-sqledge` compose service per §11.4 | [link](https://azure.microsoft.com/en-us/updates/?id=azure-sql-edge-retirement) |
+
+**This list is a snapshot; the team MUST re-verify before each Phase 2 / Phase 3 apply.** A separate issue ([Phase 0 follow-up](#193 §"Outstanding for team review")) will own the recurring audit.
+
+**Monitoring sources** — subscribe before Phase 2 apply:
+
+1. **Azure Advisor Service Retirement workbook** (built-in to every Azure subscription) — resource-level view of *which of YOUR resources* are impacted by upcoming retirements. Accessible at `Azure Portal → Advisor → Workbooks → Gallery → Azure Advisor → Service Retirement`. The **Impacted Services** view filters by subscription / resource group / location; use `rg-centinela-dev` after the bootstrap RG exists per #127. Direct link: [`portal.azure.com/#.../AzureServiceRetirement`](https://portal.azure.com/#blade/AppInsightsExtension/UsageNotebookBlade/ComponentId/Azure%20Advisor/ConfigurationId/community-Workbooks%2FAzure%20Advisor%2FAzureServiceRetirement/WorkbookTemplateName/Service%20Retirement). API + Azure Resource Graph automation per [service-upgrade-retirement-recommendations](https://learn.microsoft.com/en-us/azure/advisor/advisor-how-to-use-service-upgrade-retirement-recommendations).
+2. **[retire.azu.fyi](https://retire.azu.fyi/)** — third-party retirement calendar maintained by [@kongou_ae](https://twitter.com/kongou_ae). Verified accurate against the SQL Edge case. Subscribe to the RSS feed or check monthly during Sprint retro. **GitHub Action candidate** (future CI): weekly query + fail if any retirement affecting Centinela is within 90 days and not yet triaged.
+3. **[azurefeeds.com/tag/retirements](https://azurefeeds.com/tag/retirements/)** — Azure retirement feed aggregator.
+4. **[Azure Updates RSS — `updateType=retirements`](https://azure.microsoft.com/en-us/updates/?updateType=retirements)** — canonical Microsoft source.
+5. **Azure Service Health alerts** — subscription-level Service Health alerts for service retirements; configure per [Microsoft Learn](https://learn.microsoft.com/en-us/azure/service-health/service-health-alert-profiles). Catches retirements that affect resources in your subscription specifically.
+6. **Microsoft Learn Advisor docs** — [`advisor-workbook-service-retirement`](https://learn.microsoft.com/en-us/azure/advisor/advisor-workbook-service-retirement) + [`advisor-how-to-use-service-upgrade-retirement-recommendations`](https://learn.microsoft.com/en-us/azure/advisor/advisor-how-to-use-service-upgrade-retirement-recommendations).
+
+**Migration playbook** (per retirement notice affecting a Centinela resource):
+
+1. **Triage (≤ 7 days from notice)**: file a `[infra]`-labelled GitHub issue with `Blocked by:` referencing the retirement announcement URL + the Centinela-affected component. Labels: `infra, retirement, lane-e`. Owner: Lane E.
+2. **Impact assessment (≤ 14 days)**: quantify (a) which Centinela resources are impacted (per Azure Advisor workbook **Impacted Services** view); (b) what code/config touches the retiring SDK/service; (c) what is the migration path per the retirement notice's recommended alternative.
+3. **Migration branch**: cut `phase-X/migration-<retirement-name>` from `feat/week-one-consolidation`. Apply the SDK/service swap. Verify locally against `docker compose up -d --wait` (if emulator surface affected) + `mvn verify` (Spring) / `pytest` (Python OCR Worker). Update `docker-compose.yml` if the swap affects emulator dependencies (the §11.4 SQL Edge pattern is the template).
+4. **Apply runbook** (Phase 2 only): per #169 §2.4 + ADR-010 §10.4 companion close-out discipline. Companion `[E.A*]` style close-out with `az <show>` evidence.
+5. **Post-migration verification**: re-run `scripts/verify-emulators.{ps1,sh}` (must remain `18 PASS / 0 FAIL`) + the Phase 0.3 cross-lane E2E smoke (when §0.3 lands). Add the migration to the next Sprint retro.
+6. **Update ADR**: amend the affected ADR (002 / 003 / 006 / 007 / 009 / etc.) with the new version pin per ADR-010 amendment process. **Do not silently ship a new ADR.**
+
+**Cost of this discipline**: ~1 hour/week per Lane E owner to triage retire.azu.fyi + check Azure Advisor workbook for `rg-centinela-dev` once it exists. Negligible compared to the cost of discovering a retirement mid-deploy.
+
+**Inherited from §11.4**: the SQL Edge → `mssql/server` swap is a case study for this playbook. Future upstream SB Emulator migrations (e.g. dropping AMQP 1.0, dropping the Artemis sidecar) would follow the same §11.8 migration path.
+
 ## Consequences
 
 ### Positive

@@ -69,4 +69,10 @@ CREATE TABLE oltp.transactions_p13 PARTITION OF oltp.transactions FOR VALUES WIT
 CREATE TABLE oltp.transactions_p14 PARTITION OF oltp.transactions FOR VALUES WITH (MODULUS 16, REMAINDER 14);
 CREATE TABLE oltp.transactions_p15 PARTITION OF oltp.transactions FOR VALUES WITH (MODULUS 16, REMAINDER 15);
 
-CREATE INDEX idx_transactions_account_recent ON oltp.transactions (account_id, "timestamp" DESC) WHERE created_at > NOW() - INTERVAL '7 days';
+-- Supports "recent activity for account" queries; ordered index on
+-- (account_id, "timestamp" DESC). The original `WHERE created_at > NOW()
+-- - INTERVAL '7 days'` partial-index predicate was rejected by PostgreSQL
+-- (`functions in index predicate must be marked IMMUTABLE`, because NOW()
+-- is VOLATILE), so the predicate was dropped; the 7-day filter is applied
+-- post-index-scan by the planner.
+CREATE INDEX idx_transactions_account_recent ON oltp.transactions (account_id, "timestamp" DESC);

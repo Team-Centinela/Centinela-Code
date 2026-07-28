@@ -12,7 +12,10 @@ spring:
     schemas: rules_config,received_messages,triggered_rules
     create-schemas: true
     locations: classpath:db/migration/common,classpath:db/migration/pg
-    baseline-on-migrate: true
+    # Disabled so Flyway runs V1..V2 from version 0 against a fresh database
+    # (init.sql pre-creates the schemas, which `true` would interpret as
+    # "non-empty, baseline instead"). Tracked by #176.
+    baseline-on-migrate: false
     placeholders:
       uuid-func: gen_random_uuid
 

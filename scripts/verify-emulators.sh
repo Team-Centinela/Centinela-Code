@@ -78,11 +78,11 @@ fi
 # written by init.sql OR by the gap between the container start time and
 # pg_postmaster_start_time() (the final postmaster always starts after the
 # temporary init postmaster).
-if docker exec centinela-postgres test -f /var/lib/postgresql/.centinela-init-complete >/dev/null 2>&1; then
+if docker exec centinela-postgres sh -c 'test -f /var/lib/postgresql/.centinela-init-complete' >/dev/null 2>&1; then
     pass "init.sql marker file present (final postmaster, see #184)"
 else
-    postmaster_start=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT pg_postmaster_start_time();" | tr -d ' \r\n')
-    container_start=$(docker inspect centinela-postgres --format '{{.State.StartedAt}}' | tr -d ' \r\n')
+    postmaster_start=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT pg_postmaster_start_time();" | tr -d '\r\n')
+    container_start=$(docker inspect centinela-postgres --format '{{.State.StartedAt}}' | tr -d '\r\n')
     if [[ -n "$postmaster_start" && -n "$container_start" ]]; then
         pm_epoch=$(date -u -d "$postmaster_start" +%s 2>/dev/null || echo 0)
         ct_epoch=$(date -u -d "$container_start" +%s 2>/dev/null || echo 0)
@@ -216,7 +216,7 @@ for s in "${expected[@]}"; do
     fi
 done
 if [[ ${#missing[@]} -eq 0 ]]; then
-    count=$(grep -c -Fx "${expected[@]/#/}" <<<"$present" || true)
+    count=${#expected[@]}
     pass "Flyway schema history present in $count service-owned first-schemas (#182/#189)"
 else
     fail "missing Flyway schema history for: ${missing[*]}"

@@ -85,8 +85,8 @@ if ($LASTEXITCODE -eq 0) { Write-Pass "pg_isready" } else { Write-Fail "pg_isrea
 # pg_postmaster_start_time() (the final postmaster always starts after the
 # temporary init postmaster, so its start time is strictly later).
 $markerExists = $false
-$dockerOut = (docker exec centinela-postgres test -f /var/lib/postgresql/.centinela-init-complete 2>$null) ; $LASTEXITCODE -eq 0
-if ($dockerOut -and $LASTEXITCODE -eq 0) { $markerExists = $true }
+docker exec centinela-postgres test -f /var/lib/postgresql/.centinela-init-complete *>$null
+$markerExists = $LASTEXITCODE -eq 0
 
 $postmasterStart = (docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT pg_postmaster_start_time();" 2>$null).Trim()
 $containerStart = (docker inspect centinela-postgres --format "{{.State.StartedAt}}" 2>$null).Trim()

@@ -59,7 +59,7 @@ EOF
     esac
 done
 
-printf "\n${YELLOW}[1/6] Booting emulator stack...${RESET}\n"
+printf "\n${YELLOW}[1/7] Booting emulator stack...${RESET}\n"
 if docker compose up -d --wait; then
     pass "docker compose up -d --wait completed"
 else
@@ -67,7 +67,7 @@ else
     exit 1
 fi
 
-printf "\n${YELLOW}[2/6] Postgres (postgis/postgis:16-3.4-alpine)...${RESET}\n"
+printf "\n${YELLOW}[2/7] Postgres (postgis/postgis:16-3.4-alpine)...${RESET}\n"
 if docker exec centinela-postgres pg_isready -U postgres -d centinela >/dev/null 2>&1; then
     pass "pg_isready"
 else
@@ -101,22 +101,6 @@ else
     fi
 fi
 
-expected=(oltp outbox cases alerts reporting rules_config)
-present=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c \
-    "SELECT schemaname FROM pg_tables WHERE tablename = 'flyway_schema_history' ORDER BY schemaname;" | tr -d ' \r')
-missing=()
-for s in "${expected[@]}"; do
-    if ! grep -Fxq "$s" <<<"$present"; then
-        missing+=("$s")
-    fi
-done
-if [[ ${#missing[@]} -eq 0 ]]; then
-    count=$(grep -c -Fx "${expected[@]/#/}" <<<"$present" || true)
-    pass "Flyway schema history present in $count service-owned schemas (#182/#189)"
-else
-    fail "missing Flyway schema history for: ${missing[*]}"
-fi
-
 exts=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c \
     "SELECT count(*) FROM pg_extension WHERE extname IN ('postgis','uuid-ossp');" | tr -d ' \r\n')
 if [[ "$exts" == "2" ]]; then
@@ -125,7 +109,7 @@ else
     fail "expected 2 extensions, got '$exts'"
 fi
 
-printf "\n${YELLOW}[3/6] Service Bus Emulator...${RESET}\n"
+printf "\n${YELLOW}[3/7] Service Bus Emulator...${RESET}\n"
 sb_ok=0
 for i in $(seq 1 30); do
     if body=$(curl -fsS "http://localhost:${SERVICEBUS_MGMT_PORT}/health" 2>/dev/null); then
@@ -164,7 +148,7 @@ for s in core-backend-sub ingestion-sub; do
     fi
 done
 
-printf "\n${YELLOW}[4/6] Floci-AZ (Blob + KV + AppConfig + Monitor)...${RESET}\n"
+printf "\n${YELLOW}[4/7] Floci-AZ (Blob + KV + AppConfig + Monitor)...${RESET}\n"
 floci_ok=0
 for i in $(seq 1 15); do
     if body=$(curl -fsS "http://localhost:${FLOCI_AZ_PORT}/_floci/health" 2>/dev/null); then
@@ -180,14 +164,14 @@ if [[ $floci_ok -eq 0 ]]; then
     fail "Floci-AZ /health did not become healthy in 30s"
 fi
 
-printf "\n${YELLOW}[5/6] SQL Edge (state store for SB Emulator)...${RESET}\n"
+printf "\n${YELLOW}[5/7] SQL Edge (state store for SB Emulator)...${RESET}\n"
 if docker exec centinela-sqledge bash -c "timeout 3 bash -c 'echo > /dev/tcp/localhost/1433'" >/dev/null 2>&1; then
     pass "SQL Edge TCP 1433 reachable"
 else
     fail "SQL Edge TCP 1433 reachable"
 fi
 
-printf "\n${YELLOW}[6/6] Spring Boot services (actuator /health)...${RESET}\n"
+printf "\n${YELLOW}[6/7] Spring Boot services (actuator /health)...${RESET}\n"
 for svc_port in "ingestion ${INGESTION_PORT}" "core-backend ${CORE_BACKEND_PORT}" "serverless-engine ${SERVERLESS_ENGINE_PORT}"; do
     name=$(echo "$svc_port" | awk '{print $1}')
     port=$(echo "$svc_port" | awk '{print $2}')
@@ -206,6 +190,30 @@ for svc_port in "ingestion ${INGESTION_PORT}" "core-backend ${CORE_BACKEND_PORT}
         fail "${name} /actuator/health did not become healthy in 120s"
     fi
 done
+
+printf "\n${YELLOW}[7/7] Flyway-owned service schemas...${RESET}\n"
+# Tracked by #189 (and refined after #190): now that all three Spring services
+# report /actuator/health = UP, every service's Flyway history must exist in
+# the *first* schema listed in its `spring.flyway.schemas` (Flyway writes
+# `flyway_schema_history` only to the first schema). The expected first
+# schemas are: ingestion=oltp, core-backend=cases, serverless-engine=rules_config.
+# The remaining service-owned schemas (`outbox`, `auth`, `alerts`, `reporting`)
+# are migrated by the same Flyway run but share the first-schema history table.
+expected=(oltp cases rules_config)
+present=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c \
+    "SELECT schemaname FROM pg_tables WHERE tablename = 'flyway_schema_history' ORDER BY schemaname;" | tr -d ' \r')
+missing=()
+for s in "${expected[@]}"; do
+    if ! grep -Fxq "$s" <<<"$present"; then
+        missing+=("$s")
+    fi
+done
+if [[ ${#missing[@]} -eq 0 ]]; then
+    count=$(grep -c -Fx "${expected[@]/#/}" <<<"$present" || true)
+    pass "Flyway schema history present in $count service-owned first-schemas (#182/#189)"
+else
+    fail "missing Flyway schema history for: ${missing[*]}"
+fi
 
 printf "\n${CYAN}==============================${RESET}\n"
 if [[ $FAIL -eq 0 ]]; then

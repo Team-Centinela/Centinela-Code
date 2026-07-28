@@ -81,6 +81,8 @@ If a future bug or migration accidentally enables `local-emulator` in production
 
 ### 11.5 Acceptance gate for Phase 0 work
 
+> **Caveat (§11.9)**: this acceptance gate is a **historical record** of what was contractually required during Phase 0. It is **not invalidated** by the 4-day remaining-window reality (per §11.9); Phase 0 is `$0`-cost and runs locally. If Phase 0 work was completed before 2026-07-31, this section is the receipt; if not, it is the pickup contract for whoever resumes the work post-delivery.
+
 A Testcontainers integration test in Phase 0.1 / 0.2 / 0.3 is considered green **only** if:
 
 1. `docker compose down -v && docker compose up -d --wait` boots the four emulators cleanly (`scripts/verify-emulators.{ps1,sh}` §1 `[PASS]`).
@@ -89,6 +91,8 @@ A Testcontainers integration test in Phase 0.1 / 0.2 / 0.3 is considered green *
 4. The test asserts on **real Floci-AZ round-trip** (not in-memory mock) when the test exercises Key Vault / Blob / App Insights ingestion (per #167 §0.1.3).
 
 ### 11.6 Budget protection for emulator-vs-production fidelity gaps
+
+> **Caveat (§11.9)**: this 5-layer defense is a **contingent contract** that activates IF Phase 2 (Azure delivery) actually applies. Under the 4-day remaining-window reality (per §11.9), Phase 2 is best-effort; if it does apply, the §11.6 contract holds as designed; if it does not, the $60 ceiling is moot (no Azure resources are ever provisioned). **Not invalidated — made conditional.**
 
 The emulators catch ~92 % of regressions per #167, but not 100 %. The residual 8 % — bugs that slip through, or bugs introduced by the gap between emulator and real Azure semantics (managed identity token acquisition, retry timing, AAD token refresh, real Service Bus geo-redundancy, real App Insights ingestion latency) — must not be allowed to **run unbounded on real Azure**. Five layers of defense minimize the residual risk; **the residual budget-at-risk for a fidelity-gap bug is qualitatively bounded, not numerically pinned** (see "Why no specific $X figure" below).
 
@@ -165,6 +169,41 @@ ADR-010 (Issue & PR Discipline) Markdown is currently on branch `feat/adr-010-is
 **Cost of this discipline**: ~1 hour/week per Lane E owner to triage retire.azu.fyi + check Azure Advisor workbook for `rg-centinela-dev` once it exists. Negligible compared to the cost of discovering a retirement mid-deploy.
 
 **Inherited from §11.4**: the SQL Edge → `mssql/server` swap is a case study for this playbook. Future upstream SB Emulator migrations (e.g. dropping AMQP 1.0, dropping the Artemis sidecar) would follow the same §11.8 migration path.
+
+### 11.9 Time-constraint reality + future-development framing
+
+**The original 21-day framing is false as of 2026-07-28.** When the assignment was issued, the project had 21 days. As of the time of this writing, **only ~4 days remain until 2026-07-31 delivery time**. The 21-day references in #166 / #167 / ADR-002 / ADR-003 / ADR-006 / ADR-007 / ADR-009 / `infrastructure/README.md` / `AGENTS.md` / `README.md` were authored under the original constraint and **do not reflect current reality**.
+
+This ADR (§11) does NOT itself contain "21 days" claims except in §11.5 (`#167 §0.1 + §0.2 + §0.3 are the work this ADR formalizes` — Phase 0 estimates), §11.6 budget-protection contract (designed for the $60/21-day ceiling), and §11.8 (retirement-awareness cadence). All of these were authored under the 21-day framing. **They are not invalidated; they are made conditional on whether Phase 2 actually applies within the remaining window.**
+
+**Phase realism under 4-day remaining window** (vs original estimates):
+
+| Phase | Original estimate | Realistic under 4 days remaining |
+|---|---|---|
+| **Phase 0 (Local-Emulator Pre-Phase)** | 0–3 days, $0 cost | **Substantively done**. §0.0 merged (PR #171 + #185 + #192 at `44fcb61`). §0.1 + §0.2 + §0.3 partially executed. Emulator stack is fully functional; `scripts/verify-emulators.{ps1,sh}` reports `18 PASS / 0 FAIL`. Phase 0 work is local-only and was always costless. |
+| **Phase 1 (Governance)** | 0–2 days, $0 cost | **Partial**. §1.1 (ADR-010 markdown) blocks Phase 2 per §11.7; markdown lives on `feat/adr-010-issue-pr-discipline-implementation` and is **unmerged** as of 2026-07-28. User indicated they would "stash the changes and finish up the ADR-010" to close this gap. Other §1.1–§1.14 actions mostly are advisory. |
+| **Phase 2 (Azure delivery)** | 1–7+ days, ~$27 cost | **Best-effort, low probability of completion**. Critical path items: #15 region quota, #127 terraform apply, #148/#149/#150 [E.A1–A3] applies, #141/#140/#139/#142/#143/#144/#145/#146/#147 per-service parcels. Manual Azure bootstrap (one-time setup) + per-region quota checks + cost-attribution rows + companion close-outs each consume time. Realistic outcome: **partial Phase 2 with many `[E.A*]` / `[B/C/D.A*]` companions still open**. |
+| **Phase 3 (first product delivery)** | 7+ days, — cost | **Functionally impossible within the original timeline**. Cross-lane E2E on real Azure (#170), `[S1-F.7]` #111 acceptance test suite, `feat/week-one-consolidation` → `develop` → `main` merge chain, `v0.1.0-sprint-1` tag, Sprint 1 retro — none of these fit in 4 days. |
+
+**Re-framing for current state**:
+
+- The **emulator stack is the deliverable**. `feat/week-one-consolidation @ 44fcb61` is mergeable to `develop` once ADR-010 lands. The 4-emulator + 3-service stack is reproducible from a fresh clone on Windows + Docker Desktop + JDK 21 + Maven 3.9 in ~5 min per the verify-script budget. **This is what the project shipped, regardless of whether Phase 2 ran.**
+- Phase 2 + Phase 3 work that did not finish by 2026-07-31 becomes **"future development if the project is picked up again"** — not "incomplete" or "abandoned". The pickup playbook is below.
+
+**§11.6 budget-protection contract is contingent on §11.9**: the 5-layer defense (Pre-validation + Apply runbook + Scale-to-zero + Auto-stop + Cost Management budget) is the **right contract for IF Phase 2 applies within the remaining window**. Under the actual 4-day constraint, Phase 2 is best-effort; if it does apply, the §11.6 contract holds. **If Phase 2 doesn't apply**, the $60 ceiling is moot because no Azure resources are ever provisioned; §11.6 is not invalidated, just un-triggered.
+
+**Pickup playbook** (for whoever picks this up after 2026-07-31):
+
+1. **Read `.context-snapshots/phase-0-0.0-finish.md`** for the Phase 0.0 post-merge state.
+2. **Read ADR-011 §11.4 + §11.7 + §11.8 + §11.9** for the historical + future-development framing.
+3. **Open a new tracking issue** titled `[pickup] Centinela post-2026-07-31 delivery — Phase 2/3 continuation` with `Blocked by:` references to: #15 (region quota), #62 (terraform bootstrap apply), #127 (terraform PR), #132 (ADR-010 markdown), #134 (Lane-A governance epic), #148–#150 ([E.A1–A3] companions), #169 (Phase 2 Azure Delivery), #170 (Phase 3 First Product Delivery). Plus §11.7's ADR-010 prerequisite gate.
+4. **Re-verify the §11.8 Centinela-affected retirements table** (SB SDK libraries 2026-09-30, Document Intelligence v3.1 2026-08, GPv1/Legacy Blob 2026-10, ContainerLogV2 2026-09-30 — all within next ~60 days, **all affect Phase 2 even on pickup**).
+5. **Re-run `scripts/verify-emulators.{ps1,sh}`** to confirm the emulator stack is still green on the pickup developer's machine.
+6. **Re-run §11.4 cold-start timing** on `mssql/server:2022-latest` per §11.4 (the docker-compose.yml fix per outstanding item #3 is also owed).
+7. **Apply the §11.6 budget-protection contract** — still the right design for Phase 2 IF it runs on pickup.
+8. **Update this ADR (§11.9)** to mark the historical record as "closed-as-of-2026-07-31" and reference the pickup issue.
+
+**§11.5 + §11.6 caveats** added in the same commit: §11.5 "Acceptance gate for Phase 0 work" is a **historical record** of what was contractually required; §11.6 "Budget protection" is a **contingent contract** that activates IF Phase 2 applies. Both are not invalidated by §11.9.
 
 ## Consequences
 

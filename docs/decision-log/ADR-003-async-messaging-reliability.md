@@ -93,7 +93,7 @@ INSERT (status=PENDING,        │  Scheduled tick @1s  │
 3. **PostgreSQL B1ms auto-stop race.** The startup ping above is the guard. If the ping fails after 5 s, the publisher self-defers (a `PublisherStatus.DEGRADED` state) and Application Insights receives a `outbox-publisher-degraded` event. Listener backoff on the readiness probe keeps the container from receiving traffic until the DB is reachable.
 4. **Observable lag.** `/actuator/health/outbox-lag` exposes two Micrometer gauges — `outbox.pending.count` and `outbox.pending.oldest.seconds` — wired into Application Insights. SLO: after broker recovery, no more than **120 s** of event backlog.
 
-The recovery step does not require a schema change beyond `last_attempt_at TIMESTAMPTZ NULL` and `attempts INT NOT NULL DEFAULT 0`, both already implied by ADR-003 §3.4's idempotency table. Concrete DDL lives in the service-local Flyway migrations: `services/core-backend/src/main/resources/db/migration/V2__outbox_schema.sql` and `services/ingestion/src/main/resources/db/migration/V1__init_schemas_and_tables.sql` (added in #40).
+The recovery step does not require a schema change beyond `last_attempt_at TIMESTAMPTZ NULL` and `attempts INT NOT NULL DEFAULT 0`, both already implied by ADR-003 §3.4's idempotency table. Concrete DDL lives in the service-local Flyway migrations: `services/core-backend/src/main/resources/db/migration/V2__outbox_schema.sql` and `services/ingestion/src/main/resources/db/migration/V1__init_ingestion_schemas.sql`.
 
 ### 3.3 Idempotency Key strategy
 
@@ -177,7 +177,7 @@ The ADR text **does not** carry `max_delivery_count = 3` literal into Java/Pytho
 |---|---|
 | Azure Storage Queues | No topics; no scheduled; no native transactions; no dead-letter; weaker delivery semantics. |
 | Azure Event Grid | Pub/sub only — no queue primitive; no scheduled messages; no de-dup. |
-| RabbitMQ on a Container App | Operational complexity (patch, scale, monitor) for a 4-person / 21-day project. |
+| RabbitMQ on a Container App | Operational complexity (patch, scale, monitor) for a 5-person / 21-day project. |
 | Service Bus **Basic** tier | No Topics → breaks `case-events`. Selecting Basic before mapping the architecture to the tier was an error in earlier drafts. |
 | Postgres LISTEN/NOTIFY (no broker) | NOT for cross-process events; ordering, replay, dead-letter, fan-out all weak. |
 

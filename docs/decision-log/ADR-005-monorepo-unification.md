@@ -10,7 +10,7 @@ Two repositories carry Centinela today:
 - `Team-Centinela/Centinela-docs` — *archived* repository. Historical architectural and decision documentation. (Read-only since 2026-07-15.)
 - `Team-Centinela/Centinela-Code` — currently empty. Implementation repository.
 
-The split emerged organically, but in a project executed by AI agents in 21 days with a 4-person team, **the split fragments context**:
+The split emerged organically, but in a project executed by AI agents in 21 days with a 5-person team, **the split fragments context**:
 
 | Problem | Cause |
 |---|---|

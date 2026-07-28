@@ -77,6 +77,8 @@ If a future bug or migration accidentally enables `local-emulator` in production
 
 **Centinela's `docker-compose.yml` follows the community migration, not the upstream template** — this is an **informed team deviation**, documented here so reviewers can see the choice is intentional. **Verification follow-up owed**: re-run `scripts/verify-emulators.sh` cold-start timing against `mssql/server:2022-latest` to confirm boot time stays within the ≤5 min budget (the script currently asserts `18 PASS / 0 FAIL` against `azure-sql-edge`; heavier image may exceed) and watch for upstream OOM regressions on schema-upgrade.
 
+**For the historical record** (per review feedback at [comment 5109207418](https://github.com/Team-Centinela/Centinela-Code/issues/193#issuecomment-5109207418)): we are migrating **away from Microsoft's stale sqledge dependency onto `mssql/server:2022-latest` ourselves, because Microsoft has not**. This is **our team's informed deviation** — not a follow of upstream guidance that doesn't exist. A reader of this ADR in six months should be able to identify which decision was made and by whom: Centinela's team, against the still-unmigrated Microsoft upstream template. The SQL Edge → `mssql/server` swap is also one INSTANCE of the broader Azure resource-retirement problem documented in §11.8.
+
 ### 11.5 Acceptance gate for Phase 0 work
 
 A Testcontainers integration test in Phase 0.1 / 0.2 / 0.3 is considered green **only** if:

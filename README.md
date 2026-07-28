@@ -10,7 +10,7 @@ created: 2026-07-15
 # Centinela
 
 Real-time transactional fraud detection platform for a small / medium
-fintech, built within a **$60 / 21-day** budget by a **4-person** team
+fintech, built within a **$60 / 21-day** budget by a **5-person** team
 using AI-driven development.
 
 This is a **monorepo**: code, infrastructure, and persistent
@@ -22,7 +22,7 @@ between them without context fragmentation.
 | | |
 |---|---|
 | **Money budget**       | $60 over 21 days |
-| **Team**               | 4 people (full-stack, AI-assisted) |
+| **Team**               | 5 people (full-stack, AI-assisted) |
 | **Delivery model**     | Modular monolith + selective extraction (ADR-001) |
 | **Storage**            | Azure PostgreSQL Flexible Server (B1ms, schema-per-module) (ADR-002) |
 | **Async backbone**     | Azure Service Bus Standard tier (Topics required for `case-events`) (ADR-003) |

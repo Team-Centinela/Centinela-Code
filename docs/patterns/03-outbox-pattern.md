@@ -25,7 +25,7 @@ Outbox Publisher (@Scheduled, every 1 second — one in each deploying service)
 ├── SELECT * FROM outbox_events WHERE status = 'PENDING' ORDER BY created_at
 ├── For each event:
 │   ├── Publish to Azure Service Bus
-│   ├── Success → UPDATE status = 'SENT', sent_at = NOW()
+│   ├── Success → UPDATE status = 'PUBLISHED', published_at = NOW()
 │   └── Failure → UPDATE retry_count = retry_count + 1
 └── (Events with retry_count > 10 are marked DEAD_LETTER)
 ```
@@ -40,7 +40,7 @@ CREATE TABLE outbox_events (
     aggregate_type VARCHAR(255) NOT NULL,
     payload        JSONB NOT NULL,
     created_at     TIMESTAMP NOT NULL DEFAULT NOW(),
-    sent_at        TIMESTAMP,
+    published_at   TIMESTAMP,
     retry_count    INT DEFAULT 0,
     status         VARCHAR(20) DEFAULT 'PENDING'
 );

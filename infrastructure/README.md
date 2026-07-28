@@ -6,7 +6,7 @@ Per `../docs/architecture/06-technology-stack.md` the key resources are:
 
 | Resource | Notes |
 |---|---|
-| Azure Resource Group | Bounded scope for budget caps |
+| Azure Resource Group `rg-centinela-dev` | Bounded scope for budget caps; provisioned by S1-A.1 (#62). Holds all Terraform-managed resources. |
 | Azure Database for PostgreSQL Flexible Server | B1ms, nightly auto-stop, dev-only prod |
 | Azure Service Bus (Standard tier) | Required: tier supports Topics |
 | Azure Blob Storage | `documents-worm` container, LRS Hot, WORM policy (7y time-based) |
@@ -30,6 +30,8 @@ See the ADRs for each technology's rationale:
 
 | Resource | Plan | Est. 21-day cost | Notes |
 |---|---|---|---|
+| Azure Resource Group `rg-centinela-dev` | Container for all Centinela resources; provisioned by S1-A.1 (#62) | **$0** | Resource Groups themselves do not incur charges; cost shows in the rows of contained resources. |
+| Azure Resource Group `rg-tfstate-bootstrap` | One-time container for the Terraform remote state. Holds Storage Account `stcentinelatfstate` only | **~$0** | Not counted toward the $60 project budget; ~0 marginal storage. |
 | Azure Container Apps (Consumption) | Pay-per-second, free grant first 180k vCPU-seconds + 360k GiB-seconds + 2M requests/month/subscription | **~$0–5** | Four backends share one ACA Environment; scale to zero when idle. Free grant covers expected Sprint 1–3 traffic. |
 | Azure Static Web Apps | Free | **$0** | 100 GB bandwidth/month included; enough for SPA demo traffic. |
 | Azure Database for PostgreSQL Flexible Server | B1ms (1 vCore / 2 GiB), nightly auto-stop | **~$5–8** | Auto-stop after 1h idle saves ~40% vs always-on. |
@@ -92,3 +94,20 @@ Per ADR-003 §3.4 (issue #27), `max_delivery_count = 3` and `<entity>-poison` si
 - Drift detection via `terraform plan` in CI; a `tflint`/`checkov` policy encodes "no queue/subscription ships without a `-poison` sibling".
 
 Cost: 5 additional Standard-tier entities (~0 marginal; well under the $10/mo base charge).
+
+## Bootstrap (`rg-tfstate-bootstrap`)
+
+The Terraform remote state lives in a separate Resource Group `rg-tfstate-bootstrap`
+(Storage Account `stcentinelatfstate`, container `tfstate`, blob `centinela.tfstate`).
+It is created **once** via `az` CLI before the first `terraform init`, because Terraform
+cannot provision the storage that holds its own state. Do not delete the storage
+account while any module is still pointed at it.
+
+OIDC trust for GitHub Actions is recorded in this repo as the App Registration
+`centinela-github-oidc` with two federated credentials: one for push to the active
+branch (`develop`) and one for pull requests. No client secrets are ever stored in
+the repo or the GitHub Actions environment; authentication relies on token exchange
+per ADR-006 §6.3.
+
+Bootstrap lands in issue [#62](https://github.com/Team-Centinela/Centinela-Code/issues/62) (sub-task of epic [#52](https://github.com/Team-Centinela/Centinela-Code/issues/52)).
+

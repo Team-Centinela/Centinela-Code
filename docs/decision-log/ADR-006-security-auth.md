@@ -18,7 +18,7 @@ The platform has four distinct authentication and authorization surfaces:
 Decision drivers:
 
 1. **Budget**: $60 / 21 days — no API Management tier, no dedicated identity provider. Use Azure-native, zero-additional-cost auth mechanisms.
-2. **Operational simplicity**: 4-person team, no SRE. Managed identity eliminates secret rotation for service-to-service. SWA built-in auth eliminates custom login code for the analyst portal.
+2. **Operational simplicity**: 5-person team, no SRE. Managed identity eliminates secret rotation for service-to-service. SWA built-in auth eliminates custom login code for the analyst portal.
 3. **Compliance** (`ASSIGNMENT.md` §E, §T.4): API keys must be rotatable, auditable, and stored encrypted. `Idempotency-Key` must be enforced at the HTTP boundary per RFC 9110 §9.3.1.
 4. **Module boundary discipline** (`../architecture/02-modular-monolith.md`): Auth logic lives in the **Auth module** (`auth` schema) inside the Core Backend monolith; extracted services consume it via managed identity, not by sharing the schema.
 

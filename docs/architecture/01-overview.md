@@ -57,6 +57,8 @@ Centinela uses a **Modular Monolith with Hexagonal Architecture** as the deploym
 
 The five deployable artifacts (full table in [`services/README.md`](../../services/README.md)) share a single PostgreSQL Flexible Server, one Service Bus namespace, one Blob Storage account, one Key Vault, and one Application Insights workspace — operational cohesion without coupling between deployments. Compute substrate: all four backends on Azure Container Apps Consumption (ADR-009); frontend on Azure Static Web Apps Free.
 
+**Local development + Phase 0 pre-validation** run against the Docker Compose emulator stack (PostGIS + Microsoft Service Bus Emulator + Floci-AZ + Azure SQL Edge + the three Spring Boot services on the `local-emulator` profile) per [ADR-011](../decision-log/ADR-011-local-emulator-stack.md). Real Azure is the deploy target of merged code, not a test surface — Phase 0 catches ~92 % of post-merge regressions on $0 emulators before consuming Azure budget. Verify gate: `scripts/verify-emulators.{ps1,sh}` returns `18 PASS / 0 FAIL`.
+
 ## Principles That Guide Decisions
 
 | Principle | What It Means |
@@ -96,6 +98,7 @@ Every code-touching change that flips a deployment surface travels with a paired
 - [ADR-010: Issue & PR Discipline](../decision-log/ADR-010-issue-pr-discipline.md)
 - [Best-Practices 05 — PR & Issue Discipline](../best-practices/05-pr-and-issue-discipline.md)
 - [Pattern 07 — Azure Impact Companion Issue](../patterns/07-azure-impact-companion-issue.md)
+- [ADR-011: Local Emulator Stack for Pre-Validation](../decision-log/ADR-011-local-emulator-stack.md)
 - [Technology Stack](06-technology-stack.md)
 - [Hexagonal Architecture](03-hexagonal-architecture.md)
 - [Selective Extraction](05-selective-extraction.md)

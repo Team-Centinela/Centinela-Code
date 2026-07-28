@@ -19,10 +19,17 @@
     <name>Centinela Parent</name>
     <description>Parent POM for Centinela fraud detection platform services</description>
 
+    <!--
+        Single source of truth for dependency versions.
+        Every sibling module inherits <dependencyManagement> from this parent
+        and MUST NOT duplicate version strings. See ADR-001 §"Decision #4",
+        ADR-003 §3.1, ADR-009 §9.1.
+    -->
     <modules>
         <module>shared-messaging</module>
         <module>core-backend</module>
         <module>ingestion</module>
+        <module>serverless-engine</module>
     </modules>
 
 <properties>
@@ -38,6 +45,10 @@
         <azure-identity.version>1.15.3</azure-identity.version>
         <archunit.version>1.3.0</archunit.version>
         <springdoc.version>2.8.6</springdoc.version>
+        <!-- Tracked by #186: Flyway 10.20.x certifies up to H2 2.2.224; pin so Maven
+             does not resolve a newer H2 that produces "upgrade recommended" warnings
+             when local / CI runs the Flyway-based tests. -->
+        <h2.version>2.2.224</h2.version>
     </properties>
 
     <dependencyManagement>
@@ -89,6 +100,13 @@
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
                 <version>${springdoc.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.h2database</groupId>
+                <artifactId>h2</artifactId>
+                <version>${h2.version}</version>
+                <scope>runtime</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>

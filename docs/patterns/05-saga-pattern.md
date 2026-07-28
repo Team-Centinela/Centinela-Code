@@ -65,7 +65,7 @@ Centinela uses **choreographed** sagas (implicit coordinator via event flow), no
 | Complexity to deploy | Trivially added on top of the already existing event-driven layer | Need a new state-machine runtime — significant build / 3-week project risk |
 | Visibility | Requires distributed tracing (ADR-007) and audit log per module | Centralized log |
 
-For a **21-day project with 4 people**, choreography is the only viable option; orchestration would consume the budget.
+For a **21-day project with 5 people**, choreography is the only viable option; orchestration would consume the budget.
 
 ## References
 

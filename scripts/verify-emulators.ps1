@@ -80,8 +80,22 @@ Write-Host "[2/6] Postgres (postgis/postgis:16-3.4-alpine)..." -ForegroundColor 
 docker exec centinela-postgres pg_isready -U postgres -d centinela *>$null
 if ($LASTEXITCODE -eq 0) { Write-Pass "pg_isready" } else { Write-Fail "pg_isready" }
 
-$schemas = (docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT count(*) FROM pg_namespace WHERE nspname IN ('oltp','outbox','cases','alerts','auth','reporting','rules_config','triggered_rules','received_messages');" 2>$null).Trim()
-if ($schemas -eq "9") { Write-Pass "9 ADR-002 schemas present" } else { Write-Fail "expected 9 schemas, got '$schemas'" }
+$marker = (& docker exec centinela-postgres test -f /var/lib/postgresql/.centinela-init-complete 2>$null) -and $LASTEXITCODE -eq 0
+if ($marker) { Write-Pass "init.sql marker file present (final postmaster, see #184)" }
+else { Write-Fail "init.sql marker file missing; service-owned schemas may not yet exist" }
+
+$expected = @('oltp','outbox','cases','alerts','reporting','rules_config')
+$present = @((
+    docker exec centinela-postgres psql -U postgres -d centinela -tA -c \
+      "SELECT schemaname FROM pg_tables WHERE tablename = 'flyway_schema_history' ORDER BY schemaname;" 2>$null
+) -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+
+$missing = @($expected | Where-Object { $present -notcontains $_ })
+if ($missing.Count -eq 0) {
+    Write-Pass ("Flyway schema history present in " + ($present | Where-Object { $expected -contains $_ }).Count + " service-owned schemas (#182/#189)")
+} else {
+    Write-Fail ("missing Flyway schema history for: " + ($missing -join ', '))
+}
 
 $exts = (docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT count(*) FROM pg_extension WHERE extname IN ('postgis','uuid-ossp');" 2>$null).Trim()
 if ($exts -eq "2") { Write-Pass "postgis + uuid-ossp extensions" } else { Write-Fail "expected 2 extensions, got '$exts'" }

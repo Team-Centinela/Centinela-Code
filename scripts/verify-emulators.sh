@@ -74,12 +74,26 @@ else
     fail "pg_isready"
 fi
 
-schemas=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c \
-    "SELECT count(*) FROM pg_namespace WHERE nspname IN ('oltp','outbox','cases','alerts','auth','reporting','rules_config','triggered_rules','received_messages');" | tr -d ' \r\n')
-if [[ "$schemas" == "9" ]]; then
-    pass "9 ADR-002 schemas present"
+if docker exec centinela-postgres test -f /var/lib/postgresql/.centinela-init-complete >/dev/null 2>&1; then
+    pass "init.sql marker file present (final postmaster, see #184)"
 else
-    fail "expected 9 schemas, got '$schemas'"
+    fail "init.sql marker file missing; service-owned schemas may not yet exist"
+fi
+
+expected=(oltp outbox cases alerts reporting rules_config)
+present=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c \
+    "SELECT schemaname FROM pg_tables WHERE tablename = 'flyway_schema_history' ORDER BY schemaname;" | tr -d ' \r')
+missing=()
+for s in "${expected[@]}"; do
+    if ! grep -Fxq "$s" <<<"$present"; then
+        missing+=("$s")
+    fi
+done
+if [[ ${#missing[@]} -eq 0 ]]; then
+    count=$(grep -c -Fx "${expected[@]/#/}" <<<"$present" || true)
+    pass "Flyway schema history present in $count service-owned schemas (#182/#189)"
+else
+    fail "missing Flyway schema history for: ${missing[*]}"
 fi
 
 exts=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c \

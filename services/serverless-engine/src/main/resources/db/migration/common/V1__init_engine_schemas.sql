@@ -57,22 +57,12 @@ CREATE INDEX idx_triggered_transaction ON triggered_rules.triggered_rules (trans
 
 -- Outbox schema: shared with Ingestion API and Core Backend per ADR-002 (single PostgreSQL
 -- across all services) and ADR-003 §3.2 (every service that publishes events runs the
--- Outbox Pattern). The CREATE is idempotent so when Ingestion's V1 lands first the
--- statements are no-ops on the shared B1ms instance.
+-- Outbox Pattern). The table itself is owned by the Ingestion service (its V1 creates
+-- `outbox.outbox_events` with `id DEFAULT gen_random_uuid()` and the canonical column
+-- ordering). Serverless-engine only ensures the schema namespace exists here so its
+-- Outbox Publisher can write into the shared table at runtime even if it boots before
+-- ingestion; the table itself is not re-created (Tracked by #190 — the previous
+-- `CREATE TABLE IF NOT EXISTS outbox.outbox_events` race-tripped on
+-- `pg_type_typname_nsp_index` because PostgreSQL's `CREATE TABLE IF NOT EXISTS` is
+-- not concurrency-safe across parallel Flyway runs).
 CREATE SCHEMA IF NOT EXISTS outbox;
-
-CREATE TABLE IF NOT EXISTS outbox.outbox_events (
-    id               UUID PRIMARY KEY,
-    event_type       VARCHAR(255) NOT NULL,
-    aggregate_id     VARCHAR(255) NOT NULL,
-    aggregate_type   VARCHAR(255) NOT NULL,
-    payload          JSONB NOT NULL,
-    created_at       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    published_at     TIMESTAMP WITH TIME ZONE,
-    attempts         INT NOT NULL DEFAULT 0,
-    last_attempt_at  TIMESTAMP WITH TIME ZONE,
-    status           VARCHAR(20) NOT NULL DEFAULT 'PENDING'
-);
-
-CREATE INDEX IF NOT EXISTS idx_outbox_pending
-    ON outbox.outbox_events (status, created_at);

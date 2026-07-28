@@ -113,6 +113,19 @@ The emulators catch ~92 % of regressions per #167, but not 100 %. The residual 8
 
 **Operational note for Phase 2**: before any `terraform apply`, the operator MUST run `scripts/verify-emulators.{ps1,sh}` and confirm `18 PASS / 0 FAIL`. The script's output is the receipts for layer 1 of this section.
 
+### 11.7 ADR-010 hard prerequisite gate
+
+ADR-010 (Issue & PR Discipline) Markdown is currently on branch `feat/adr-010-issue-pr-discipline-implementation`, **NOT merged** to `feat/week-one-consolidation` as of 2026-07-28. Every `[E.A*]` / `[B/C/D.A*]` companion's close-out per §11.6 layer 2 cites ADR-010 §10.4 — the apply runbook + companion close-out discipline depends on it being on disk in the merged branch.
+
+**This is therefore a HARD prerequisite gate for Phase 2 apply, not a tracked issue**: Phase 2 step 2.4 (`terraform apply` of PR #127 per #169) MUST NOT run until ADR-010 markdown has merged into `feat/week-one-consolidation`. The merge unblocks:
+
+- §11.6 layer 2 (close-out template) — without ADR-010 §10.4 on disk, companion close-outs are informal and `az <show>` + `terraform apply` log + paired-PR SHA + smoke test ID requirements have no canonical form
+- #160 (the per-issue closing-comment tracker for closed S1 issues #62 / #88 / #89 / #93–#97 / #102 / #103)
+- #158 (PR #130 audit labelling per ADR-010 §10.4)
+- Phase 1 governance (per #168 §1.1)
+
+**Enforcement path**: `infrastructure/REGION-QUOTA-CHECK.md` and `[E.A*]` companions `#148 / #149 / #150` should each include an explicit "ADR-010 merged" checkbox. The `[Lane-A]` epic #134 tracks the merge as one of its acceptance criteria. A new tracking issue to land the merge should be opened in Phase 1 (Lane A) with the label `adr, governance, lane-a, sprint-1` and a `Blocked by:` line that explicitly references this ADR-011 §11.7.
+
 ## Consequences
 
 ### Positive

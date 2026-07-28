@@ -1,0 +1,193 @@
+# Centinela Phase 0.0 emulator verification.
+# Issue #167 / PR #171. Phase 0.0 acceptance checklist, automated.
+#
+# Usage:
+#   .\scripts\verify-emulators.ps1           verify only, leave containers running
+#   .\scripts\verify-emulators.ps1 -Down     verify then docker compose down
+#   .\scripts\verify-emulators.ps1 -Help     help
+
+[CmdletBinding()]
+param(
+    [switch]$Down
+)
+
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot = (Resolve-Path "$ScriptDir/..").Path
+Set-Location -LiteralPath $RepoRoot
+
+$EnvFile = Join-Path $RepoRoot '.env'
+if (Test-Path -LiteralPath $EnvFile) {
+    Get-Content $EnvFile | ForEach-Object {
+        if ($_ -match '^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.+?)\s*$') {
+            $name = $Matches[1]
+            $value = $Matches[2] -replace '^["''](.*)["'']$', '$1'
+            Set-Item -Path "Env:$name" -Value $value
+        }
+    }
+}
+
+$PostgresPort = if ($env:POSTGRES_PORT) { $env:POSTGRES_PORT } else { '5432' }
+$ServiceBusAmqpPort = if ($env:SERVICEBUS_AMQP_PORT) { $env:SERVICEBUS_AMQP_PORT } else { '5672' }
+$ServiceBusMgmtPort = if ($env:SERVICEBUS_MGMT_PORT) { $env:SERVICEBUS_MGMT_PORT } else { '5300' }
+$SqlEdgePort = if ($env:SQLEDGE_PORT) { $env:SQLEDGE_PORT } else { '1433' }
+$FlociAzPort = if ($env:FLOCI_AZ_PORT) { $env:FLOCI_AZ_PORT } else { '4577' }
+$IngestionPort = if ($env:INGESTION_PORT) { $env:INGESTION_PORT } else { '8081' }
+$CoreBackendPort = if ($env:CORE_BACKEND_PORT) { $env:CORE_BACKEND_PORT } else { '8080' }
+$ServerlessEnginePort = if ($env:SERVERLESS_ENGINE_PORT) { $env:SERVERLESS_ENGINE_PORT } else { '8082' }
+
+$Script:Curl = 'curl.exe'
+$Pass = 0
+$Fail = 0
+
+function Write-Pass($msg) { $script:Pass++; Write-Host "  [PASS] $msg" -ForegroundColor Green }
+function Write-Fail($msg) { $script:Fail++; Write-Host "  [FAIL] $msg" -ForegroundColor Red }
+function Write-Info($msg) { Write-Host "  [..]  $msg" -ForegroundColor DarkGray }
+
+function Test-HttpStatus {
+    param([string]$Url, [string]$Label, [int]$MaxAttempts = 30, [int]$DelaySeconds = 2)
+    for ($i = 1; $i -le $MaxAttempts; $i++) {
+        try {
+            $body = & $Script:Curl -fsS $Url 2>$null
+            if ($body) {
+                Write-Pass "$Label -> $body"
+                return $true
+            }
+        } catch {
+            # not ready yet
+        }
+        Write-Info "Waiting for $Label (attempt $i/$MaxAttempts)..."
+        Start-Sleep -Seconds $DelaySeconds
+    }
+    Write-Fail "$Label did not become healthy in $($MaxAttempts * $DelaySeconds)s"
+    return $false
+}
+
+Write-Host ""
+Write-Host "Centinela - Phase 0.0 emulator verification" -ForegroundColor Cyan
+Write-Host "Repo: $RepoRoot" -ForegroundColor DarkGray
+Write-Host ""
+
+Write-Host "[1/7] Booting emulator stack..." -ForegroundColor Yellow
+$proc = Start-Process -FilePath "docker" -ArgumentList "compose","up","-d","--wait" -NoNewWindow -Wait -PassThru
+if ($proc.ExitCode -ne 0) {
+    Write-Fail "docker compose up -d --wait exited $($proc.ExitCode)"
+    exit 1
+}
+Write-Pass "docker compose up -d --wait completed"
+
+Write-Host ""
+Write-Host "[2/7] Postgres (postgis/postgis:16-3.4-alpine)..." -ForegroundColor Yellow
+docker exec centinela-postgres pg_isready -U postgres -d centinela *>$null
+if ($LASTEXITCODE -eq 0) { Write-Pass "pg_isready" } else { Write-Fail "pg_isready" }
+
+# Tracked by #184/#189: detect the final postmaster either by the marker file
+# written by init.sql OR by the gap between the container start time and
+# pg_postmaster_start_time() (the final postmaster always starts after the
+# temporary init postmaster, so its start time is strictly later).
+$markerExists = $false
+docker exec centinela-postgres test -f /var/lib/postgresql/.centinela-init-complete *>$null
+$markerExists = $LASTEXITCODE -eq 0
+
+$postmasterStart = (docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT pg_postmaster_start_time();" 2>$null).Trim()
+$containerStart = (docker inspect centinela-postgres --format "{{.State.StartedAt}}" 2>$null).Trim()
+$gapSeconds = -1
+try {
+    $pmStart = [datetime]::Parse($postmasterStart)
+    $ctStart = [datetime]::Parse($containerStart)
+    $gapSeconds = [int]([math]::Abs(($pmStart - $ctStart).TotalSeconds))
+} catch { $gapSeconds = -1 }
+
+if ($markerExists) {
+    Write-Pass "init.sql marker file present (final postmaster, see #184)"
+} elseif ($gapSeconds -ge 5) {
+    Write-Pass "postmaster start is ${gapSeconds}s after container start (final postmaster, see #184)"
+} else {
+    Write-Fail "postmaster start is ${gapSeconds}s after container start; service-owned schemas may not yet exist (see #184)"
+}
+
+$exts = (docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT count(*) FROM pg_extension WHERE extname IN ('postgis','uuid-ossp');" 2>$null).Trim()
+if ($exts -eq "2") { Write-Pass "postgis + uuid-ossp extensions" } else { Write-Fail "expected 2 extensions, got '$exts'" }
+
+Write-Host ""
+Write-Host "[3/7] Service Bus Emulator..." -ForegroundColor Yellow
+$null = Test-HttpStatus -Url "http://localhost:${ServiceBusMgmtPort}/health" -Label "SB Emulator /health"
+
+$sbLog = docker logs centinela-servicebus --tail 2000 2>&1
+foreach ($q in 'transactions-raw','documents-pending','documents-pending-pub','fraud-evaluation') {
+    if ($sbLog -match "Creating queue:\s+$([regex]::Escape($q))\b") { Write-Pass "queue '$q' created" }
+    else { Write-Fail "queue '$q' NOT in SB Emulator startup log" }
+}
+foreach ($t in 'case-events','fraud-evaluation-events') {
+    if ($sbLog -match "Creating topic:\s+$([regex]::Escape($t))\b") { Write-Pass "topic '$t' created" }
+    else { Write-Fail "topic '$t' NOT in SB Emulator startup log" }
+}
+foreach ($s in 'core-backend-sub','ingestion-sub') {
+    if ($sbLog -match "Creating subscription\s+$([regex]::Escape($s))\b") { Write-Pass "subscription '$s' created" }
+    else { Write-Fail "subscription '$s' NOT in SB Emulator startup log" }
+}
+
+Write-Host ""
+Write-Host "[4/7] Floci-AZ (Blob + KV + AppConfig + Monitor)..." -ForegroundColor Yellow
+$null = Test-HttpStatus -Url "http://localhost:${FlociAzPort}/_floci/health" -Label "Floci-AZ /health" -MaxAttempts 15 -DelaySeconds 2
+
+Write-Host ""
+Write-Host "[5/7] SQL Edge (state store for SB Emulator)..." -ForegroundColor Yellow
+docker exec centinela-sqledge bash -c "timeout 3 bash -c 'echo > /dev/tcp/localhost/1433'" *>$null
+if ($LASTEXITCODE -eq 0) { Write-Pass "SQL Edge TCP 1433 reachable" } else { Write-Fail "SQL Edge TCP 1433 reachable" }
+
+Write-Host ""
+Write-Host "[6/7] Spring Boot services (actuator /health)..." -ForegroundColor Yellow
+$null = Test-HttpStatus -Url "http://localhost:${IngestionPort}/actuator/health" -Label "ingestion /actuator/health" -MaxAttempts 60 -DelaySeconds 2
+$null = Test-HttpStatus -Url "http://localhost:${CoreBackendPort}/actuator/health" -Label "core-backend /actuator/health" -MaxAttempts 60 -DelaySeconds 2
+$null = Test-HttpStatus -Url "http://localhost:${ServerlessEnginePort}/actuator/health" -Label "serverless-engine /actuator/health" -MaxAttempts 60 -DelaySeconds 2
+
+$coreBackendRestarts = (docker inspect centinela-core-backend --format "{{.RestartCount}}" 2>$null).Trim()
+if ($coreBackendRestarts -eq "0") {
+    Write-Pass "core-backend completed first boot without retries (#191)"
+} else {
+    Write-Fail "core-backend restarted $coreBackendRestarts time(s) during startup (#191)"
+}
+
+Write-Host ""
+Write-Host "[7/7] Flyway-owned service schemas..." -ForegroundColor Yellow
+# Tracked by #189 (and refined after #190): now that all three Spring services
+# report /actuator/health = UP, every service's Flyway history must exist in
+# the *first* schema listed in its `spring.flyway.schemas` (Flyway writes
+# `flyway_schema_history` only to the first schema). The expected first
+# schemas are: ingestion=oltp, core-backend=cases, serverless-engine=rules_config.
+# The remaining service-owned schemas (`outbox`, `auth`, `alerts`, `reporting`)
+# are migrated by the same Flyway run but share the first-schema history table.
+$expected = @('oltp','cases','rules_config')
+$rawList = docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT schemaname FROM pg_tables WHERE tablename = 'flyway_schema_history' ORDER BY schemaname;" 2>$null
+$present = @()
+if ($rawList) {
+    foreach ($line in ($rawList -split "`n")) {
+        $trimmed = $line.Trim()
+        if ($trimmed) { $present += $trimmed }
+    }
+}
+
+$missing = @($expected | Where-Object { $present -notcontains $_ })
+if ($missing.Count -eq 0) {
+    $matching = @($present | Where-Object { $expected -contains $_ })
+    Write-Pass ("Flyway schema history present in " + $matching.Count + " service-owned first-schemas (#182/#189)")
+} else {
+    Write-Fail ("missing Flyway schema history for: " + ($missing -join ', '))
+}
+
+Write-Host ""
+Write-Host "==============================" -ForegroundColor Cyan
+$color = if ($Fail -eq 0) { 'Green' } else { 'Red' }
+Write-Host "Result: $Pass PASS / $Fail FAIL" -ForegroundColor $color
+Write-Host "==============================" -ForegroundColor Cyan
+
+if ($Fail -gt 0) { exit 1 }
+
+if ($Down) {
+    Write-Host ""
+    Write-Host "Tearing down stack (-Down flag)..." -ForegroundColor Yellow
+    docker compose down
+    exit $LASTEXITCODE
+}
+
+exit 0

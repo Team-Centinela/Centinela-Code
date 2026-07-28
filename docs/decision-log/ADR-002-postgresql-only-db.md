@@ -20,7 +20,7 @@ The two proposals contradict each other and must be reconciled before Sprint 1 b
 ### Decision drivers
 
 1. **Budget**: $60 USD hard limit over 21 days. Cosmos DB Serverless + PostgreSQL + Blob Storage are individually cheap, but operating two data engines for one data class is wasted spend.
-2. **Operational simplicity** (`ASSIGNMENT.md` §T.1): 4-person team in 3 weeks, no SRE.
+2. **Operational simplicity** (`ASSIGNMENT.md` §T.1): 5-person team in 3 weeks, no SRE.
 3. **Reporting** (`../architecture/02-modular-monolith.md`): Reporting module reads from the **primary** PostgreSQL Flexible Server via read-only DB role. Joining across data classes (e.g. case → account → transactions) requires a single engine. A read-replica was dropped from scope — see issue #24 and Considerations §Read-replica removal rationale below.
 4. **Service Bus + Outbox** (`../patterns/03-outbox-pattern.md`): the outbox table is already PostgreSQL. A polyglot strategy would force the previous-Service-Bus observers to either (a) read from Cosmos to build the outbox or (b) maintain two transactional origins per event.
 5. **PostGIS extension** (`../architecture/06-technology-stack.md`): geolocation checks (`FR-3 Impossible Location`) require spatial queries that PostgreSQL handles natively via PostGIS.
@@ -110,7 +110,7 @@ A previous revision of this ADR listed "(no auto-stop, always-on to host outbox)
 ## Consequences
 
 ### Positive
-- One DB engine, one backup story, one IAM path, one connection pool story. Reduces ops surface area for a 4-person, 3-week team.
+- One DB engine, one backup story, one IAM path, one connection pool story. Reduces ops surface area for a 5-person, 3-week team.
 - Reporting reads from the primary via a `SELECT`-only role; no read-replica to operate, no second connection pool to tune. Joins across data classes are native.
 - PostGIS enables the `FR-3` geo-velocity check `WHERE ST_Distance(...)` queries at zero licensing cost.
 - Outbox events live in the same engine as the business tables — atomic writes, no two-phase.
@@ -129,7 +129,7 @@ A previous revision of this ADR listed "(no auto-stop, always-on to host outbox)
 | Cross-schema boundary leakage | Flyway migrations are namespaced per schema; CI rejects any migration referencing another module's schema. |
 | Reporting accidental writes against the primary | Provision a `reporting_reader` PostgreSQL role with `SELECT`-only grants; Reporting service connection string uses this role. CI denies DDL/DML through that role. |
 | Hash-partition hot spots | Use modulo 16 hashing by default; for V2, rebalance to range/hash composite if hotspot observed. |
-| Outbox noise | Clean up `outbox_events WHERE status='SENT' AND sent_at < NOW() - INTERVAL '7 days'` weekly (`../patterns/03-outbox-pattern.md`). |
+| Outbox noise | Clean up `outbox_events WHERE status='PUBLISHED' AND published_at < NOW() - INTERVAL '7 days'` weekly (`../patterns/03-outbox-pattern.md`). |
 | Blob lifecycle confusion with immutability | Document in IaC comments; lifecycle rule sets `tier_to_cool` after 90d and `tier_to_archive` after 365d; immutability policy remains fixed at 7y. |
 
 ## Alternatives considered

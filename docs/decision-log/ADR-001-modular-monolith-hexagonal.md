@@ -37,7 +37,7 @@ Adopt **Modular Monolith + Hexagonal Architecture**:
 
 | Alternative | Why Rejected |
 |-------------|-------------|
-| Full Microservices | Too operationally heavy for 3 weeks and 4-person team |
+| Full Microservices | Too operationally heavy for 3 weeks and 5-person team |
 | Traditional Layered MVC | Tight coupling, poor testability, hard to extract modules later |
 | Azure Functions (event-triggered) for the Rule Engine | Cold starts in Functions Hosting Plans hit p99 latency above the real-time fraud detection budget; Functions Premium would erase the serverless-cost win. The Serverless Engine is implemented as a Spring Boot application on Azure Container Apps Consumption with a KEDA `azure-servicebus` scaler instead — pay-per-second, scale to zero, no cold-start cliff above ~1 s. |
 | Event Sourcing + Full CQRS | Too complex for MVP; can be introduced incrementally if needed |

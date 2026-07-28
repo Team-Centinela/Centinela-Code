@@ -1,26 +1,219 @@
-version: "3.9"
+name: centinela-local-emulators
 
 # Local development only — never use this file or these credentials in production.
 # Secrets (credentials, connection strings) must come from Azure Key Vault in any non-dev environment.
-# Flyway migrations handle all schema management at application startup.
+# Flyway migrations handle all schema management at application startup; this file only
+# brings up the 4 Azure emulators that local development and Phase-0.1 Testcontainers tests need.
+#
+# Services (the 3 Spring Boot apps) are intentionally NOT included yet — they will land in
+# a follow-up commit alongside their Dockerfiles and per-service `application-local-emulator.yml`.
+# Run them with `mvn spring-boot:run -Dspring-boot.run.profiles=local-emulator` against this network
+# in the meantime; Phase-0.1 Testcontainers tests connect on their own.
+#
+# SB Emulator topology follows the official Microsoft sample at
+# https://github.com/Azure/azure-service-bus-emulator-installer/blob/main/Docker-Compose-Template/docker-compose-default.yml
+# (SQL Server hostname MUST be `sqledge` via env var `SQL_SERVER`, not a `SQL_DATA_SOURCE` connection string;
+# a Config.json file is mounted to declare queues and topics).
 
 services:
+
   postgres:
-    image: postgres:16-alpine
-    container_name: centinela-db
+    image: postgis/postgis:16-3.4-alpine
+    container_name: centinela-postgres
     environment:
       POSTGRES_DB: centinela
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - centinela
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      # Tracked by #184: the postgis entrypoint runs initdb, executes the
+      # docker-entrypoint-initdb.d scripts against a temporary postmaster,
+      # then stops it and starts the final one. The earlier healthcheck
+      # succeeded against the temporary postmaster and raced app startup.
+      # We now require the final postmaster to be reachable AND the
+      # marker file written by init.sql to exist before we report healthy.
+      test:
+        - "CMD-SHELL"
+        - "pg_isready -U postgres -d centinela && psql -U postgres -d centinela -c 'SELECT 1' && test -f /var/lib/postgresql/.centinela-init-complete"
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 30
+      start_period: 30s
+
+  servicebus:
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
+    container_name: centinela-servicebus
+    depends_on:
+      sqledge:
+        condition: service_started
+    ports:
+      - "${SERVICEBUS_AMQP_PORT:-5672}:5672"   # AMQP
+      - "${SERVICEBUS_MGMT_PORT:-5300}:5300"   # Management HTTP + health endpoint
+    volumes:
+      # The SB Emulator expects a JSON config describing queues/topics/subscriptions.
+      # Without it, the emulator starts but `transactions-raw` etc. don't exist; you must
+      # then create them via the Administration Client SDK at app startup.
+      - ./docker/servicebus/Config.json:/ServiceBus_Emulator/ConfigFiles/Config.json:ro
+    environment:
+      ACCEPT_EULA: "Y"
+      SQL_SERVER: "sqledge"
+      MSSQL_SA_PASSWORD: "Strong!Passw0rd"
+      # EMULATOR_HTTP_PORT controls the management/health port (default 5300).
+      EMULATOR_HTTP_PORT: "5300"
+    networks:
+      - centinela
+    restart: on-failure
+    # No in-container healthcheck: the SB Emulator is a single-binary CBL image with no shell,
+    # so Docker can't curl localhost:5300/health reliably from inside. Probe externally:
+    #   curl -fs http://localhost:5300/health  -> {"status":"healthy","message":"Service is healthy."}
+    # `docker compose ps` will show it as "Up" only; that's sufficient for the dev workflow.
+
+  sqledge:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    container_name: centinela-sqledge
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Strong!Passw0rd"
+    ports:
+      - "${SQLEDGE_PORT:-1433}:1433"
+    networks:
+      - centinela
+    healthcheck:
+      # SQL Edge ships without sqlcmd in this image; rely on a bash /dev/tcp TCP probe.
+      # Warmup is ~90-120s on cold start, so budget ~5 minutes total.
+      test: ["CMD-SHELL", "timeout 3 bash -c 'echo > /dev/tcp/localhost/1433' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  floci-az:
+    image: floci/floci-az:latest
+    container_name: centinela-floci-az
+    ports:
+      - "${FLOCI_AZ_PORT:-4577}:4577"
+    environment:
+      FLOCI_AZ_STORAGE_MODE: "hybrid"
+      FLOCI_AZ_SERVICES_BLOB_ENABLED: "true"
+      FLOCI_AZ_SERVICES_QUEUE_ENABLED: "true"
+      FLOCI_AZ_SERVICES_TABLE_ENABLED: "true"
+      FLOCI_AZ_SERVICES_KEYVAULT_ENABLED: "true"
+      FLOCI_AZ_SERVICES_APPCONFIG_ENABLED: "true"
+      FLOCI_AZ_SERVICES_MONITOR_ENABLED: "true"
+    networks:
+      - centinela
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:4577/_floci/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  # ---- Spring Boot services (Phase 0 follow-up) --------------------------
+  # Per PR #171 §"Deliberate divergences" #1, the Spring Boot services land
+  # on this branch once Dockerfiles + per-service application-local-emulator.yml
+  # are written. Each service:
+  #   - build context is the repo root, so `services/pom.xml` is reachable
+  #   - `depends_on` waits for `postgres` healthy and `servicebus` started
+  #   - `SPRING_PROFILES_ACTIVE=local-emulator` flips the application to the
+  #     yml profile that points at the centinela bridge network
+  #   - SB Emulator connection string hardcoded (Phase 0 dev-only per PR #171
+  #     Production Safety contract; production uses Azure Key Vault)
+  # SAS key here is the static key the Microsoft SB Emulator sample ships with.
+  ingestion:
+    build:
+      context: .
+      dockerfile: services/ingestion/Dockerfile
+    container_name: centinela-ingestion
+    depends_on:
+      postgres:
+        condition: service_healthy
+      servicebus:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: local-emulator
+      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus:5672;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+    ports:
+      - "${INGESTION_PORT:-8081}:8081"
+    networks:
+      - centinela
+    # Tracked by #184: recover from the small postmaster-restart window that
+    # opens between the temporary init postmaster and the final one.
+    restart: unless-stopped
+
+  outbox-ready:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: centinela-outbox-ready
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ingestion:
+        condition: service_started
+    environment:
+      PGPASSWORD: postgres
+    command:
+      - "/bin/sh"
+      - "-ec"
+      - |
+        attempt=0
+        until [ "$(psql -h postgres -U postgres -d centinela -tAc "SELECT to_regclass('outbox.outbox_events') IS NOT NULL" 2>/dev/null || true)" = "t" ]; do
+          attempt=$((attempt + 1))
+          [ "$$attempt" -ge 120 ] && exit 1
+          sleep 1
+        done
+    networks:
+      - centinela
+    restart: "no"
+
+  core-backend:
+    build:
+      context: .
+      dockerfile: services/core-backend/Dockerfile
+    container_name: centinela-core-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      servicebus:
+        condition: service_started
+      outbox-ready:
+        condition: service_completed_successfully
+    environment:
+      SPRING_PROFILES_ACTIVE: local-emulator
+      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus:5672;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+    ports:
+      - "${CORE_BACKEND_PORT:-8080}:8080"
+    networks:
+      - centinela
+    restart: unless-stopped
+
+  serverless-engine:
+    build:
+      context: .
+      dockerfile: services/serverless-engine/Dockerfile
+    container_name: centinela-serverless-engine
+    depends_on:
+      postgres:
+        condition: service_healthy
+      servicebus:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: local-emulator
+      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus:5672;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+      SPRING_CLOUD_STREAM_ENABLED: "true"
+    ports:
+      - "${SERVERLESS_ENGINE_PORT:-8082}:8082"
+    networks:
+      - centinela
+    restart: unless-stopped
+
+networks:
+  centinela:
+    name: centinela
+    driver: bridge
 
 volumes:
   postgres_data:

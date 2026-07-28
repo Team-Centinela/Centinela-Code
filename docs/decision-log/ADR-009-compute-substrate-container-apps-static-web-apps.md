@@ -14,7 +14,7 @@ Decision drivers:
 2. **Scale to zero**: Fraud detection is bursty — hours of no transactions followed by a spike. Compute must not charge for idle replicas.
 3. **KEDA integration**: The Serverless Engine and OCR Worker scale on Azure Service Bus queue depth via KEDA. The runtime must support event-driven scaling natively.
 4. **Spring Boot compatibility**: Three services run on Spring Boot (Java 21). The runtime must run standard container images without framework adaptation.
-5. **Operational simplicity**: 4-person team, 21 days, no SRE. No cluster control plane to manage, patch, or monitor.
+5. **Operational simplicity**: 5-person team, 21 days, no SRE. No cluster control plane to manage, patch, or monitor.
 
 ## Decision
 

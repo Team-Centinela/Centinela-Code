@@ -35,8 +35,8 @@ class OutboxEventEntity {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    @Column(name = "sent_at")
-    private Instant sentAt;
+    @Column(name = "published_at")
+    private Instant publishedAt;
 
     @Column(name = "attempts", nullable = false)
     private int attempts;
@@ -87,12 +87,12 @@ class OutboxEventEntity {
         return createdAt;
     }
 
-    public Instant getSentAt() {
-        return sentAt;
+    public Instant getPublishedAt() {
+        return publishedAt;
     }
 
-    public void setSentAt(Instant sentAt) {
-        this.sentAt = sentAt;
+    public void setPublishedAt(Instant publishedAt) {
+        this.publishedAt = publishedAt;
     }
 
     public int getAttempts() {

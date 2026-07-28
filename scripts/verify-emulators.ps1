@@ -141,6 +141,13 @@ $null = Test-HttpStatus -Url "http://localhost:${IngestionPort}/actuator/health"
 $null = Test-HttpStatus -Url "http://localhost:${CoreBackendPort}/actuator/health" -Label "core-backend /actuator/health" -MaxAttempts 60 -DelaySeconds 2
 $null = Test-HttpStatus -Url "http://localhost:${ServerlessEnginePort}/actuator/health" -Label "serverless-engine /actuator/health" -MaxAttempts 60 -DelaySeconds 2
 
+$coreBackendRestarts = (docker inspect centinela-core-backend --format "{{.RestartCount}}" 2>$null).Trim()
+if ($coreBackendRestarts -eq "0") {
+    Write-Pass "core-backend completed first boot without retries (#191)"
+} else {
+    Write-Fail "core-backend restarted $coreBackendRestarts time(s) during startup (#191)"
+}
+
 Write-Host ""
 Write-Host "[7/7] Flyway-owned service schemas..." -ForegroundColor Yellow
 # Tracked by #189 (and refined after #190): now that all three Spring services

@@ -191,6 +191,13 @@ for svc_port in "ingestion ${INGESTION_PORT}" "core-backend ${CORE_BACKEND_PORT}
     fi
 done
 
+core_backend_restarts=$(docker inspect centinela-core-backend --format '{{.RestartCount}}' | tr -d ' \r\n')
+if [[ "$core_backend_restarts" == "0" ]]; then
+    pass "core-backend completed first boot without retries (#191)"
+else
+    fail "core-backend restarted ${core_backend_restarts} time(s) during startup (#191)"
+fi
+
 printf "\n${YELLOW}[7/7] Flyway-owned service schemas...${RESET}\n"
 # Tracked by #189 (and refined after #190): now that all three Spring services
 # report /actuator/health = UP, every service's Flyway history must exist in

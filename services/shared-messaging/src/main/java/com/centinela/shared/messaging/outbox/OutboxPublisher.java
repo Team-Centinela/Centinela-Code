@@ -142,7 +142,7 @@ public class OutboxPublisher {
             try {
                 serviceBusPublisher.publish(event.getEventType(), event.getAggregateId(), event.getPayload());
                 event.setStatus(OutboxEventEntity.Status.PUBLISHED);
-                event.setSentAt(Instant.now());
+                event.setPublishedAt(Instant.now());
                 published++;
             } catch (Exception e) {
                 log.warn("Failed to publish outbox event {}: {}", event.getId(), e.getMessage());

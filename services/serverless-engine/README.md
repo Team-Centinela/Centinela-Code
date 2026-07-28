@@ -153,6 +153,25 @@ Per **ADR-001 §Action Plan**, the parent-POM registration (#51 / #88) blocked a
 - **Cost** — see `../../infrastructure/README.md` cost table; this service is counted under `centinela-serverless-engine` ACA Consumption.
 - **Recovery / DR** — see `../../docs/patterns/03-outbox-pattern.md` §"Behavior under planned PostgreSQL downtime".
 
+## Local development
+
+This service ships with a `local-emulator` Spring profile (`src/main/resources/application-local-emulator.yml`) that points at the Docker Compose emulator stack from `docker-compose.yml` — PostGIS at `centinela-postgres:5432` and the Microsoft Service Bus Emulator at `centinela-servicebus:5672`. The full local surface (PostgreSQL + Service Bus + Key Vault + Blob + App Insights, via Floci-AZ) is governed by [`../../docs/decision-log/ADR-011-local-emulator-stack.md`](../../docs/decision-log/ADR-011-local-emulator-stack.md).
+
+```sh
+# From repo root
+cp .env.example .env
+docker compose up -d --wait                  # boots 4 emulators + 3 services
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify-emulators.ps1
+# Expected: 18 PASS / 0 FAIL
+
+# Or run the engine alone against the running stack
+SPRING_PROFILES_ACTIVE=local-emulator \
+  AZURE_SERVICEBUS_CONNECTION_STRING="Endpoint=sb://centinela-servicebus:5672;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;" \
+  mvn -pl services/serverless-engine spring-boot:run
+```
+
+**Never** enable the `local-emulator` profile against a real Azure Service Bus namespace or B1ms PostgreSQL — the hardcoded SAS key + local Postgres creds will fail loudly (immediate startup exception), per ADR-011 §11.4 + PR #171 §Production Safety contract. A lint rule gating this profile to local-only is tracked as `[E.48]` #108.
+
 ## Follow-up TODOs (cross-reference for the next @3105jero / @SebastianT2006 sprint)
 
 1. Replace the four `InMemory*Repository` stubs with JPA impls against `oltp.transactions`, `oltp.flagged_merchants`, etc. (epic #54 evidence-persistence half).

@@ -31,6 +31,9 @@ $ServiceBusAmqpPort = if ($env:SERVICEBUS_AMQP_PORT) { $env:SERVICEBUS_AMQP_PORT
 $ServiceBusMgmtPort = if ($env:SERVICEBUS_MGMT_PORT) { $env:SERVICEBUS_MGMT_PORT } else { '5300' }
 $SqlEdgePort = if ($env:SQLEDGE_PORT) { $env:SQLEDGE_PORT } else { '1433' }
 $FlociAzPort = if ($env:FLOCI_AZ_PORT) { $env:FLOCI_AZ_PORT } else { '4577' }
+$IngestionPort = if ($env:INGESTION_PORT) { $env:INGESTION_PORT } else { '8081' }
+$CoreBackendPort = if ($env:CORE_BACKEND_PORT) { $env:CORE_BACKEND_PORT } else { '8080' }
+$ServerlessEnginePort = if ($env:SERVERLESS_ENGINE_PORT) { $env:SERVERLESS_ENGINE_PORT } else { '8082' }
 
 $Script:Curl = 'curl.exe'
 $Pass = 0
@@ -64,7 +67,7 @@ Write-Host "Centinela - Phase 0.0 emulator verification" -ForegroundColor Cyan
 Write-Host "Repo: $RepoRoot" -ForegroundColor DarkGray
 Write-Host ""
 
-Write-Host "[1/5] Booting emulator stack..." -ForegroundColor Yellow
+Write-Host "[1/6] Booting emulator stack..." -ForegroundColor Yellow
 $proc = Start-Process -FilePath "docker" -ArgumentList "compose","up","-d","--wait" -NoNewWindow -Wait -PassThru
 if ($proc.ExitCode -ne 0) {
     Write-Fail "docker compose up -d --wait exited $($proc.ExitCode)"
@@ -73,7 +76,7 @@ if ($proc.ExitCode -ne 0) {
 Write-Pass "docker compose up -d --wait completed"
 
 Write-Host ""
-Write-Host "[2/5] Postgres (postgis/postgis:16-3.4-alpine)..." -ForegroundColor Yellow
+Write-Host "[2/6] Postgres (postgis/postgis:16-3.4-alpine)..." -ForegroundColor Yellow
 docker exec centinela-postgres pg_isready -U postgres -d centinela *>$null
 if ($LASTEXITCODE -eq 0) { Write-Pass "pg_isready" } else { Write-Fail "pg_isready" }
 
@@ -84,7 +87,7 @@ $exts = (docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SE
 if ($exts -eq "2") { Write-Pass "postgis + uuid-ossp extensions" } else { Write-Fail "expected 2 extensions, got '$exts'" }
 
 Write-Host ""
-Write-Host "[3/5] Service Bus Emulator..." -ForegroundColor Yellow
+Write-Host "[3/6] Service Bus Emulator..." -ForegroundColor Yellow
 $null = Test-HttpStatus -Url "http://localhost:${ServiceBusMgmtPort}/health" -Label "SB Emulator /health"
 
 $sbLog = docker logs centinela-servicebus --tail 2000 2>&1
@@ -102,13 +105,19 @@ foreach ($s in 'core-backend-sub','ingestion-sub') {
 }
 
 Write-Host ""
-Write-Host "[4/5] Floci-AZ (Blob + KV + AppConfig + Monitor)..." -ForegroundColor Yellow
+Write-Host "[4/6] Floci-AZ (Blob + KV + AppConfig + Monitor)..." -ForegroundColor Yellow
 $null = Test-HttpStatus -Url "http://localhost:${FlociAzPort}/_floci/health" -Label "Floci-AZ /health" -MaxAttempts 15 -DelaySeconds 2
 
 Write-Host ""
-Write-Host "[5/5] SQL Edge (state store for SB Emulator)..." -ForegroundColor Yellow
+Write-Host "[5/6] SQL Edge (state store for SB Emulator)..." -ForegroundColor Yellow
 docker exec centinela-sqledge bash -c "timeout 3 bash -c 'echo > /dev/tcp/localhost/1433'" *>$null
 if ($LASTEXITCODE -eq 0) { Write-Pass "SQL Edge TCP 1433 reachable" } else { Write-Fail "SQL Edge TCP 1433 reachable" }
+
+Write-Host ""
+Write-Host "[6/6] Spring Boot services (actuator /health)..." -ForegroundColor Yellow
+$null = Test-HttpStatus -Url "http://localhost:${IngestionPort}/actuator/health" -Label "ingestion /actuator/health" -MaxAttempts 60 -DelaySeconds 2
+$null = Test-HttpStatus -Url "http://localhost:${CoreBackendPort}/actuator/health" -Label "core-backend /actuator/health" -MaxAttempts 60 -DelaySeconds 2
+$null = Test-HttpStatus -Url "http://localhost:${ServerlessEnginePort}/actuator/health" -Label "serverless-engine /actuator/health" -MaxAttempts 60 -DelaySeconds 2
 
 Write-Host ""
 Write-Host "==============================" -ForegroundColor Cyan

@@ -24,6 +24,9 @@ SERVICEBUS_AMQP_PORT=${SERVICEBUS_AMQP_PORT:-5672}
 SERVICEBUS_MGMT_PORT=${SERVICEBUS_MGMT_PORT:-5300}
 SQLEDGE_PORT=${SQLEDGE_PORT:-1433}
 FLOCI_AZ_PORT=${FLOCI_AZ_PORT:-4577}
+INGESTION_PORT=${INGESTION_PORT:-8081}
+CORE_BACKEND_PORT=${CORE_BACKEND_PORT:-8080}
+SERVERLESS_ENGINE_PORT=${SERVERLESS_ENGINE_PORT:-8082}
 
 if [[ -t 1 ]]; then
     RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; CYAN=$'\033[36m'; GRAY=$'\033[90m'; RESET=$'\033[0m'
@@ -56,7 +59,7 @@ EOF
     esac
 done
 
-printf "\n${YELLOW}[1/5] Booting emulator stack...${RESET}\n"
+printf "\n${YELLOW}[1/6] Booting emulator stack...${RESET}\n"
 if docker compose up -d --wait; then
     pass "docker compose up -d --wait completed"
 else
@@ -64,7 +67,7 @@ else
     exit 1
 fi
 
-printf "\n${YELLOW}[2/5] Postgres (postgis/postgis:16-3.4-alpine)...${RESET}\n"
+printf "\n${YELLOW}[2/6] Postgres (postgis/postgis:16-3.4-alpine)...${RESET}\n"
 if docker exec centinela-postgres pg_isready -U postgres -d centinela >/dev/null 2>&1; then
     pass "pg_isready"
 else
@@ -87,7 +90,7 @@ else
     fail "expected 2 extensions, got '$exts'"
 fi
 
-printf "\n${YELLOW}[3/5] Service Bus Emulator...${RESET}\n"
+printf "\n${YELLOW}[3/6] Service Bus Emulator...${RESET}\n"
 sb_ok=0
 for i in $(seq 1 30); do
     if body=$(curl -fsS "http://localhost:${SERVICEBUS_MGMT_PORT}/health" 2>/dev/null); then
@@ -126,7 +129,7 @@ for s in core-backend-sub ingestion-sub; do
     fi
 done
 
-printf "\n${YELLOW}[4/5] Floci-AZ (Blob + KV + AppConfig + Monitor)...${RESET}\n"
+printf "\n${YELLOW}[4/6] Floci-AZ (Blob + KV + AppConfig + Monitor)...${RESET}\n"
 floci_ok=0
 for i in $(seq 1 15); do
     if body=$(curl -fsS "http://localhost:${FLOCI_AZ_PORT}/_floci/health" 2>/dev/null); then
@@ -142,12 +145,32 @@ if [[ $floci_ok -eq 0 ]]; then
     fail "Floci-AZ /health did not become healthy in 30s"
 fi
 
-printf "\n${YELLOW}[5/5] SQL Edge (state store for SB Emulator)...${RESET}\n"
+printf "\n${YELLOW}[5/6] SQL Edge (state store for SB Emulator)...${RESET}\n"
 if docker exec centinela-sqledge bash -c "timeout 3 bash -c 'echo > /dev/tcp/localhost/1433'" >/dev/null 2>&1; then
     pass "SQL Edge TCP 1433 reachable"
 else
     fail "SQL Edge TCP 1433 reachable"
 fi
+
+printf "\n${YELLOW}[6/6] Spring Boot services (actuator /health)...${RESET}\n"
+for svc_port in "ingestion ${INGESTION_PORT}" "core-backend ${CORE_BACKEND_PORT}" "serverless-engine ${SERVERLESS_ENGINE_PORT}"; do
+    name=$(echo "$svc_port" | awk '{print $1}')
+    port=$(echo "$svc_port" | awk '{print $2}')
+    svc_ok=0
+    for i in $(seq 1 60); do
+        if body=$(curl -fsS "http://localhost:${port}/actuator/health" 2>/dev/null); then
+            printf "  ${GREEN}[PASS]${RESET} %s /actuator/health -> %s\n" "$name" "$body"
+            PASS=$((PASS+1))
+            svc_ok=1
+            break
+        fi
+        info "Waiting for ${name} /actuator/health (attempt $i/60)..."
+        sleep 2
+    done
+    if [[ $svc_ok -eq 0 ]]; then
+        fail "${name} /actuator/health did not become healthy in 120s"
+    fi
+done
 
 printf "\n${CYAN}==============================${RESET}\n"
 if [[ $FAIL -eq 0 ]]; then

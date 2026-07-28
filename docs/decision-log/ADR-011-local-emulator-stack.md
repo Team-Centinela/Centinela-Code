@@ -88,26 +88,28 @@ A Testcontainers integration test in Phase 0.1 / 0.2 / 0.3 is considered green *
 
 ### 11.6 Budget protection for emulator-vs-production fidelity gaps
 
-The emulators catch ~92 % of regressions per #167, but not 100 %. The residual 8 % — bugs that slip through, or bugs introduced by the gap between emulator and real Azure semantics (managed identity token acquisition, retry timing, AAD token refresh, real Service Bus geo-redundancy, real App Insights ingestion latency) — must not be allowed to **run unbounded on real Azure**. Four layers of defense make the residual risk cheap:
+The emulators catch ~92 % of regressions per #167, but not 100 %. The residual 8 % — bugs that slip through, or bugs introduced by the gap between emulator and real Azure semantics (managed identity token acquisition, retry timing, AAD token refresh, real Service Bus geo-redundancy, real App Insights ingestion latency) — must not be allowed to **run unbounded on real Azure**. Five layers of defense minimize the residual risk; **the residual budget-at-risk for a fidelity-gap bug is qualitatively bounded, not numerically pinned** (see "Why no specific $X figure" below).
 
-| # | Layer | Mechanism | Trigger | Max Azure $ at risk | Ref |
-|---|---|---|---|---|---|
-| 1 | **Pre-validation gate** | Phase 0.3 cross-lane E2E green locally BEFORE any `terraform apply` per #167 §0.3 + §11.5 | `mvn -pl services/e2e verify` BUILD SUCCESS + log + test ID posted in #159 | $0 | #167, #159 |
-| 2 | **Apply runbook + companion close-out discipline** | Every `[E.A*]` / `[B/C/D.A*]` companion closes only after `az <show>` + `terraform apply` log + paired-code-PR SHA + smoke test ID per ADR-010 §10.4 | Companion issue comment + close | $0 (close-out is the safety net) | ADR-010, #160 |
-| 3 | **Scale-to-zero on ACA** | KEDA `minReplicas=0` + consumption plan per ADR-009 §9.3 | Idle (no HTTP / no queue depth) | $0 at idle; ~$0.0001/replica-second when active | ADR-009 |
-| 4 | **Auto-stop PostgreSQL** | B1ms `auto_stop` enabled, 60-min idle per ADR-002 §"Planned DB downtime" | Scheduled (weekday nights + weekends) | $0 stopped; ~$0.002/hr running | ADR-002 |
-| 5 | **Cost Management budget + Action Group escalator** | 50/80/90/100 % alerts at $60 ceiling per ADR-007 §7.7 | Cumulative spend threshold | $60 hard cap | ADR-007 |
+| # | Layer | Mechanism | Trigger | Ref |
+|---|---|---|---|---|
+| 1 | **Pre-validation gate** | Phase 0.3 cross-lane E2E green locally BEFORE any `terraform apply` per #167 §0.3 + §11.5 | `mvn -pl services/e2e verify` BUILD SUCCESS + log + test ID posted in #159 | #167, #159 |
+| 2 | **Apply runbook + companion close-out discipline** | Every `[E.A*]` / `[B/C/D.A*]` companion closes only after `az <show>` + `terraform apply` log + paired-code-PR SHA + smoke test ID per ADR-010 §10.4 | Companion issue comment + close | ADR-010, #160 |
+| 3 | **Scale-to-zero on ACA** | KEDA `minReplicas=0` + consumption plan per ADR-009 §9.3 | Idle (no HTTP / no queue depth) | ADR-009 |
+| 4 | **Auto-stop PostgreSQL** | B1ms `auto_stop` enabled, 60-min idle per ADR-002 §"Planned DB downtime" | Scheduled (weekday nights + weekends) | ADR-002 |
+| 5 | **Cost Management budget + Action Group escalator** | 50/80/90/100 % alerts at $60 ceiling per ADR-007 §7.7 | Cumulative spend threshold | ADR-007 |
 
 **Layer 5 escalation ladder** (per ADR-007 §7.7):
 
-- **50 %** (~$30): email + Teams webhook — `centinela-team@centinela.onmicrosoft.com`
-- **80 %** (~$48): + Azure Function `centinela-budget-action` — sets `minReplicas=0` on OCR Worker + Serverless Engine (the two KEDA-scaled services)
-- **90 %** (~$54): + sets `minReplicas=0` on Ingestion API + Core Backend + stops PostgreSQL Flexible Server via `az postgres flexible-server stop`
-- **100 %** (~$60): **nuclear option** — deletes all ACA apps, stops PostgreSQL, deletes Service Bus namespace. Requires manual re-provisioning; not auto-recovered.
+- **50 %**: email + Teams webhook — `centinela-team@centinela.onmicrosoft.com`
+- **80 %**: + Azure Function `centinela-budget-action` — sets `minReplicas=0` on OCR Worker + Serverless Engine (the two KEDA-scaled services)
+- **90 %**: + sets `minReplicas=0` on Ingestion API + Core Backend + stops PostgreSQL Flexible Server via `az postgres flexible-server stop`
+- **100 %**: **nuclear option** — deletes all ACA apps, stops PostgreSQL, deletes Service Bus namespace. Requires manual re-provisioning; not auto-recovered.
 
 **Apply-discipline contract** (Phase 2 step 2.4 per #169 §2.4): `terraform apply` of PR #127 MUST be preceded by (a) Phase 0.3 cross-lane E2E green, AND (b) Phase 0.2 §15 / §30.5 cleanliness fixes merged. If Phase 0 surfaces any `🔴 S1` finding not in §15 / §30.5, apply pauses per #167 §0.3 acceptance criteria. **No code path lands on real Azure before local pre-validation confirms it.**
 
-**Why this matters even with §11.1 in place**: a fidelity-gap bug that only surfaces on real Azure (e.g. managed identity token acquisition fails after 60 days of MI rotation, real SB dead-letter timing diverges from emulator, real App Insights ingestion 429-throttles a runaway publisher) cannot be caught by §11.5. Layer 1 prevents the bug from reaching Azure; layers 2–5 cap the damage if it slips through. Combined, the residual budget-at-risk for a fidelity-gap bug is **bounded by layer 5's escalation ladder to ~$12** (the gap between the 80 % alert and the 100 % nuclear option, less the time-to-trigger).
+**Residual risk characterization** (qualitative). A fidelity-gap bug that only surfaces on real Azure (e.g. managed identity token acquisition fails after 60 days of MI rotation, real SB dead-letter timing diverges from emulator, real App Insights ingestion 429-throttles a runaway publisher) cannot be caught by §11.5. Layer 1 prevents the bug from reaching Azure at all; layers 2–4 cap sustained burn while the bug is being detected; layer 5 escalates the response. The qualitative ceiling is: **time-to-trigger × worst-case sustained burn rate between thresholds**, where time-to-trigger is bounded by ADR-007 §7.7's action-function execution time + Azure Cost Management alert latency (typically 1–4 hours per [docs](https://learn.microsoft.com/en-us/azure/cost-management-billing/costs/cost-mgmt-alerts-monitor-usage)).
+
+**Why no specific $X residual figure**. Azure public pricing pages (Azure Container Apps Consumption, Service Bus Standard) render per-second / per-million-ops / per-hour rates as `$-` placeholders that require region selection + an authenticated Azure portal session to materialize into dollar amounts; without running telemetry on a deployed resource group, any specific residual dollar figure is **fabricated precision**. The qualitative defense is what matters: layers 1–4 minimize the probability of a fidelity-gap bug reaching Azure; layer 5 minimizes the burn if it does. **Real cost data will be available after Phase 2 apply + first full sprint; this ADR will be amended with grounded numbers once telemetry exists.**
 
 **Operational note for Phase 2**: before any `terraform apply`, the operator MUST run `scripts/verify-emulators.{ps1,sh}` and confirm `18 PASS / 0 FAIL`. The script's output is the receipts for layer 1 of this section.
 

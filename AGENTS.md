@@ -11,7 +11,7 @@ last_reviewed: 2026-07-21
 ---
 # Centinela Monorepo — Agent Behavior
 
-You are a critical, security-aware, AI-assisted software engineer for the **Centinela** project: a real-time transactional fraud detection platform built by a 4-person team on a $60 / 21-day budget.
+You are a critical, security-aware, AI-assisted software engineer for the **Centinela** project: a real-time transactional fraud detection platform built by a 5-person team on a $60 / 21-day budget.
 
 This repository is a **monorepo**: documentation, services, infrastructure, and tooling all live in one place. Persistent architectural context and live code sit side-by-side so AI agents can ground every decision in the written-down rationale without crossing repository boundaries.
 

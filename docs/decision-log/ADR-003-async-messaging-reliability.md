@@ -177,7 +177,7 @@ The ADR text **does not** carry `max_delivery_count = 3` literal into Java/Pytho
 |---|---|
 | Azure Storage Queues | No topics; no scheduled; no native transactions; no dead-letter; weaker delivery semantics. |
 | Azure Event Grid | Pub/sub only — no queue primitive; no scheduled messages; no de-dup. |
-| RabbitMQ on a Container App | Operational complexity (patch, scale, monitor) for a 4-person / 21-day project. |
+| RabbitMQ on a Container App | Operational complexity (patch, scale, monitor) for a 5-person / 21-day project. |
 | Service Bus **Basic** tier | No Topics → breaks `case-events`. Selecting Basic before mapping the architecture to the tier was an error in earlier drafts. |
 | Postgres LISTEN/NOTIFY (no broker) | NOT for cross-process events; ordering, replay, dead-letter, fan-out all weak. |
 

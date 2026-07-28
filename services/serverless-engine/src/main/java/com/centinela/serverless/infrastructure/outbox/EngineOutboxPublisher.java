@@ -46,7 +46,7 @@ public class EngineOutboxPublisher {
                 repository.saveAndFlush(event);
                 publisher.publish(event.getEventType(), event.getAggregateId(), event.getPayload());
                 event.setStatus(EngineOutboxEventEntity.Status.PUBLISHED);
-                event.setSentAt(Instant.now());
+                event.setPublishedAt(Instant.now());
                 repository.saveAndFlush(event);
                 published++;
             } catch (Exception e) {

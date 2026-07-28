@@ -59,7 +59,7 @@ EOF
     esac
 done
 
-printf "\n${YELLOW}[1/6] Booting emulator stack...${RESET}\n"
+printf "\n${YELLOW}[1/7] Booting emulator stack...${RESET}\n"
 if docker compose up -d --wait; then
     pass "docker compose up -d --wait completed"
 else
@@ -67,19 +67,38 @@ else
     exit 1
 fi
 
-printf "\n${YELLOW}[2/6] Postgres (postgis/postgis:16-3.4-alpine)...${RESET}\n"
+printf "\n${YELLOW}[2/7] Postgres (postgis/postgis:16-3.4-alpine)...${RESET}\n"
 if docker exec centinela-postgres pg_isready -U postgres -d centinela >/dev/null 2>&1; then
     pass "pg_isready"
 else
     fail "pg_isready"
 fi
 
-schemas=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c \
-    "SELECT count(*) FROM pg_namespace WHERE nspname IN ('oltp','outbox','cases','alerts','auth','reporting','rules_config','triggered_rules','received_messages');" | tr -d ' \r\n')
-if [[ "$schemas" == "9" ]]; then
-    pass "9 ADR-002 schemas present"
+# Tracked by #184/#189: detect the final postmaster either by the marker file
+# written by init.sql OR by the gap between the container start time and
+# pg_postmaster_start_time() (the final postmaster always starts after the
+# temporary init postmaster).
+if docker exec centinela-postgres sh -c 'test -f /var/lib/postgresql/.centinela-init-complete' >/dev/null 2>&1; then
+    pass "init.sql marker file present (final postmaster, see #184)"
 else
-    fail "expected 9 schemas, got '$schemas'"
+    postmaster_start=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT pg_postmaster_start_time();" | tr -d '\r\n')
+    container_start=$(docker inspect centinela-postgres --format '{{.State.StartedAt}}' | tr -d '\r\n')
+    if [[ -n "$postmaster_start" && -n "$container_start" ]]; then
+        pm_epoch=$(date -u -d "$postmaster_start" +%s 2>/dev/null || echo 0)
+        ct_epoch=$(date -u -d "$container_start" +%s 2>/dev/null || echo 0)
+        if [[ "$pm_epoch" -gt 0 && "$ct_epoch" -gt 0 ]]; then
+            gap=$(( pm_epoch - ct_epoch ))
+            if [[ $gap -ge 5 ]]; then
+                pass "postmaster start is ${gap}s after container start (final postmaster, see #184)"
+            else
+                fail "postmaster start is ${gap}s after container start; service-owned schemas may not yet exist (see #184)"
+            fi
+        else
+            fail "could not determine postmaster/container start times"
+        fi
+    else
+        fail "could not read postmaster or container start time"
+    fi
 fi
 
 exts=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c \
@@ -90,7 +109,7 @@ else
     fail "expected 2 extensions, got '$exts'"
 fi
 
-printf "\n${YELLOW}[3/6] Service Bus Emulator...${RESET}\n"
+printf "\n${YELLOW}[3/7] Service Bus Emulator...${RESET}\n"
 sb_ok=0
 for i in $(seq 1 30); do
     if body=$(curl -fsS "http://localhost:${SERVICEBUS_MGMT_PORT}/health" 2>/dev/null); then
@@ -129,7 +148,7 @@ for s in core-backend-sub ingestion-sub; do
     fi
 done
 
-printf "\n${YELLOW}[4/6] Floci-AZ (Blob + KV + AppConfig + Monitor)...${RESET}\n"
+printf "\n${YELLOW}[4/7] Floci-AZ (Blob + KV + AppConfig + Monitor)...${RESET}\n"
 floci_ok=0
 for i in $(seq 1 15); do
     if body=$(curl -fsS "http://localhost:${FLOCI_AZ_PORT}/_floci/health" 2>/dev/null); then
@@ -145,14 +164,14 @@ if [[ $floci_ok -eq 0 ]]; then
     fail "Floci-AZ /health did not become healthy in 30s"
 fi
 
-printf "\n${YELLOW}[5/6] SQL Edge (state store for SB Emulator)...${RESET}\n"
+printf "\n${YELLOW}[5/7] SQL Edge (state store for SB Emulator)...${RESET}\n"
 if docker exec centinela-sqledge bash -c "timeout 3 bash -c 'echo > /dev/tcp/localhost/1433'" >/dev/null 2>&1; then
     pass "SQL Edge TCP 1433 reachable"
 else
     fail "SQL Edge TCP 1433 reachable"
 fi
 
-printf "\n${YELLOW}[6/6] Spring Boot services (actuator /health)...${RESET}\n"
+printf "\n${YELLOW}[6/7] Spring Boot services (actuator /health)...${RESET}\n"
 for svc_port in "ingestion ${INGESTION_PORT}" "core-backend ${CORE_BACKEND_PORT}" "serverless-engine ${SERVERLESS_ENGINE_PORT}"; do
     name=$(echo "$svc_port" | awk '{print $1}')
     port=$(echo "$svc_port" | awk '{print $2}')
@@ -171,6 +190,37 @@ for svc_port in "ingestion ${INGESTION_PORT}" "core-backend ${CORE_BACKEND_PORT}
         fail "${name} /actuator/health did not become healthy in 120s"
     fi
 done
+
+core_backend_restarts=$(docker inspect centinela-core-backend --format '{{.RestartCount}}' | tr -d ' \r\n')
+if [[ "$core_backend_restarts" == "0" ]]; then
+    pass "core-backend completed first boot without retries (#191)"
+else
+    fail "core-backend restarted ${core_backend_restarts} time(s) during startup (#191)"
+fi
+
+printf "\n${YELLOW}[7/7] Flyway-owned service schemas...${RESET}\n"
+# Tracked by #189 (and refined after #190): now that all three Spring services
+# report /actuator/health = UP, every service's Flyway history must exist in
+# the *first* schema listed in its `spring.flyway.schemas` (Flyway writes
+# `flyway_schema_history` only to the first schema). The expected first
+# schemas are: ingestion=oltp, core-backend=cases, serverless-engine=rules_config.
+# The remaining service-owned schemas (`outbox`, `auth`, `alerts`, `reporting`)
+# are migrated by the same Flyway run but share the first-schema history table.
+expected=(oltp cases rules_config)
+present=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c \
+    "SELECT schemaname FROM pg_tables WHERE tablename = 'flyway_schema_history' ORDER BY schemaname;" | tr -d ' \r')
+missing=()
+for s in "${expected[@]}"; do
+    if ! grep -Fxq "$s" <<<"$present"; then
+        missing+=("$s")
+    fi
+done
+if [[ ${#missing[@]} -eq 0 ]]; then
+    count=${#expected[@]}
+    pass "Flyway schema history present in $count service-owned first-schemas (#182/#189)"
+else
+    fail "missing Flyway schema history for: ${missing[*]}"
+fi
 
 printf "\n${CYAN}==============================${RESET}\n"
 if [[ $FAIL -eq 0 ]]; then

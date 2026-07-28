@@ -1,13 +1,14 @@
 package com.centinela.ingestion.migration;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -15,16 +16,44 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 @SpringBootTest
-@Testcontainers(disabledWithoutDocker = true)
 @ActiveProfiles("test")
 class FlywayMigrationTest {
 
-    @Container
-    @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
-            .withDatabaseName("centinela");
+    @DynamicPropertySource
+    static void registerPostgres(DynamicPropertyRegistry registry) {
+        // Tracked by #188: when Docker is unavailable, fail the assumption in
+        // @BeforeAll (which aborts the test class) AND log an explicit reason
+        // via System.err so the CI operator sees why the canonical Postgres
+        // migration path was skipped.
+        if (!DockerClientFactory.instance().isDockerAvailable()) {
+            return;
+        }
+        PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
+                .withDatabaseName("centinela");
+        postgres.start();
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+    }
+
+    @BeforeAll
+    static void requireDockerDaemon() {
+        if (!DockerClientFactory.instance().isDockerAvailable()) {
+            System.err.println(
+                    "[FlywayMigrationTest] disabled: Docker daemon not available. "
+                            + "The canonical Postgres migration path is exercised by "
+                            + "'mvn -pl ingestion -am -Pverify-postgres' on CI runners that "
+                            + "expose a Docker daemon."
+            );
+            assumeTrue(
+                    false,
+                    "Docker daemon not available; FlywayMigrationTest is exercised by 'mvn -pl ingestion -am -Pverify-postgres' on CI runners."
+            );
+        }
+    }
 
     @Autowired
     private DataSource dataSource;

@@ -32,10 +32,19 @@ services:
     networks:
       - centinela
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d centinela && psql -U postgres -d centinela -c 'SELECT 1'"]
+      # Tracked by #184: the postgis entrypoint runs initdb, executes the
+      # docker-entrypoint-initdb.d scripts against a temporary postmaster,
+      # then stops it and starts the final one. The earlier healthcheck
+      # succeeded against the temporary postmaster and raced app startup.
+      # We now require the final postmaster to be reachable AND the
+      # marker file written by init.sql to exist before we report healthy.
+      test:
+        - "CMD-SHELL"
+        - "pg_isready -U postgres -d centinela && psql -U postgres -d centinela -c 'SELECT 1' && test -f /var/lib/postgresql/.centinela-init-complete"
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 30
+      start_period: 30s
 
   servicebus:
     image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
@@ -127,11 +136,38 @@ services:
         condition: service_started
     environment:
       SPRING_PROFILES_ACTIVE: local-emulator
-      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus:5672;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
     ports:
       - "${INGESTION_PORT:-8081}:8081"
     networks:
       - centinela
+    # Tracked by #184: recover from the small postmaster-restart window that
+    # opens between the temporary init postmaster and the final one.
+    restart: unless-stopped
+
+  outbox-ready:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: centinela-outbox-ready
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ingestion:
+        condition: service_started
+    environment:
+      PGPASSWORD: postgres
+    command:
+      - "/bin/sh"
+      - "-ec"
+      - |
+        attempt=0
+        until [ "$(psql -h postgres -U postgres -d centinela -tAc "SELECT to_regclass('outbox.outbox_events') IS NOT NULL" 2>/dev/null || true)" = "t" ]; do
+          attempt=$((attempt + 1))
+          [ "$$attempt" -ge 120 ] && exit 1
+          sleep 1
+        done
+    networks:
+      - centinela
+    restart: "no"
 
   core-backend:
     build:
@@ -143,13 +179,16 @@ services:
         condition: service_healthy
       servicebus:
         condition: service_started
+      outbox-ready:
+        condition: service_completed_successfully
     environment:
       SPRING_PROFILES_ACTIVE: local-emulator
-      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus:5672;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
     ports:
       - "${CORE_BACKEND_PORT:-8080}:8080"
     networks:
       - centinela
+    restart: unless-stopped
 
   serverless-engine:
     build:
@@ -163,12 +202,13 @@ services:
         condition: service_started
     environment:
       SPRING_PROFILES_ACTIVE: local-emulator
-      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus:5672;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
       SPRING_CLOUD_STREAM_ENABLED: "true"
     ports:
       - "${SERVERLESS_ENGINE_PORT:-8082}:8082"
     networks:
       - centinela
+    restart: unless-stopped
 
 networks:
   centinela:

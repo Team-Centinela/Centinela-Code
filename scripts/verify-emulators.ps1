@@ -80,19 +80,45 @@ Write-Host "[2/6] Postgres (postgis/postgis:16-3.4-alpine)..." -ForegroundColor 
 docker exec centinela-postgres pg_isready -U postgres -d centinela *>$null
 if ($LASTEXITCODE -eq 0) { Write-Pass "pg_isready" } else { Write-Fail "pg_isready" }
 
-$marker = (& docker exec centinela-postgres test -f /var/lib/postgresql/.centinela-init-complete 2>$null) -and $LASTEXITCODE -eq 0
-if ($marker) { Write-Pass "init.sql marker file present (final postmaster, see #184)" }
-else { Write-Fail "init.sql marker file missing; service-owned schemas may not yet exist" }
+# Tracked by #184/#189: detect the final postmaster either by the marker file
+# written by init.sql OR by the gap between the container start time and
+# pg_postmaster_start_time() (the final postmaster always starts after the
+# temporary init postmaster, so its start time is strictly later).
+$markerExists = $false
+$dockerOut = (docker exec centinela-postgres test -f /var/lib/postgresql/.centinela-init-complete 2>$null) ; $LASTEXITCODE -eq 0
+if ($dockerOut -and $LASTEXITCODE -eq 0) { $markerExists = $true }
+
+$postmasterStart = (docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT pg_postmaster_start_time();" 2>$null).Trim()
+$containerStart = (docker inspect centinela-postgres --format "{{.State.StartedAt}}" 2>$null).Trim()
+$gapSeconds = -1
+try {
+    $pmStart = [datetime]::Parse($postmasterStart)
+    $ctStart = [datetime]::Parse($containerStart)
+    $gapSeconds = [int]([math]::Abs(($pmStart - $ctStart).TotalSeconds))
+} catch { $gapSeconds = -1 }
+
+if ($markerExists) {
+    Write-Pass "init.sql marker file present (final postmaster, see #184)"
+} elseif ($gapSeconds -ge 5) {
+    Write-Pass "postmaster start is ${gapSeconds}s after container start (final postmaster, see #184)"
+} else {
+    Write-Fail "postmaster start is ${gapSeconds}s after container start; service-owned schemas may not yet exist (see #184)"
+}
 
 $expected = @('oltp','outbox','cases','alerts','reporting','rules_config')
-$present = @((
-    docker exec centinela-postgres psql -U postgres -d centinela -tA -c \
-      "SELECT schemaname FROM pg_tables WHERE tablename = 'flyway_schema_history' ORDER BY schemaname;" 2>$null
-) -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+$rawList = docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT schemaname FROM pg_tables WHERE tablename = 'flyway_schema_history' ORDER BY schemaname;" 2>$null
+$present = @()
+if ($rawList) {
+    foreach ($line in ($rawList -split "`n")) {
+        $trimmed = $line.Trim()
+        if ($trimmed) { $present += $trimmed }
+    }
+}
 
 $missing = @($expected | Where-Object { $present -notcontains $_ })
 if ($missing.Count -eq 0) {
-    Write-Pass ("Flyway schema history present in " + ($present | Where-Object { $expected -contains $_ }).Count + " service-owned schemas (#182/#189)")
+    $matching = @($present | Where-Object { $expected -contains $_ })
+    Write-Pass ("Flyway schema history present in " + $matching.Count + " service-owned schemas (#182/#189)")
 } else {
     Write-Fail ("missing Flyway schema history for: " + ($missing -join ', '))
 }

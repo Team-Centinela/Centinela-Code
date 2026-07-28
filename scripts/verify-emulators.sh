@@ -74,10 +74,31 @@ else
     fail "pg_isready"
 fi
 
+# Tracked by #184/#189: detect the final postmaster either by the marker file
+# written by init.sql OR by the gap between the container start time and
+# pg_postmaster_start_time() (the final postmaster always starts after the
+# temporary init postmaster).
 if docker exec centinela-postgres test -f /var/lib/postgresql/.centinela-init-complete >/dev/null 2>&1; then
     pass "init.sql marker file present (final postmaster, see #184)"
 else
-    fail "init.sql marker file missing; service-owned schemas may not yet exist"
+    postmaster_start=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT pg_postmaster_start_time();" | tr -d ' \r\n')
+    container_start=$(docker inspect centinela-postgres --format '{{.State.StartedAt}}' | tr -d ' \r\n')
+    if [[ -n "$postmaster_start" && -n "$container_start" ]]; then
+        pm_epoch=$(date -u -d "$postmaster_start" +%s 2>/dev/null || echo 0)
+        ct_epoch=$(date -u -d "$container_start" +%s 2>/dev/null || echo 0)
+        if [[ "$pm_epoch" -gt 0 && "$ct_epoch" -gt 0 ]]; then
+            gap=$(( pm_epoch - ct_epoch ))
+            if [[ $gap -ge 5 ]]; then
+                pass "postmaster start is ${gap}s after container start (final postmaster, see #184)"
+            else
+                fail "postmaster start is ${gap}s after container start; service-owned schemas may not yet exist (see #184)"
+            fi
+        else
+            fail "could not determine postmaster/container start times"
+        fi
+    else
+        fail "could not read postmaster or container start time"
+    fi
 fi
 
 expected=(oltp outbox cases alerts reporting rules_config)

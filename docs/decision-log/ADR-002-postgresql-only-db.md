@@ -129,7 +129,7 @@ A previous revision of this ADR listed "(no auto-stop, always-on to host outbox)
 | Cross-schema boundary leakage | Flyway migrations are namespaced per schema; CI rejects any migration referencing another module's schema. |
 | Reporting accidental writes against the primary | Provision a `reporting_reader` PostgreSQL role with `SELECT`-only grants; Reporting service connection string uses this role. CI denies DDL/DML through that role. |
 | Hash-partition hot spots | Use modulo 16 hashing by default; for V2, rebalance to range/hash composite if hotspot observed. |
-| Outbox noise | Clean up `outbox_events WHERE status='SENT' AND sent_at < NOW() - INTERVAL '7 days'` weekly (`../patterns/03-outbox-pattern.md`). |
+| Outbox noise | Clean up `outbox_events WHERE status='PUBLISHED' AND published_at < NOW() - INTERVAL '7 days'` weekly (`../patterns/03-outbox-pattern.md`). |
 | Blob lifecycle confusion with immutability | Document in IaC comments; lifecycle rule sets `tier_to_cool` after 90d and `tier_to_archive` after 365d; immutability policy remains fixed at 7y. |
 
 ## Alternatives considered

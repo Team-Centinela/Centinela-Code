@@ -32,10 +32,19 @@ services:
     networks:
       - centinela
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d centinela && psql -U postgres -d centinela -c 'SELECT 1'"]
+      # Tracked by #184: the postgis entrypoint runs initdb, executes the
+      # docker-entrypoint-initdb.d scripts against a temporary postmaster,
+      # then stops it and starts the final one. The earlier healthcheck
+      # succeeded against the temporary postmaster and raced app startup.
+      # We now require the final postmaster to be reachable AND the
+      # marker file written by init.sql to exist before we report healthy.
+      test:
+        - "CMD-SHELL"
+        - "pg_isready -U postgres -d centinela && psql -U postgres -d centinela -c 'SELECT 1' && test -f /var/lib/postgresql/.centinela-init-complete"
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 30
+      start_period: 30s
 
   servicebus:
     image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
@@ -132,6 +141,9 @@ services:
       - "${INGESTION_PORT:-8081}:8081"
     networks:
       - centinela
+    # Tracked by #184: recover from the small postmaster-restart window that
+    # opens between the temporary init postmaster and the final one.
+    restart: unless-stopped
 
   core-backend:
     build:
@@ -150,6 +162,7 @@ services:
       - "${CORE_BACKEND_PORT:-8080}:8080"
     networks:
       - centinela
+    restart: unless-stopped
 
   serverless-engine:
     build:
@@ -169,6 +182,7 @@ services:
       - "${SERVERLESS_ENGINE_PORT:-8082}:8082"
     networks:
       - centinela
+    restart: unless-stopped
 
 networks:
   centinela:

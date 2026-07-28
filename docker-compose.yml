@@ -145,6 +145,30 @@ services:
     # opens between the temporary init postmaster and the final one.
     restart: unless-stopped
 
+  outbox-ready:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: centinela-outbox-ready
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ingestion:
+        condition: service_started
+    environment:
+      PGPASSWORD: postgres
+    command:
+      - "/bin/sh"
+      - "-ec"
+      - |
+        attempt=0
+        until [ "$(psql -h postgres -U postgres -d centinela -tAc "SELECT to_regclass('outbox.outbox_events') IS NOT NULL" 2>/dev/null || true)" = "t" ]; do
+          attempt=$((attempt + 1))
+          [ "$$attempt" -ge 120 ] && exit 1
+          sleep 1
+        done
+    networks:
+      - centinela
+    restart: "no"
+
   core-backend:
     build:
       context: .
@@ -155,6 +179,8 @@ services:
         condition: service_healthy
       servicebus:
         condition: service_started
+      outbox-ready:
+        condition: service_completed_successfully
     environment:
       SPRING_PROFILES_ACTIVE: local-emulator
       AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus:5672;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"

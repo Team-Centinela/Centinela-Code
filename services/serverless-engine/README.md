@@ -13,16 +13,19 @@ Pulled out per **ADR-001 §Decision #4** as the third extracted service. Lives i
 
 ## What it owns (with #51 closed and the engine wired end-to-end)
 
-| Capability | Backing |
-|---|---|
-| Consume `transactions-raw` queue from Azure Service Bus | `adapter/in/consumer/TransactionsRawConsumer.java` (functional `Consumer<Message<String>>` bean + spring-cloud-azure-servicebus binder per ADR-003 §3.1, ADR-009 §9.1) |
-| Run the two-stage Pipeline (`STAGE 1`: FR-1 Velocity + FR-4 High-Risk Merchant; `STAGE 2`: FR-3 Impossible Geo + FR-2 Atypical Amount) | `domain/service/FraudPipeline.java` orchestrator per `../../docs/patterns/04-pipeline-pattern.md`; rules under `domain/service/*Rule.java` |
-| Persist `triggered_rules.triggered_rules` JSONB audit row plus outbox event in one ACID tx | `adapter/out/persistence/JpaTriggeredRuleRepository.java` + `infrastructure/outbox/JpaOutboxEventAppender.java` per ADR-003 §3.2 |
-| Emit `FraudEvaluationCompleted` to the `case-events` topic | `infrastructure/outbox/EngineOutboxPublisher.java` drives `infrastructure/outbox/EngineServiceBusPublisherImpl.java` (StreamBridge) |
-| Persist & advance the consumer-side idempotency ledger on `received_messages` | `infrastructure/idempotency/ReceivedMessageIdempotencyService.java` + `ReceivedMessageRepository.java` per ADR-003 §3.3.2 + `../../docs/patterns/06-idempotency-key.md` §3.3.2 |
-| W3C TraceContext propagation across the broker hop | `infrastructure/observability/TraceparentPropagator.java` per ADR-007 §7.2 |
-| Emit ADR-007 §7.4 business metrics | `centinela.transactions.evaluated{result}`, `centinela.rule.triggered{rule_code,result}`, `centinela.evaluation.duration_ms{stage}` from `application/ScoreTransactionService.java` |
-| Own health + readiness endpoints | `/actuator/health/outbox-lag` per ADR-003 §3.2 |
+| Capability | Backing | Implemented by |
+|---|---|---|
+| Consume `transactions-raw` queue from Azure Service Bus | `adapter/in/consumer/TransactionsRawConsumer.java` (functional `Consumer<Message<String>>` bean + spring-cloud-azure-servicebus binder per ADR-003 §3.1, ADR-009 §9.1) | [PR #130](https://github.com/Team-Centinela/Centinela-Code/pull/130) |
+| Run the two-stage Pipeline (`STAGE 1`: FR-1 Velocity + FR-4 High-Risk Merchant; `STAGE 2`: FR-3 Impossible Geo + FR-2 Atypical Amount) | `domain/service/FraudPipeline.java` orchestrator per `../../docs/patterns/04-pipeline-pattern.md`; rules under `domain/service/*Rule.java` | [PR #123](https://github.com/Team-Centinela/Centinela-Code/pull/123), [PR #124](https://github.com/Team-Centinela/Centinela-Code/pull/124), [PR #125](https://github.com/Team-Centinela/Centinela-Code/pull/125) |
+| Persist `triggered_rules.triggered_rules` JSONB audit row plus outbox event in one ACID tx | `adapter/out/persistence/JpaTriggeredRuleRepository.java` + `infrastructure/outbox/JpaOutboxEventAppender.java` per ADR-003 §3.2 | [PR #126](https://github.com/Team-Centinela/Centinela-Code/pull/126), [PR #130](https://github.com/Team-Centinela/Centinela-Code/pull/130) |
+| Emit `FraudEvaluationCompleted` to the `case-events` topic | `infrastructure/outbox/EngineOutboxPublisher.java` drives `infrastructure/outbox/EngineServiceBusPublisherImpl.java` (StreamBridge) | [PR #130](https://github.com/Team-Centinela/Centinela-Code/pull/130) |
+| Persist & advance the consumer-side idempotency ledger on `received_messages` | `infrastructure/idempotency/ReceivedMessageIdempotencyService.java` + `ReceivedMessageRepository.java` per ADR-003 §3.3.2 + `../../docs/patterns/06-idempotency-key.md` §3.3.2 | [PR #130](https://github.com/Team-Centinela/Centinela-Code/pull/130) |
+| W3C TraceContext propagation across the broker hop | `infrastructure/observability/TraceparentPropagator.java` per ADR-007 §7.2 | [PR #130](https://github.com/Team-Centinela/Centinela-Code/pull/130) |
+| Emit ADR-007 §7.4 business metrics | `centinela.transactions.evaluated{result}`, `centinela.rule.triggered{rule_code,result}`, `centinela.evaluation.duration_ms{stage}` from `application/ScoreTransactionService.java` | [PR #123](https://github.com/Team-Centinela/Centinela-Code/pull/123), [PR #124](https://github.com/Team-Centinela/Centinela-Code/pull/124), [PR #125](https://github.com/Team-Centinela/Centinela-Code/pull/125), [PR #126](https://github.com/Team-Centinela/Centinela-Code/pull/126), [PR #130](https://github.com/Team-Centinela/Centinela-Code/pull/130) |
+| Own health + readiness endpoints | `/actuator/health/outbox-lag` per ADR-003 §3.2 | [PR #130](https://github.com/Team-Centinela/Centinela-Code/pull/130) |
+| ArchUnit hexagonal-layering enforcement | `archunit/ServerlessEngineArchitectureTest.java` per ADR-001 §Hexagonal | [PR #128](https://github.com/Team-Centinela/Centinela-Code/pull/128) |
+
+Cited PRs (per [#166 §1.13](../../issues/166) / [#168 §1.4](../../issues/168) Phase 1.4 close-out): **#123, #124, #125, #126, #128, #130**. Audit-trail receipts per #160 (closing comments) + #161 (`[Lane-E][E.45]` ArchUnit extraction) + #222 (`[C.Post-Review]` parent of the 31 §15 audit findings).
 
 ## What it does **not** own
 

@@ -97,12 +97,20 @@ try {
     $gapSeconds = [int]([math]::Abs(($pmStart - $ctStart).TotalSeconds))
 } catch { $gapSeconds = -1 }
 
+# Reused-volume case: init.sql does not run because the data volume already
+# has the Postgres cluster initialized. The postmaster starts almost immediately
+# (gap < 5s), but the data is already final — service-owned schemas exist.
+$tableCount = (docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT count(*) FROM pg_tables WHERE schemaname IN ('oltp','outbox','rules_config','cases');" 2>$null).Trim()
+$dataInitialized = ($tableCount -match '^\d+$' -and [int]$tableCount -gt 0)
+
 if ($markerExists) {
     Write-Pass "init.sql marker file present (final postmaster, see #184)"
 } elseif ($gapSeconds -ge 5) {
     Write-Pass "postmaster start is ${gapSeconds}s after container start (final postmaster, see #184)"
+} elseif ($dataInitialized) {
+    Write-Pass "data already initialized (${tableCount} service-owned tables; reused volume, see #184)"
 } else {
-    Write-Fail "postmaster start is ${gapSeconds}s after container start; service-owned schemas may not yet exist (see #184)"
+    Write-Fail "no marker file, no init gap, no initialized data; service-owned schemas may not yet exist (see #184)"
 }
 
 $exts = (docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT count(*) FROM pg_extension WHERE extname IN ('postgis','uuid-ossp');" 2>$null).Trim()

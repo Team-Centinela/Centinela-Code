@@ -140,7 +140,15 @@ public class OutboxPublisher {
         int published = 0;
         for (OutboxEventEntity event : events) {
             try {
-                serviceBusPublisher.publish(event.getEventType(), event.getAggregateId(), event.getPayload());
+                // messageId = outbox_events.id, the deterministic rail the
+                // consumer's processed_events / received_messages ledger relies on
+                // (ADR-003 §3.3.1, §3.3.2). Setting it always is the producer-side
+                // mirror of TransactionsRawConsumer's H7 fix (Phase 0.2.6).
+                serviceBusPublisher.publish(
+                        event.getEventType(),
+                        event.getAggregateId(),
+                        event.getPayload(),
+                        event.getId().toString());
                 event.setStatus(OutboxEventEntity.Status.PUBLISHED);
                 event.setPublishedAt(Instant.now());
                 published++;

@@ -36,11 +36,16 @@ services:
       # docker-entrypoint-initdb.d scripts against a temporary postmaster,
       # then stops it and starts the final one. The earlier healthcheck
       # succeeded against the temporary postmaster and raced app startup.
-      # We now require the final postmaster to be reachable AND the
-      # marker file written by init.sql to exist before we report healthy.
+      # We now require the final postmaster to be reachable AND either the
+      # marker file written by init.sql to exist OR the postmaster to have
+      # been running for >=5s (init.sql always touches the marker; on a reused
+      # volume the marker may be missing while the DB is still initialized --
+      # in that case the postmaster uptime gate identifies the final postmaster).
+      # The second branch matches the gap heuristic in
+      # scripts/verify-emulators.{ps1,sh}.
       test:
         - "CMD-SHELL"
-        - "pg_isready -U postgres -d centinela && psql -U postgres -d centinela -c 'SELECT 1' && test -f /var/lib/postgresql/.centinela-init-complete"
+        - "pg_isready -U postgres -d centinela && psql -U postgres -d centinela -c 'SELECT 1' && (test -f /var/lib/postgresql/.centinela-init-complete || psql -U postgres -d centinela -tAc 'SELECT EXTRACT(EPOCH FROM (now() - pg_postmaster_start_time()))::int' | awk '{exit !($1 >= 5)}')"
       interval: 5s
       timeout: 5s
       retries: 30

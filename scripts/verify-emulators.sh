@@ -83,6 +83,11 @@ if docker exec centinela-postgres sh -c 'test -f /var/lib/postgresql/.centinela-
 else
     postmaster_start=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT pg_postmaster_start_time();" | tr -d '\r\n')
     container_start=$(docker inspect centinela-postgres --format '{{.State.StartedAt}}' | tr -d '\r\n')
+    # Reused-volume case: init.sql does not run because the data volume already
+    # has the Postgres cluster initialized. The postmaster starts almost immediately
+    # (gap < 5s), but the data is already final -- service-owned schemas exist.
+    table_count=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c \
+        "SELECT count(*) FROM pg_tables WHERE schemaname IN ('oltp','outbox','rules_config','cases');" | tr -d ' \r\n')
     if [[ -n "$postmaster_start" && -n "$container_start" ]]; then
         pm_epoch=$(date -u -d "$postmaster_start" +%s 2>/dev/null || echo 0)
         ct_epoch=$(date -u -d "$container_start" +%s 2>/dev/null || echo 0)
@@ -90,8 +95,10 @@ else
             gap=$(( pm_epoch - ct_epoch ))
             if [[ $gap -ge 5 ]]; then
                 pass "postmaster start is ${gap}s after container start (final postmaster, see #184)"
+            elif [[ "$table_count" =~ ^[0-9]+$ ]] && [[ $table_count -gt 0 ]]; then
+                pass "data already initialized (${table_count} service-owned tables; reused volume, see #184)"
             else
-                fail "postmaster start is ${gap}s after container start; service-owned schemas may not yet exist (see #184)"
+                fail "no marker file, no init gap, no initialized data; service-owned schemas may not yet exist (see #184)"
             fi
         else
             fail "could not determine postmaster/container start times"

@@ -17,30 +17,6 @@ See `../docs/architecture/01-overview.md` for the full system map and
 
 > Per AGENTS.md §"Persistent vs Temporal", these service directories are intended for code only. Issues, status, and progress live as GitHub Issues — do not write markdown files inside service folders unless they are persistent references (e.g. internal-README, generated API docs).
 
-## Per-Lane Ownership (per ADR-010)
-
-| Service | Lane | Code owner | Azure parcel owner |
-|---|---|---|---|
-| `ingestion/` | B | @3105jero | @3105jero |
-| `serverless-engine/` | C | @3105jero (domain) / @SebastianT2006 (plumbing) | @SebastianT2006 |
-| `core-backend/` | D | @JjuanGarcia77 | @JjuanGarcia77 |
-| `ocr-worker/` | (TBD Sprint 3, Lane E or successor) | @Santiagodxz | @Santiagodxz |
-| `frontend/` | E (Sprint 3) | @Santiagodxz | @Santiagodxz |
-| `shared-outbox/` *(Maven module)* | E | @Santiagodxz | (n/a) |
-| `shared-observability/` *(Maven module)* | E | @Santiagodxz | (n/a) |
-| `test-support/` *(Maven module)* | E | @Santiagodxz | (n/a) |
-
-Sprint-1 per-lane workstream epics:
-
-- **#135** — Lane B (Ingestion)
-- **#136** — Lane C (Serverless Engine)
-- **#138** — Lane D (Core Backend)
-- **#137** — Lane E (Platform + Frontend)
-- **#134** — Lane A (Governance)
-
-See [`../docs/best-practices/05-pr-and-issue-discipline.md`](../docs/best-practices/05-pr-and-issue-discipline.md) for the canonical role & responsibility matrix.
-
 ## Open issues on this directory
 
-- **#51** — *Register serverless-engine Maven module in `services/pom.xml`*. **Closed by PR #121** (2026-07-24). This entry is kept for cross-link purposes only. Maintenance: none.
-- **#127** is the per-lane Epic #5-Day-A infrastructure bootstrap; **#139-#150** are the companion infra issues per ADR-010.
+- **#51** — *Register serverless-engine Maven module in `services/pom.xml`*. The Serverless Engine's directory skeleton is still pending this registration; once the `<module>serverless-engine</module>` line lands, the Maven multi-module hierarchy treats it as a sibling of `ingestion` and `core-backend`.

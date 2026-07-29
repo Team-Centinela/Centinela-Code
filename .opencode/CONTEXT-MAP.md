@@ -15,14 +15,6 @@ This file is small on purpose — it is mixed into every session via
 the `opencode.json` `instructions` list, so bloat hurts every
 session.
 
-> **Note on what opencode.json loads (review item 2 of #195):**
-> `opencode.json:3-8` `instructions` lists **5 files**, all by exact
-> path. OpenCode does **not** recursively load `docs/decision-log/*.md`
-> or `.github/agent-preflight.md` even though this map and AGENTS.md
-> imply they load "automatically". AI agents MUST read each
-> ADR/preflight by explicit `Read` tool call before claiming work,
-> per ADR-010 §10.6 + `/.github/agent-preflight.md` Rule 3.
-
 ## Working agreement
 
 - **Repo:** Team-Centinela/Centinela-Code
@@ -35,17 +27,11 @@ session.
 
 ## Read first on session start
 
-> **Loader caveat:** OpenCode does not auto-load these. Each ADR +
-> preflight must be read explicitly. The numbered list below is the
-> recommended `Read` order.
-
-1. `../AGENTS.md` (root) — global behavior rules (now includes ADR-010 `Always` clauses)
-2. `../docs/AGENTS.md` — `docs/` rules (now includes PR↔Issue↔Azure traceability)
-3. `../docs/architecture/01-overview.md` — what is this thing (now includes Lane-Ownership Overlay)
+1. `../AGENTS.md` (root) — global behavior rules
+2. `../docs/AGENTS.md` — `docs/` rules
+3. `../docs/architecture/01-overview.md` — what is this thing
 4. `../docs/architecture/06-technology-stack.md` — what runs it
-5. **All** ADRs in `../docs/decision-log/` — each is read explicitly (no auto-load). Order: ADR-001 → ADR-002 → ADR-003 → ADR-004 → ADR-006 → ADR-007 → ADR-009 → **ADR-010** → ADR-011 → ADR-012 (when present).
-6. `../docs/best-practices/05-pr-and-issue-discipline.md` — role matrix + companion infra convention
-7. `../.github/agent-preflight.md` — three-rule AI preflight before any work
+5. **All** ADRs in `../docs/decision-log/`
 
 ## Topic → Doc routing
 
@@ -66,38 +52,17 @@ session.
 | Tests | `../docs/best-practices/02-testing-strategy.md` |
 | Errors | `../docs/best-practices/03-error-handling.md` |
 | Logging/observability | `../docs/best-practices/04-logging-and-monitoring.md` |
-| What PR / issue discipline do I follow? | `../docs/best-practices/05-pr-and-issue-discipline.md` + `../docs/patterns/07-azure-impact-companion-issue.md` + `../docs/decision-log/ADR-010-issue-pr-discipline.md`. AI agents read `../.github/agent-preflight.md` first. |
-| Phase 0 / emulator-surface discipline | `../docs/decision-log/ADR-010-issue-pr-discipline.md` §10.9 + `../docs/decision-log/ADR-011-local-emulator-stack.md` §11.5 + `../docs/patterns/07-azure-impact-companion-issue.md` §"Phase 0 Close". Use Mode (c) — Emulator Commitment in `infra-change.md`. |
 
 ## Issue ↔ Doc linkage (mandatory)
 
 Per the issue templates (`.github/ISSUE_TEMPLATE/`):
 - **ADR / Epic issue** → must list at least one ADR.
-- **Task-managed** (lane work) → must list `Blocked by:` (closed-only), `Has azure-impact: yes/no`, surface selection (§10.9.1), and `Companion infra issue:` when azure-impact is yes. **Always** link to the lane's epic.
-- **Infra-change** (companion) → `EXPECTED DELIVERY` + `COST-ATTRIBUTION` (real-Azure: Mode (a)+(b); emulator: Mode (c) — Emulator Commitment).
-- **Ceremony** → `standup` / `retro` / `refinement` body filled only with comments.
-- **ADR-amend** → drift diff recorded, ADR being amended clearly stated.
+- **Sprint task** → must list at least one ADR or
+  architecture/pattern doc.
 - **Bug** → must list the affected module/section.
 
 When you read an issue to start work, harvest these doc references
 *before* your first edit.
-
-## Per-lane workstream epics (Sprint 1)
-
-| Lane | Issue | Owner |
-|---|---|---|
-| A (governance) | #134 | @SrLampi1001 |
-| B (Ingestion)  | #135 | @3105jero |
-| C (Engine)     | #136 | @SebastianT2006 (+ domain by @3105jero) |
-| D (Core)       | #138 | @JjuanGarcia77 |
-| E (Platform)   | #137 | @Santiagodxz |
-
-Companion infra issues per ADR-010 §10.3 (each is a paired `[X.A*]` issue in the same sprint):
-
-- Lane B: #139 (B.A1), #140 (B.A2), #141 (B.A3)
-- Lane C: #142 (C.A1), #143 (C.A2), #144 (C.A3)
-- Lane D: #145 (D.A1), #146 (D.A2), #147 (D.A3)
-- Lane E: #148 (E.A1), #149 (E.A2), #150 (E.A3)
 
 ## Quick GitHub CLI cheatsheet
 

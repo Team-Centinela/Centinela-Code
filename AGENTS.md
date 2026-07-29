@@ -79,15 +79,10 @@ When you start a new AI session, perform this bootstrap **before answering any p
 - **"How do I publish an event reliably?"** → `docs/patterns/03-outbox-pattern.md` — every deploying service (Ingestion API, Serverless Engine, Core Backend) runs its own publisher.
 - **"Where does my data live?"** → `docs/decision-log/ADR-002-postgresql-only-db.md`
 - **"Why am I working in a monorepo?"** → `docs/decision-log/ADR-005-monorepo-unification.md`
-- **"What PR/issue discipline do I follow?"** → `docs/best-practices/05-pr-and-issue-discipline.md` + `docs/patterns/07-azure-impact-companion-issue.md` + `docs/decision-log/ADR-010-issue-pr-discipline.md`. AI agents read `/.github/agent-preflight.md` first.
 - **"What is the absolute must-and-must-not?"** → `docs/ASSIGNMENT.md`
 
 ## Always
 
-- **Apply ADR-010 discipline on every issue and PR.** This is the cross-cutting governance rule. Read `.github/agent-preflight.md` *before* claiming any work. Every task-managed issue carries a `Blocked by:` line (closed-only issue numbers), a `Has azure-impact:` declaration, and a `Companion infra issue:` when the work touches the deployment surface. A code PR's body that carries an `azure-impact` label must reference its paired `infra`-labelled companion issue.
-- **Pick a `centinela:*` cost-attribution mode on every azure-impact companion.** Either (a) add a row to `infrastructure/README.md` §"Cost guardrails", or (b) tag the affected Azure resources with the `centinela:lp / epic / issue / sprint / start / close / action` schema in `docs/best-practices/05-pr-and-issue-discipline.md`. (a)+(b) is the gold standard for Tier-1 resources.
-- **Re-read the source-of-truth docs before any code write.** For a lane-managed task the chain is: the ADR(s) —> the pattern doc(s) —> the service README —> this `AGENTS.md` last.
-- **Treat in-flight exceptions as grandfathered once.** New events like the rule-break documented in #131 must not recur. The standard template (`task-managed.md` / `infra-change.md`) is the canonical claim path going forward.
 - **Build a todo list** when a task has 3+ steps or can be split.
   Mark items completed only when their acceptance criteria is satisfied. It is valid to:
     - Pause and ask the user when input is required (clarification, review, missing context, tool errors).

@@ -1,5 +1,9 @@
 # ADR-006: Security & Auth
 
+## Status
+
+**ACCEPTED** — Ratified during Sprint 0 ADR review ([#16](https://github.com/Team-Centinela/Centinela-Code/issues/16)). Tracked at [#3](https://github.com/Team-Centinela/Centinela-Code/issues/3). Implementation sub-issues #44 (Ingestion API key auth), #45 (Idempotency-Key filter), #46 (Key Vault wiring), #47 (Auth module boundary), and #48 (ACA managed identity / SWA auth) roll up to epic #43.
+
 ## Context
 
 The platform has four distinct authentication and authorization surfaces:

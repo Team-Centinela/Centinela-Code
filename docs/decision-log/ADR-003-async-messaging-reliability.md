@@ -7,7 +7,7 @@ Cross-module coordination in the modular monolith must be async by rule (`../arc
 1. Guarantee at-least-once delivery for every domain event (no silent drops).
 2. Survive transient broker outages without needing distributed transactions.
 3. Expose idempotency on the consumer side as a first-class concern.
-4. Stay under the $60 budget over the 21-day project (due July 31, 2026).
+4. Stay under the $60 budget over the 21-day project.
 5. Provide publish/subscribe semantics **and** queue semantics; the architecture references both a `case-events` **topic** (subscriber model) and `documents-pending` / `transactions-raw` **queues** (single-consumer model).
 
 Three small decisions are bundled under this ADR: message broker choice, transport primitives (queues vs topics), and reliability patterns.
@@ -62,16 +62,16 @@ This is non-negotiable for ADRs compressing two writes (DB + broker) into one du
 **Outbox row lifecycle** (per #25 — closes the shutdown / cold-start gap):
 
 ```
-                               ┌──────────────────────┐
+                              ┌──────────────────────┐
 INSERT (status=PENDING,        │  Scheduled tick @1s  │
   attempts=0,                  │  SELECT ... FOR      │
   last_attempt_at=NULL)        │   UPDATE SKIP        │
  ─────────────────────────────►│   LOCKED             │
-                               │   WHERE status=      │
-                               │   'PENDING'          │
-                               │   ORDER BY id        │
-                               │   LIMIT 100          │
-                               └──────────┬───────────┘
+                                │   WHERE status=      │
+                                │   'PENDING'          │
+                                │   ORDER BY id        │
+                                │   LIMIT 100          │
+                                └──────────┬───────────┘
                                            │
                  ┌─────────────────────────┼─────────────────────────┐
                  ▼                         ▼                         ▼

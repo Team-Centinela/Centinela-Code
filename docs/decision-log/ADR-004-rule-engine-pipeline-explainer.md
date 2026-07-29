@@ -1,5 +1,8 @@
 # ADR-004: Rule Engine — Pipeline Pattern & Deterministic Explainer
 
+## Status
+**ACCEPTED** — Ratified during Sprint 0 ADR review (#16) after blockers #28 (pipeline ordering), #29 (rawEvidence schema), and #30 (short-circuit vs clamp semantics) were resolved. Implementation sub-issue #42 (Rule Engine Pipeline code) remains open and tracks the coding work that consumes the contracts pinned below.
+
 ## Context
 
 `ASSIGNMENT.md` §B mandates four heuristic rules:
@@ -169,6 +172,3 @@ These defaults are not magic numbers in code or hardcoded in business logic — 
 - [#11](https://github.com/Team-Centinela/Centinela-Code/issues/11) ADR-002 (postgresql-only) — Postgres JSONB store for evidence
 - Sprint 0 blockers resolved by this ADR: [#28](https://github.com/Team-Centinela/Centinela-Code/issues/28) pipeline ordering, [#29](https://github.com/Team-Centinela/Centinela-Code/issues/29) rawEvidence schema, [#30](https://github.com/Team-Centinela/Centinela-Code/issues/30) short-circuit vs clamp
 - [#42](https://github.com/Team-Centinela/Centinela-Code/issues/42) Implementation sub-issue — Rule Engine Pipeline (FR-1..FR-4) coding work that consumes these contracts
-
-## Status
-**ACCEPTED** — Ratified during Sprint 0 ADR review (#16) after blockers #28 (pipeline ordering), #29 (rawEvidence schema), and #30 (short-circuit vs clamp semantics) were resolved. Implementation sub-issue #42 (Rule Engine Pipeline code) remains open and tracks the coding work that consumes the contracts pinned below.

@@ -20,15 +20,18 @@ public class EngineOutboxPublisher {
     private final EngineServiceBusPublisher publisher;
     private final int batchSize;
     private final int maxAttempts;
+    private final java.time.Duration staleAfter;
 
     public EngineOutboxPublisher(EngineOutboxEventJpaRepository repository,
                                  EngineServiceBusPublisher publisher,
                                  @Value("${outbox.publisher.batch-size:100}") int batchSize,
-                                 @Value("${outbox.publisher.max-attempts:10}") int maxAttempts) {
+                                 @Value("${outbox.publisher.max-attempts:10}") int maxAttempts,
+                                 @Value("${outbox.recovery.stale-after-seconds:300}") long staleAfterSeconds) {
         this.repository = repository;
         this.publisher = publisher;
         this.batchSize = batchSize;
         this.maxAttempts = maxAttempts;
+        this.staleAfter = java.time.Duration.ofSeconds(staleAfterSeconds);
     }
 
     @Scheduled(fixedDelayString = "${outbox.publisher.interval-ms:1000}")
@@ -58,5 +61,24 @@ public class EngineOutboxPublisher {
             }
         }
         log.debug("Engine outbox publisher published {} of {} claimed events", published, events.size());
+    }
+
+    /**
+     * Periodic recovery step (ADR-003 §3.2 "Unclean crash / cold start"):
+     * resets any {@code status=PENDING} row older than {@code staleAfter}
+     * back to {@code attempts=0, last_attempt_at=NULL}. Idempotent because
+     * {@code SELECT ... FOR UPDATE SKIP LOCKED} (ADR-003 §3.4) already
+     * prevents double-publish when another worker claims the row in between.
+     */
+    @Scheduled(fixedDelayString = "${outbox.recovery.interval-ms:60000}")
+    @Transactional
+    public void resetStalePending() {
+        Instant cutoff = Instant.now().minus(staleAfter);
+        int reset = repository.resetStalePending(cutoff);
+        if (reset > 0) {
+            log.info("Engine outbox recovery reset {} stale PENDING rows (cutoff={})", reset, cutoff);
+        } else {
+            log.debug("Engine outbox recovery found 0 stale PENDING rows (cutoff={})", cutoff);
+        }
     }
 }

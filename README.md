@@ -81,6 +81,7 @@ Centinela-Code/
 | [ADR-006](docs/decision-log/ADR-006-security-auth.md) | Security & Auth — API Keys, Idempotency-Key, Key Vault, Auth Module | ACCEPTED (Sprint 0) |
 | [ADR-007](docs/decision-log/ADR-007-observability-cost-telemetry.md) | Observability & Cost Telemetry — App Insights, W3C TraceContext, Budget Alerts | ACCEPTED (Sprint 0) |
 | [ADR-009](docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md) | Compute Substrate — ACA Consumption + SWA Free | ACCEPTED (Sprint 0) |
+| [ADR-010](docs/decision-log/ADR-010-issue-pr-discipline.md) | Issue & PR Discipline — Blockers, `azure-impact` companion issues, Cost Attribution | ACCEPTED (Sprint 1) |
 
 > Status values here are a convenience snapshot. The canonical status lives in each ADR file.
 
@@ -96,7 +97,9 @@ Centinela-Code/
 
 - Issues: <https://github.com/Team-Centinela/Centinela-Code/issues>
 - Issue templates enforcing ADR linkage:
-  `.github/ISSUE_TEMPLATE/adr.md`, `sprint-task.md`, `bug.md`
+  `.github/ISSUE_TEMPLATE/adr.md`, `sprint-task.md` (deprecated — use `task-managed.md`), `task-managed.md`, `infra-change.md`, `ceremony.md`, `adr-amend.md`, `bug.md`
+- AI agent preflight: `.github/agent-preflight.md`
+- PR & Issue discipline (lane matrix + companion infra convention): `docs/best-practices/05-pr-and-issue-discipline.md`
 - CI: `.github/workflows/ci.yml`
 - AI tooling: `opencode.json`
 

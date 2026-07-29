@@ -24,6 +24,8 @@ See the ADRs for each technology's rationale:
 | ADR-009 | Compute substrate (ACA Consumption + SWA Free) |
 | ADR-006 | Auth & secrets |
 | ADR-007 | Observability & cost caps |
+| ADR-010 | Issue & PR discipline (companion infra issues, blockers, cost attribution) |
+| ADR-011 | Local Emulator Stack (pre-validation surface for Phase 0 / local / future CI; ADR-010 §10.9 references §11.5 + §11.7) |
 
 ## Cost guardrails
 
@@ -42,6 +44,45 @@ See the ADRs for each technology's rationale:
 | **Total** | | **~$15–24** | Well under the $60 ceiling. |
 
 Key cost-saving mechanisms (scale-to-zero, free grants, PostgreSQL auto-stop, budget alerts at 50/80/90/100% of $60) are canonical in [`../docs/decision-log/ADR-007-observability-cost-telemetry.md`](../docs/decision-log/ADR-007-observability-cost-telemetry.md) §7.7 and [`../docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md`](../docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md) §Cost Impact.
+
+## Per-issue cost attribution (per ADR-010 §10.5)
+
+Every companion infra issue records its spend in one of **three** modes (per [ADR-010 §10.5](https://github.com/Team-Centinela/Centinela-Code/blob/feat/adr-010-issue-pr-discipline-implementation/docs/decision-log/ADR-010-issue-pr-discipline.md) + §10.9 Emulation Amendment):
+
+- **Mode (a)** — add a row to this document's §"Cost guardrails" table (one row per Azure-impact change), referencing the `centinela:lp` and `centinela:issue` tags.
+- **Mode (b)** — tag the affected Azure resource(s) with the schema below. Back-trace from Azure Cost Analysis (filter by `Resource Tags.centinela:lp`, group by `Resource Tags.centinela:issue`).
+- **Mode (c)** — **Emulator Commitment** (per ADR-010 §10.9.3). For emulator-surface only changes where Mode (b) is inert; doc-row carries `$0.00–0.00` and a verify-script receipt. Inferred retrospectively on the first `terraform apply` of Phase 2.
+
+```
+centinela:lp        = "<lane letter>"        # "lane-b", "lane-c", etc.
+centinela:epic      = "[<lane>.0]"           # the per-lane epic issue ref
+centinela:issue     = "<companion issue>"    # the companion issue, "[B.A1]"
+centinela:sprint    = "sprint-<N>"
+centinela:start     = "<yyyy-mm-dd>"
+centinela:close     = "<yyyy-mm-dd, filled at close>"
+centinela:action    = "create|update|delete"
+```
+
+For Tier-1 resources (RG, Service Bus Standard namespace, ACA Environment, Key Vault, App Insights workspace) the **gold standard is (a)+(b)**. For lower-tier changes either is the floor.
+
+### Mode (c) — Phase 0 Emulator Commitment row format
+
+For emulator-surface only closes (per ADR-011 §11.5 + ADR-010 §10.9.3), the doc-row entry carries `$0.00–0.00` and the verify-script receipt:
+
+```
+| lane-X <service> s1 | emulator-side wiring | $0.00–0.00 |
+   | imp. | #<companion> | start <yyyy-mm-dd> | verify-script <18 PASS / 0 FAIL> |
+```
+
+The `centinela:*` schema is **inferred retrospectively** on the first `terraform apply` of Phase 2 (#169 step 2.4): the image-digest evidence captured in the Phase 0 close becomes the `azurerm_*` resource tags once the MCR images are replaced with managed Azure resources. Until that apply, `Mode (c)` is the canonical record.
+
+Per-lane cost rows (live):
+
+| lane | service | sprint | resource delta (or note) | cost | companion | start | spent |
+|---|---|---|---|---|---|---|---|
+| lane-a | governance | _process_ | PR #120/#121/#127 acknowledge path | _doc only_ | _regex 131_ | 2026-07-25 | — |
+| _pending_ | _pending_ | sprint-1 | _companion issues [B.A1] etc. land rows here as they close_ | _TBD_ | _TBD_ | _TBD_ | _TBD_ |
+| _phase-0_ | _emulator surface_ | sprint-1 | _Mode (c) closes land here with `$0.00–0.00` + verify-script marker_ | _$0.00_ | _TBD_ | _TBD_ | _$0.00_ |
 
 ## Day-1 region & quota verification
 
@@ -83,4 +124,3 @@ the repo or the GitHub Actions environment; authentication relies on token excha
 per ADR-006 §6.3.
 
 Bootstrap lands in issue [#62](https://github.com/Team-Centinela/Centinela-Code/issues/62) (sub-task of epic [#52](https://github.com/Team-Centinela/Centinela-Code/issues/52)).
-

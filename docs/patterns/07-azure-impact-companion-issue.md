@@ -128,7 +128,7 @@ EXPECTED DELIVERY (Emulator side)
     - image digest(s) of every touched image    → in PR thread
 
   DRIFT GAUGE
-    <verify-script section name>           (existing — see §11.5)
+    <verify-script section name>           (existing — see §11.6 layer 1 + Operational note)
     <testcontainers test class + method>    (NEW per companion issue)
 
   BREAKAGE-PATH
@@ -230,9 +230,9 @@ Per ADR-010 §10.9.3, a Phase 0 / emulator-surface companion closes with **Mode 
 
 | Evidence | Where | Citation |
 |---|---|---|
-| **Verify-script gate** | Issue comment with the full `scripts/verify-emulators.{ps1,sh}` capture (must show `18 PASS / 0 FAIL`) | [ADR-011 §11.5](https://github.com/Team-Centinela/Centinela-Code/blob/phase-0/0.1-validation/docs/decision-log/ADR-011-local-emulator-stack.md#115-acceptance-gate-for-phase-0-work) acceptance gate |
+| **Verify-script gate** | Issue comment with the full `scripts/verify-emulators.{ps1,sh}` capture (must show `18 PASS / 0 FAIL`) | [ADR-011 §11.6 layer 1](../decision-log/ADR-011-local-emulator-stack.md) Pre-validation gate + Operational note (verify-script receipt) |
 | **Image digest(s)** | Issue comment listing `@sha256:...` of every image touched in `docker-compose.yml` | [ADR-011 §11.2](https://github.com/Team-Centinela/Centinela-Code/blob/phase-0/0.1-validation/docs/decision-log/ADR-011-local-emulator-stack.md#112-compose-stack--what-runs-and-what-it-covers) image-digest pinning |
-| **Testcontainers log** | Issue comment with the test class + method that exercised the change | ADR-011 §11.5 §2 + §3 + §4 |
+| **Testcontainers log** | Issue comment with the test class + method that exercised the change | ADR-011 §11.2 (image-digest pinning) + §11.6 layer 1 (cross-lane E2E green) |
 | **Doc-row (Mode a, $0.00–0.00)** | Row added to `infrastructure/README.md` §"Cost guardrails" with the `verify-script <18 PASS / 0 FAIL>` placeholder | ADR-010 §10.9.3 |
 
 This is what unblocks **Mode (a)+(b)** on the **first** `terraform apply` of Phase 2 (conversion to real Azure): the doc-row carries the image digest + verify-script receipt, which the ops reviewer can match against the new `azurerm_*` resources.
@@ -312,7 +312,7 @@ Pre-flight (Rule 3):  ADR-010 §10.9.1 + ADR-011 §11.2 + §11.4 + §11.7 + §11
 ## Related Documents
 
 - ADR-010 — `../decision-log/ADR-010-issue-pr-discipline.md` (§10.9 Emulation Amendment + §10.5.c Mode (c))
-- **ADR-011** — `../decision-log/ADR-011-local-emulator-stack.md` (§11.5 acceptance gate + §11.7 hard prerequisite gate)
+- **ADR-011** — `../decision-log/ADR-011-local-emulator-stack.md` (§11.6 Pre-validation gate + §11.7 hard prerequisite gate)
 - `docs/best-practices/05-pr-and-issue-discipline.md`
 - `/.github/agent-preflight.md` (Rule 3 reads ADR-011 for emulator surfaces)
 - `.github/ISSUE_TEMPLATE/infra-change.md`

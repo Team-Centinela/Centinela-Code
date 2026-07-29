@@ -82,7 +82,7 @@ BREAKAGE-PATH
   failure mode → hand-back path
 ```
 
-### If yes (emulator surface) — EXPECTED DELIVERY (mirrored in companion) — Per ADR-010 §10.9.3 + ADR-011 §11.5
+### If yes (emulator surface) — EXPECTED DELIVERY (mirrored in companion) — Per ADR-010 §10.9.3 + ADR-011 §11.6
 
 ```
 RESOURCE DIFF
@@ -99,7 +99,7 @@ VERIFICATION EVIDENCE
   - smoke test ID                    → in PR thread
 
 DRIFT GAUGE
-  <verify-script section name>          (existing — ADR-011 §11.5)
+  <verify-script section name>          (existing — ADR-011 §11.6 layer 1)
   <testcontainers test class + method>  (NEW per companion issue)
 
 BREAKAGE-PATH
@@ -146,6 +146,6 @@ BREAKAGE-PATH
 - docs/patterns/<file.md>
 - docs/decision-log/ADR-N-<name>.md
 - **ADR-010** (`docs/decision-log/ADR-010-issue-pr-discipline.md`) — §10 (process), §10.9 (emulator surface)
-- **ADR-011** (`docs/decision-log/ADR-011-local-emulator-stack.md`) — §11.5 acceptance gate *(if emulator surface)*
+- **ADR-011** (`docs/decision-log/ADR-011-local-emulator-stack.md`) — §11.6 Pre-validation gate *(if emulator surface)*
 - `services/<service>/README.md`
 - `/.github/agent-preflight.md`

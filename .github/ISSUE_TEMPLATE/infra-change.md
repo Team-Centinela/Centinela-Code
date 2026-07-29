@@ -1,6 +1,6 @@
 ---
 name: Infra Change (lane-managed, azure-impact companion)
-description: Per ADR-010 §10.3–§10.5 + §10.9, ADR-007 §7.7, ADR-011 §11.5. Companion issue for a code-side task that touches the deployment surface — either real Azure (Phase 2/3) or the emulator stack (Phase 0 / local / CI). Pairs with `task-managed.md`.
+description: Per ADR-010 §10.3–§10.5 + §10.9, ADR-007 §7.7, ADR-011 §11.6 + §11.7. Companion issue for a code-side task that touches the deployment surface — either real Azure (Phase 2/3) or the emulator stack (Phase 0 / local / CI). Pairs with `task-managed.md`.
 title: "[infra][<Lane>.<A*>] "
 labels: ["infra-change", "azure-impact-companion"]
 assignees: []
@@ -30,7 +30,7 @@ A single PR that touches both surfaces must declare **two companion issues**, on
 - [ ] `terraform plan` clean *(real-Azure only)*
 - [ ] `terraform apply` log captured in issue comment *(real-Azure only)*
 - [ ] `az <verify command>` output captured in issue comment *(real-Azure only)*
-- [ ] `scripts/verify-emulators.{ps1,sh}` capture showing `18 PASS / 0 FAIL` posted in issue comment *(emulator only — per ADR-011 §11.5)*
+- [ ] `scripts/verify-emulators.{ps1,sh}` capture showing `18 PASS / 0 FAIL` posted in issue comment *(emulator only — per ADR-011 §11.6 layer 1 + Operational note)*
 - [ ] Testcontainers run logs captured in PR thread *(emulator only)*
 - [ ] Image digest(s) of every touched image posted in PR thread *(emulator only — per ADR-011 §11.2)*
 - [ ] Smoke test passing
@@ -58,7 +58,7 @@ BREAKAGE-PATH
   failure mode → hand-back path
 ```
 
-## EXPECTED DELIVERY (emulator surface) — Per ADR-010 §10.9.3 + ADR-011 §11.5
+## EXPECTED DELIVERY (emulator surface) — Per ADR-010 §10.9.3 + ADR-011 §11.6
 
 ```
 RESOURCE DIFF
@@ -75,7 +75,7 @@ VERIFICATION EVIDENCE
   - smoke test ID                    → in PR thread
 
 DRIFT GAUGE
-  <verify-script section name>          (existing — see ADR-011 §11.5)
+  <verify-script section name>          (existing — see ADR-011 §11.6 layer 1)
   <testcontainers test class + method>  (NEW per companion issue)
 
 BREAKAGE-PATH
@@ -169,7 +169,7 @@ Emulator back-trace:
 
 - ADR-010 (`docs/decision-log/ADR-010-issue-pr-discipline.md`) §10.3–§10.5 + §10.9 emulation amendment
 - ADR-007 (`docs/decision-log/ADR-007-observability-cost-telemetry.md`) §7.7
-- **ADR-011** (`docs/decision-log/ADR-011-local-emulator-stack.md`) §11.5 acceptance gate (emulator)
+- **ADR-011** (`docs/decision-log/ADR-011-local-emulator-stack.md`) §11.6 Pre-validation gate (emulator)
 - `docs/patterns/07-azure-impact-companion-issue.md` §"Phase 0 Close"
 - `docs/best-practices/05-pr-and-issue-discipline.md`
 - `/.github/agent-preflight.md`

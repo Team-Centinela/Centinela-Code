@@ -39,7 +39,10 @@ import java.util.function.Consumer;
  * <ol>
  *   <li>Extract a {@code messageId} from the Service Bus message-id property.
  *       If absent, log WARN and throw — synthesizing a UUID here would silently
- *       defeat dedup on every redelivery (H7 fix).</li>
+ *       defeat dedup on every redelivery (H7 fix). Per the always-set contract
+ *       (Phase 0 §0.2.6 / §30.5 S2 #2) the producer (Ingestion Outbox Publisher)
+ *       MUST always populate the {@code messageId} header; this consumer never
+ *       falls back to a synthesized value.</li>
  *   <li>Open a CONSUMER span via {@link TraceparentPropagator} so the saga trace
  *       (ADR-007 §7.2) survives the broker hop end-to-end.</li>
  *   <li>Claim the message via {@link ReceivedMessageIdempotencyService.claim}

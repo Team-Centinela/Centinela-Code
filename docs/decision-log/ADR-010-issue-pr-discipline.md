@@ -215,7 +215,7 @@ Mode (c) is the only `centinela:*` convention that allows the schema to be infer
 
 ## Related Documents
 
-- **ADR-011** — Local Emulator Stack (peer ADR; §10.9 cross-references §11.5 acceptance gate and §11.7 hard prerequisite gate)
+- **ADR-011** — Local Emulator Stack (peer ADR; §10.9 cross-references §11.6 Pre-validation gate and §11.7 hard prerequisite gate)
 - AGENTS.md §"Always / Never" (rules binding above any AI agent)
 - docs/AGENTS.md §"Coordination with code"
 - docs/architecture/05-selective-extraction.md §"Per-lane ownership of Azure surface" (new subsection)

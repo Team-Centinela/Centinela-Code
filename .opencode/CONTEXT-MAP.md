@@ -67,7 +67,7 @@ session.
 | Errors | `../docs/best-practices/03-error-handling.md` |
 | Logging/observability | `../docs/best-practices/04-logging-and-monitoring.md` |
 | What PR / issue discipline do I follow? | `../docs/best-practices/05-pr-and-issue-discipline.md` + `../docs/patterns/07-azure-impact-companion-issue.md` + `../docs/decision-log/ADR-010-issue-pr-discipline.md`. AI agents read `../.github/agent-preflight.md` first. |
-| Phase 0 / emulator-surface discipline | `../docs/decision-log/ADR-010-issue-pr-discipline.md` §10.9 + `../docs/decision-log/ADR-011-local-emulator-stack.md` §11.5 + `../docs/patterns/07-azure-impact-companion-issue.md` §"Phase 0 Close". Use Mode (c) — Emulator Commitment in `infra-change.md`. |
+| Phase 0 / emulator-surface discipline | `../docs/decision-log/ADR-010-issue-pr-discipline.md` §10.9 + `../docs/decision-log/ADR-011-local-emulator-stack.md` §11.6 + `../docs/patterns/07-azure-impact-companion-issue.md` §"Phase 0 Close". Use Mode (c) — Emulator Commitment in `infra-change.md`. |
 
 ## Issue ↔ Doc linkage (mandatory)
 

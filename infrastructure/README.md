@@ -25,7 +25,7 @@ See the ADRs for each technology's rationale:
 | ADR-006 | Auth & secrets |
 | ADR-007 | Observability & cost caps |
 | ADR-010 | Issue & PR discipline (companion infra issues, blockers, cost attribution) |
-| ADR-011 | Local Emulator Stack (pre-validation surface for Phase 0 / local / future CI; ADR-010 §10.9 references §11.5 + §11.7) |
+| ADR-011 | Local Emulator Stack (pre-validation surface for Phase 0 / local / future CI; ADR-010 §10.9 references §11.6 + §11.7) |
 
 ## Cost guardrails
 
@@ -67,7 +67,7 @@ For Tier-1 resources (RG, Service Bus Standard namespace, ACA Environment, Key V
 
 ### Mode (c) — Phase 0 Emulator Commitment row format
 
-For emulator-surface only closes (per ADR-011 §11.5 + ADR-010 §10.9.3), the doc-row entry carries `$0.00–0.00` and the verify-script receipt:
+For emulator-surface only closes (per ADR-011 §11.6 layer 1 + ADR-010 §10.9.3), the doc-row entry carries `$0.00–0.00` and the verify-script receipt:
 
 ```
 | lane-X <service> s1 | emulator-side wiring | $0.00–0.00 |

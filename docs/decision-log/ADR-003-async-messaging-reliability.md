@@ -62,16 +62,16 @@ This is non-negotiable for ADRs compressing two writes (DB + broker) into one du
 **Outbox row lifecycle** (per #25 — closes the shutdown / cold-start gap):
 
 ```
-                              ┌──────────────────────┐
+                               ┌──────────────────────┐
 INSERT (status=PENDING,        │  Scheduled tick @1s  │
   attempts=0,                  │  SELECT ... FOR      │
   last_attempt_at=NULL)        │   UPDATE SKIP        │
  ─────────────────────────────►│   LOCKED             │
-                                │   WHERE status=      │
-                                │   'PENDING'          │
-                                │   ORDER BY id        │
-                                │   LIMIT 100          │
-                                └──────────┬───────────┘
+                               │   WHERE status=      │
+                               │   'PENDING'          │
+                               │   ORDER BY id        │
+                               │   LIMIT 100          │
+                               └──────────┬───────────┘
                                            │
                  ┌─────────────────────────┼─────────────────────────┐
                  ▼                         ▼                         ▼

@@ -1,8 +1,5 @@
 # ADR-001: Modular Monolith with Hexagonal Architecture
 
-## Status
-**ACCEPTED** — Ratified during Sprint 0 ADR review (#16). See `../architecture/03-hexagonal-architecture.md` for the canonical package layout.
-
 ## Context
 
 Building a real-time fraud detection engine with budget constraints, a small team familiar with Spring Boot, and a 3-week delivery deadline. A full microservices mesh introduces operational overhead (service discovery, distributed tracing, deployment coordination) that the team cannot absorb. However, a traditional layered MVC architecture tightly couples business logic to frameworks, making the fraud detection rules difficult to test in isolation and impossible to extract later.
@@ -51,3 +48,6 @@ Adopt **Modular Monolith + Hexagonal Architecture**:
 - ADR-004: Rule Engine — Pipeline Pattern (`ADR-004-rule-engine-pipeline-explainer.md`)
 - ADR-005: Monorepo Unification (`ADR-005-monorepo-unification.md`)
 - `../architecture/01-overview.md` — system-level narrative of this ADR
+
+## Status
+**ACCEPTED** — Ratified during Sprint 0 ADR review (#16). See `../architecture/03-hexagonal-architecture.md` for the canonical package layout.

@@ -139,4 +139,4 @@ This has a direct interaction with the Outbox Pattern mandated by `ADR-003` – 
 
 ## Status
 
-**APPROVED** (Sprint 0, 2026-07-17) — addresses blockers #24, #33, #34 raised in [#16](https://github.com/Team-Centinela/Centinela-Code/issues/16) Sprint 0 review. This ADR clusters with [#1, #12, #13](https://github.com/Team-Centinela/Centinela-Code/issues?q=is%3Aopen+label%3Aadr); the historical [docs#3](https://github.com/Team-Centinela/Centinela-docs/issues/3) stays closed. The `draft` label on [#11](https://github.com/Team-Centinela/Centinela-Code/issues/11) is removed in the same release.
+**ACCEPTED** (Sprint 0, 2026-07-17) — addresses blockers #24, #33, #34 raised in [#16](https://github.com/Team-Centinela/Centinela-Code/issues/16) Sprint 0 review. This ADR clusters with [#1, #12, #13](https://github.com/Team-Centinela/Centinela-Code/issues?q=is%3Aopen+label%3Aadr); the historical [docs#3](https://github.com/Team-Centinela/Centinela-docs/issues/3) stays closed. The `draft` label on [#11](https://github.com/Team-Centinela/Centinela-Code/issues/11) is removed in the same release.

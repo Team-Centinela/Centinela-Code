@@ -1,9 +1,5 @@
 # ADR-009: Compute Substrate — Azure Container Apps Consumption + Static Web Apps Free
 
-## Status
-
-**ACCEPTED** (Sprint 0, 2026-07-17) — Ratified during Sprint 0 ADR review ([#16](https://github.com/Team-Centinela/Centinela-Code/issues/16)). Tracker [#48](https://github.com/Team-Centinela/Centinela-Code/issues/48) closed.
-
 ## Context
 
 The platform runs four backend services (Ingestion API, Serverless Engine, Core Backend, OCR Worker) and one frontend (React + Vite SPA). Each needs a compute runtime. ASSIGNMENT.md §1.6 mandates cost-efficient cloud architecture under $60 over 21 days. ASSIGNMENT.md §3 (Out of Scope) explicitly forbids managed cluster orchestrators (AKS / Kubernetes). ASSIGNMENT.md §T.4 (Architectural Justification) requires every technical choice to be documented with cost and trade-off reasoning.

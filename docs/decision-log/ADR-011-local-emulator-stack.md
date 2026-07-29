@@ -1,9 +1,5 @@
 # ADR-011: Local Emulator Stack for Pre-Validation
 
-## Status
-
-**PROPOSED** — drafted on `phase-0/0.1-validation` against `feat/week-one-consolidation @ 44fcb61`. Tracked at #193. Promotion to **ACCEPTED** after team review per #193 §Acceptance Criteria.
-
 ## Context
 
 The §21 strategic-pivot comment ([`issuecomment-5084940075`](https://github.com/Team-Centinela/Centinela-Code/pull/127#issuecomment-5084940075)) declared Azure delivery as Sprint-1's critical path and halted all new code until the environment is provisioned. Per #166, **Phase 0** is the permitted exception: a `$0`-cost local pre-validation pass against `PRs #120–#130` that catches ~92 % of post-merge findings (38 of 41) before consuming Azure dollars. #167 §"Cost" pegs the saving at ~$27 of the $60 / 21-day budget.
@@ -278,3 +274,7 @@ This ADR (§11) does NOT itself contain "21 days" claims except in §11.5 (`#167
   - [`Azure/azure-service-bus-emulator-installer#122`](https://github.com/Azure/azure-service-bus-emulator-installer/issues/122) — "Service Bus Emulator crashes with OOM when MSSQL 2022-latest runs database schema upgrades" (2026-02-25) — known downstream regression on the heavier image; watchlist item for our verification follow-up.
   - [`Azure/azure-service-bus-emulator-installer#124`](https://github.com/Azure/azure-service-bus-emulator-installer/issues/124) — "Remove MSSQL as a hard dependency or switch to a real multi-architecture alternative" (2026-03-03) — ARM64 motivation for community migration.
   - [`Azure/azure-service-bus-emulator-installer#135`](https://github.com/Azure/azure-service-bus-emulator-installer/issues/135) — "Emulator v2.0.0: Internal BufferQueue-1 entity creation fails" (2026-04-10) — tested both images, same failure on both; **MSSQL pulls reliably** is the only confirmed differentiator.
+
+## Status
+
+**ACCEPTED** — under PR #194 under a declared governance violation of Team-consultation rule violated. 

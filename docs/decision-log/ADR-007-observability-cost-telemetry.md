@@ -1,9 +1,5 @@
 # ADR-007: Observability & Cost Telemetry — Application Insights, W3C TraceContext, Budget Alerts
 
-## Status
-
-**ACCEPTED** (Sprint 0, 2026-07-20) — Ratified during Sprint 0 ADR review ([#16](https://github.com/Team-Centinela/Centinela-Code/issues/16)). Dependency on ADR-009 resolved; tracker [#21](https://github.com/Team-Centinela/Centinela-Code/issues/21) closed in same release cycle as [#48](https://github.com/Team-Centinela/Centinela-Code/issues/48).
-
 ## Context
 
 `ASSIGNMENT.md` §1.5 mandates **End-to-End Observability**: "Provide complete visibility into the lifecycle of every transaction, showing logs, traces, and system metrics when failures occur." §1.6 mandates **Cost-Efficient Cloud Architecture**: "Deliver a fully functional system while keeping total Azure consumption under **$60 USD** out of the provided $200 budget."

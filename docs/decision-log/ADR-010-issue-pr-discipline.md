@@ -1,9 +1,5 @@
 # ADR-010: Issue & PR Discipline (Traceability + Blocker Chain)
 
-## Status
-
-**ACCEPTED with §10.9 Emulation Amendment** (Sprint 1, 2026-07-28) — Tracker [#132](https://github.com/Team-Centinela/Centinela-Code/issues/132) closes when PR #194 merges. Companion transitional guardrail: [#131](https://github.com/Team-Centinela/Centinela-Code/issues/131). Hard prerequisite for Phase 2 apply per [ADR-011 §11.7](https://github.com/Team-Centinela/Centinela-Code/blob/phase-0/0.1-validation/docs/decision-log/ADR-011-local-emulator-stack.md#117-adr-010-hard-prerequisite-gate). Amendment text added in commit [`2ebd216`](https://github.com/Team-Centinela/Centinela-Code/commit/2ebd2161b52e7486f48bab8ba57c6366fe1fe384); tracked under amendment issue [#195](https://github.com/Team-Centinela/Centinela-Code/issues/195).
-
 ## Context
 
 Centinela is a 4-person team carrying ~250–300h of Sprint 1 work with AI-assistance. The platform spans **code** (Spring/FastAPI/React) and **Azure** (ACA, Service Bus, PostgreSQL, Key Vault, App Insights), and the work is divided into **5 lanes** defined in [`../best-practices/05-pr-and-issue-discipline.md`](../best-practices/05-pr-and-issue-discipline.md) §"Role & Responsibility Matrix".
@@ -242,3 +238,7 @@ Negative:
 - docs/best-practices/05-pr-and-issue-discipline.md (full role & responsibility matrix)
 - docs/patterns/07-azure-impact-companion-issue.md (worked example including §"Phase 0 Close")
 - /.github/agent-preflight.md (AI-session preflight, with ADR-011 awareness in Rule 3 per §10.9)
+
+## Status
+
+**ACCEPTED with §10.9 Emulation Amendment** (Sprint 1, 2026-07-28) — Tracker [#132](https://github.com/Team-Centinela/Centinela-Code/issues/132) closed when PR #194 merges. Companion transitional guardrail: [#131](https://github.com/Team-Centinela/Centinela-Code/issues/131). Hard prerequisite for Phase 2 apply per [ADR-011 §11.7](https://github.com/Team-Centinela/Centinela-Code/blob/phase-0/0.1-validation/docs/decision-log/ADR-011-local-emulator-stack.md#117-adr-010-hard-prerequisite-gate). Amendment text added in commit [`2ebd216`](https://github.com/Team-Centinela/Centinela-Code/commit/2ebd2161b52e7486f48bab8ba57c6366fe1fe384); tracked under amendment issue [#195](https://github.com/Team-Centinela/Centinela-Code/issues/195).

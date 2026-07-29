@@ -65,7 +65,15 @@ public class OutboxPublisher {
         for (OutboxEvent event : pending) {
             try {
                 ServiceBusSender sender = serviceBusClient.createSender(event.getEventType());
-                sender.sendMessage(new ServiceBusMessage(event.getPayload()));
+                ServiceBusMessage message = new ServiceBusMessage(event.getPayload());
+                // Always-set contract (Phase 0.2.6 / §30.5 S2 #2): the Service
+                // Bus messageId MUST equal outbox_events.id, the deterministic
+                // rail ADR-003 §3.3.1's processed_events / received_messages
+                // ledger relies on. Consumer TransactionsRawConsumer throws
+                // when the header is absent, so a missing id here would cause
+                // legitimate redeliveries to be dead-lettered.
+                message.setMessageId(event.getId().toString());
+                sender.sendMessage(message);
                 outboxRepo.markSent(event.getId());
             } catch (Exception e) {
                 outboxRepo.incrementRetry(event.getId());
@@ -74,6 +82,14 @@ public class OutboxPublisher {
     }
 }
 ```
+
+> The reference implementation in `services/shared-messaging/` uses the
+> Spring Cloud Stream binder (`StreamBridge`) rather than the raw
+> `azure-messaging-servicebus` client — the always-set contract applies
+> identically: the `messageId` header MUST be set on every outbound
+> `MessageBuilder.withPayload(payload).setHeader("messageId", outboxRowId)`
+> call, and the binder propagates it to the native SB message-id property.
+> See `ServiceBusPublisherImpl.java` and `OutboxPublisher.java`.
 
 ## Recovery
 

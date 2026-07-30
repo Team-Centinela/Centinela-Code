@@ -8,8 +8,7 @@ created: 2026-07-15
 ---
 # `docs/` — Documentation-tree Agent Rules
 
-This file extends the root `AGENTS.md` with rules that apply specifically to work inside the `docs/` tree. The root `AGENTS.md` is the source of
-truth for global behavior; this file is a tighter harness for documentation work.
+This file extends the root `AGENTS.md` with rules that apply specifically to work inside the `docs/` tree. The root `AGENTS.md` is the source of truth for global behavior; this file is a tighter harness for documentation work.
 
 ## What `docs/` is for
 

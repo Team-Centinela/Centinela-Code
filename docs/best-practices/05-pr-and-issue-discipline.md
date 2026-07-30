@@ -1,6 +1,6 @@
 # Best Practice 05 — PR & Issue Discipline (Traceability + Blocker Chain)
 
-> Per ADR-010. This document is the **operational companion** to the decision — it shows how to apply ADR-010 day-to-day, the role matrix, the per-lane behaviour, and the template acceptance rules.
+> Per ADR-010 + ADR-012. This document is the **operational companion** to those decisions — it shows how to apply ADR-010 day-to-day, the role matrix, the per-lane behaviour, and the template acceptance rules. The human-only action matrix that backs the role-and-responsibility split lives in ADR-012 §12.4 and is enforced by `opencode.json:permission` (§12.2).
 
 ## Role & Responsibility Matrix
 
@@ -195,6 +195,7 @@ COST-ATTRIBUTION
 ## Related Documents
 
 - ADR-010 — `../decision-log/ADR-010-issue-pr-discipline.md`
+- ADR-012 — `../decision-log/ADR-012-opencode-execution-and-human-handoff.md` (§12.4 human-only action matrix; §12.5 handoff wording)
 - `.github/ISSUE_TEMPLATE/task-managed.md`
 - `.github/ISSUE_TEMPLATE/infra-change.md`
 - `.github/ISSUE_TEMPLATE/ceremony.md`

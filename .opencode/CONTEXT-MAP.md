@@ -15,13 +15,18 @@ This file is small on purpose — it is mixed into every session via
 the `opencode.json` `instructions` list, so bloat hurts every
 session.
 
-> **Note on what opencode.json loads (review item 2 of #195):**
-> `opencode.json:3-8` `instructions` lists **5 files**, all by exact
-> path. OpenCode does **not** recursively load `docs/decision-log/*.md`
-> or `.github/agent-preflight.md` even though this map and AGENTS.md
-> imply they load "automatically". AI agents MUST read each
-> ADR/preflight by explicit `Read` tool call before claiming work,
-> per ADR-010 §10.6 + `/.github/agent-preflight.md` Rule 3.
+> **Note on what opencode.json loads (ADR-012 §12.1, historical
+> context for #195 review item 2):** as of 2026-07-29,
+> `opencode.json:instructions` enumerates every file the agent reads on
+> session start — every ADR under `docs/decision-log/`,
+> `.github/agent-preflight.md`, AGENTS.md, CONTEXT-MAP, and the two
+> architecture docs. The previous posture (5 files by exact path) was
+> misleading and is closed by ADR-012 §12.1's explicit-enumeration form.
+> A new ADR added without updating `instructions` fails the CI gate
+> described in §12.1. **AI agents MUST read each ADR/preflight by
+> explicit `Read` tool call before claiming work**, per ADR-010 §10.6
+> + `/.github/agent-preflight.md` Rule 3, even when the file appears in
+> `instructions` (the loader's effective context ≠ a verified read).
 
 ## Working agreement
 
@@ -43,7 +48,7 @@ session.
 2. `../docs/AGENTS.md` — `docs/` rules (now includes PR↔Issue↔Azure traceability)
 3. `../docs/architecture/01-overview.md` — what is this thing (now includes Lane-Ownership Overlay)
 4. `../docs/architecture/06-technology-stack.md` — what runs it
-5. **All** ADRs in `../docs/decision-log/` — each is read explicitly (no auto-load). Order: ADR-001 → ADR-002 → ADR-003 → ADR-004 → ADR-006 → ADR-007 → ADR-009 → **ADR-010** → ADR-011 → ADR-012 (when present).
+5. **All** ADRs in `../docs/decision-log/` — each is loaded via `opencode.json:instructions` (explicit enumeration per ADR-012 §12.1). Read order: ADR-001 → ADR-002 → ADR-003 → ADR-004 → ADR-006 → ADR-007 → ADR-009 → **ADR-010** → ADR-011 → **ADR-012**. Skip 005 + 008 — those numbers were reserved and never used.
 6. `../docs/best-practices/05-pr-and-issue-discipline.md` — role matrix + companion infra convention
 7. `../.github/agent-preflight.md` — three-rule AI preflight before any work
 

@@ -28,7 +28,7 @@ Centinela-Code/
 │   ├── architecture/          ← system/messaging/storage narrative
 │   ├── patterns/              ← reusable design patterns
 │   ├── best-practices/        ← code organization, testing, errors, logs
-│   ├── decision-log/          ← ADRs (ADR-001..005+, all loaded on session start)
+│   ├── decision-log/          ← ADRs (ADR-001..012, loaded on session start via `opencode.json:instructions` per ADR-012 §12.1)
 │   └── ASSIGNMENT.md          ← the fixed project constraints
 ├── services/                  ← runtime services (5 artifacts; see `services/README.md` for the canonical table + ADR-009 for compute substrate)
 ├── infrastructure/            ← Terraform IaC
@@ -65,7 +65,7 @@ When you start a new AI session, perform this bootstrap **before answering any p
 
 1. Read `AGENTS.md` (this file) and `docs/AGENTS.md` (rules specific to the documentation tree).
 2. Read `docs/architecture/01-overview.md` and `docs/architecture/06-technology-stack.md` for the system-level picture.
-3. Read **every ADR** under `docs/decision-log/` (ADR-001..N+). The `opencode.json` declares `instructions` so they load automatically, but if context was compressed, re-read them.
+3. Read **every ADR** under `docs/decision-log/` (ADR-001..012). `opencode.json:instructions` enumerates each one explicitly per ADR-012 §12.1 (recursive-loader is an alternative form; the explicit-enumeration form is the current state). If context was compressed, re-read the affected ADRs.
 4. List relevant skills in `.opencode/skills/` and load any whose description matches the task.
 5. If the user gave you a specific issue number, **read that issue and every linked ADR it references** before touching code. The issue templates in `.github/ISSUE_TEMPLATE/` mandate ADR linkage, so issues you see will always have it.
 
@@ -80,11 +80,13 @@ When you start a new AI session, perform this bootstrap **before answering any p
 - **"Where does my data live?"** → `docs/decision-log/ADR-002-postgresql-only-db.md`
 - **"Why am I working in a monorepo?"** → `docs/decision-log/ADR-005-monorepo-unification.md`
 - **"What PR/issue discipline do I follow?"** → `docs/best-practices/05-pr-and-issue-discipline.md` + `docs/patterns/07-azure-impact-companion-issue.md` + `docs/decision-log/ADR-010-issue-pr-discipline.md`. AI agents read `/.github/agent-preflight.md` first.
+- **"How does an AI agent execute on this repo? What is the human-handoff contract?"** → `docs/decision-log/ADR-012-opencode-execution-and-human-handoff.md` (§12.1 instruction loader; §12.2 permission defaults; §12.3 commit cadence; §12.4 human-only action matrix; §12.5 `USER ACTION REQUIRED` handoff wording; §12.6 branch-protection enforcement; §12.8 commit-message content rule).
 - **"What is the absolute must-and-must-not?"** → `docs/ASSIGNMENT.md`
 
 ## Always
 
 - **Apply ADR-010 discipline on every issue and PR.** This is the cross-cutting governance rule. Read `.github/agent-preflight.md` *before* claiming any work. Every task-managed issue carries a `Blocked by:` line (closed-only issue numbers), a `Has azure-impact:` declaration, and a `Companion infra issue:` when the work touches the deployment surface. A code PR's body that carries an `azure-impact` label must reference its paired `infra`-labelled companion issue.
+- **Apply ADR-012 OpenCode execution + human-handoff contract on every AI session.** Commit cadence (none / checkpoint / final) is declared in the session preamble per §12.3; `git push` is always per-commit authorized. When a §12.4 human-only action boundary is encountered (ADR acceptance, PR merge, branch protection, Azure auth/apply/destroy, budget decisions, secrets, tracked-issue closure, push to `main`), emit the `USER ACTION REQUIRED` block from §12.5 and **stop**. Commit messages contain only durable change context per §12.8; session instructions, compliance filler, and handoff blocks do not belong in repository history.
 - **Pick a `centinela:*` cost-attribution mode on every azure-impact companion.** Either (a) add a row to `infrastructure/README.md` §"Cost guardrails", or (b) tag the affected Azure resources with the `centinela:lp / epic / issue / sprint / start / close / action` schema in `docs/best-practices/05-pr-and-issue-discipline.md`. (a)+(b) is the gold standard for Tier-1 resources.
 - **Re-read the source-of-truth docs before any code write.** For a lane-managed task the chain is: the ADR(s) —> the pattern doc(s) —> the service README —> this `AGENTS.md` last.
 - **Treat in-flight exceptions as grandfathered once.** New events like the rule-break documented in #131 must not recur. The standard template (`task-managed.md` / `infra-change.md`) is the canonical claim path going forward.

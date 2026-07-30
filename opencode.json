@@ -5,7 +5,19 @@
     "docs/AGENTS.md",
     "docs/architecture/01-overview.md",
     "docs/architecture/06-technology-stack.md",
-    ".opencode/CONTEXT-MAP.md"
+    ".opencode/CONTEXT-MAP.md",
+    ".github/agent-preflight.md",
+    "docs/decision-log/ADR-001-modular-monolith-hexagonal.md",
+    "docs/decision-log/ADR-002-postgresql-only-db.md",
+    "docs/decision-log/ADR-003-async-messaging-reliability.md",
+    "docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md",
+    "docs/decision-log/ADR-005-monorepo-unification.md",
+    "docs/decision-log/ADR-006-security-auth.md",
+    "docs/decision-log/ADR-007-observability-cost-telemetry.md",
+    "docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md",
+    "docs/decision-log/ADR-010-issue-pr-discipline.md",
+    "docs/decision-log/ADR-011-local-emulator-stack.md",
+    "docs/decision-log/ADR-012-opencode-execution-and-human-handoff.md"
   ],
   "skills": {
     "paths": [
@@ -17,16 +29,30 @@
     "tail_turns": 25
   },
   "permission": {
-    "edit": "allow",
+    "edit": "ask",
     "bash": {
+      "*": "ask",
       "git status": "allow",
       "git diff": "allow",
       "git log*": "allow",
-      "gh issue*": "allow",
-      "gh pr*": "allow",
+      "git show*": "allow",
+      "gh issue view*": "allow",
+      "gh issue list*": "allow",
+      "gh issue comment*": "allow",
+      "gh pr view*": "allow",
+      "gh pr list*": "allow",
+      "gh pr diff*": "allow",
       "ls *": "allow",
       "rg *": "allow",
-      "cat *": "allow"
+      "cat *": "allow",
+      "git push": "deny",
+      "gh pr merge": "deny",
+      "gh pr close": "deny",
+      "gh issue close": "deny",
+      "gh issue edit": "deny",
+      "terraform apply": "deny",
+      "terraform destroy": "deny",
+      "az *": "deny"
     }
   }
 }

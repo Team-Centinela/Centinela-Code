@@ -100,3 +100,10 @@ the reason — so a reviewer can read the textual consequence in one PR
 view instead of digging through commits. Single concern per commit
 (Commit Hygiene §1) plus cross-doc disclosure is the separation; both
 are required.
+
+When a new ADR is added or an existing ADR is amended, the cross-doc
+reconciliation entry must surface every `AGENTS.md` +
+`docs/AGENTS.md` + `CONTEXT-MAP.md` + `agent-preflight.md` +
+`best-practices/05-pr-and-issue-discipline.md` reference affected. See
+ADR-012 §12.1 for the instruction-loader contract that pins the
+AGENTS ↔ ADR cross-reference surface.

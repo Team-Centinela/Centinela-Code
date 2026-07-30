@@ -25,7 +25,7 @@ Pulled out per **ADR-001 §Decision #4** as the third extracted service. Lives i
 | Own health + readiness endpoints | `/actuator/health/outbox-lag` per ADR-003 §3.2 | [PR #130](https://github.com/Team-Centinela/Centinela-Code/pull/130) |
 | ArchUnit hexagonal-layering enforcement | `archunit/ServerlessEngineArchitectureTest.java` per ADR-001 §Hexagonal | [PR #128](https://github.com/Team-Centinela/Centinela-Code/pull/128) |
 
-Cited PRs (per [#166 §1.13](../../issues/166) / [#168 §1.4](../../issues/168) Phase 1.4 close-out): **#123, #124, #125, #126, #128, #130**. Audit-trail receipts per #160 (closing comments) + #161 (`[Lane-E][E.45]` ArchUnit extraction) + #222 (`[C.Post-Review]` parent of the 31 §15 audit findings).
+Cited PRs (per [#166 §1.13](https://github.com/Team-Centinela/Centinela-Code/issues/166) / [#168 §1.4](https://github.com/Team-Centinela/Centinela-Code/issues/168) Phase 1.4 close-out): **#123, #124, #125, #126, #128, #130**. Audit-trail receipts per #160 (closing comments) + #161 (`[Lane-E][E.45]` ArchUnit extraction) + #222 (`[C.Post-Review]` parent of the 31 §15 audit findings).
 
 ## What it does **not** own
 

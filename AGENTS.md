@@ -150,6 +150,9 @@ The doc tree and the issue tracker are collaborative. Every commit must keep the
 3. **Tiny format-only fixes get their own commit.**
    A one-line whitespace fix, a duplicate-heading removal, a wording tweak, a link broken by a directory rename — none of these is too small to deserve its own commit. Bundling them into a larger PR hides them from `git log -- <file>` and forces a future reviewer to dig through unrelated changes. Each format-only commit gets a `docs:` or `fix(minor):` prefix and a focused subject that names the file and the change.
 
+4. **Commit messages contain only durable change context.**
+   A commit message describes **what was changed and why the change is durable** to repository history. It does NOT contain session-only instruction text the agent received in the current session, compliance filler ("per ADR-010 §10.6", "as required by the agent preflight"), `USER ACTION REQUIRED` handoff blocks (ADR-012 §12.5), or the AI's reasoning trace. The history reader is a future human or agent who did not participate in the session — they need signal, not AI session noise. Reference ADRs and issues by file/number, not by quoted prose. Tracked in #256; normative contract in ADR-012 §12.8.
+
 ## Docs CI
 
 A GitHub Actions workflow (`.github/workflows/docs-link-check.yml`) runs `lychee` on every push and PR that touches `.md` files. The workflow **fails the build** when a broken link is found. Two rules govern local work:

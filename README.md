@@ -82,6 +82,8 @@ Centinela-Code/
 | [ADR-007](docs/decision-log/ADR-007-observability-cost-telemetry.md) | Observability & Cost Telemetry — App Insights, W3C TraceContext, Budget Alerts | ACCEPTED (Sprint 0) |
 | [ADR-009](docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md) | Compute Substrate — ACA Consumption + SWA Free | ACCEPTED (Sprint 0) |
 | [ADR-010](docs/decision-log/ADR-010-issue-pr-discipline.md) | Issue & PR Discipline — Blockers, `azure-impact` companion issues, Cost Attribution | ACCEPTED (Sprint 1) |
+| [ADR-011](docs/decision-log/ADR-011-local-emulator-stack.md) | Local Emulator Stack for Pre-Validation — `$0` cost gate before any `terraform apply` | ACCEPTED (Sprint 1) |
+| [ADR-012](docs/decision-log/ADR-012-opencode-execution-and-human-handoff.md) | OpenCode Execution + Human-Handoff Contract — instruction loader, permission defaults, commit cadence, human-only action matrix, `USER ACTION REQUIRED` handoff | ACCEPTED (2026-07-29, single-decision-maker; team ratification at next ceremony) |
 
 > Status values here are a convenience snapshot. The canonical status lives in each ADR file.
 

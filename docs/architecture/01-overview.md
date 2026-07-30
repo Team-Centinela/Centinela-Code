@@ -99,6 +99,7 @@ Every code-touching change that flips a deployment surface travels with a paired
 - [Best-Practices 05 — PR & Issue Discipline](../best-practices/05-pr-and-issue-discipline.md)
 - [Pattern 07 — Azure Impact Companion Issue](../patterns/07-azure-impact-companion-issue.md)
 - [ADR-011: Local Emulator Stack for Pre-Validation](../decision-log/ADR-011-local-emulator-stack.md)
+- [ADR-012: OpenCode Execution + Human-Handoff Contract](../decision-log/ADR-012-opencode-execution-and-human-handoff.md)
 - [Technology Stack](06-technology-stack.md)
 - [Hexagonal Architecture](03-hexagonal-architecture.md)
 - [Selective Extraction](05-selective-extraction.md)

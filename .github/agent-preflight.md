@@ -1,6 +1,6 @@
 # `.github/agent-preflight.md` — Centinela AI Agent Preflight
 
-> Per ADR-010 §10.6, with §10.9 Emulation Amendment. Read this file **before claiming or implementing any work** in Centinela.
+> Per ADR-010 §10.6 + §12.x OpenCode Execution Contract. Read this file **before claiming or implementing any work** in Centinela. ADR-012 (§12.4 human-only action matrix + §12.5 handoff wording) is the normative contract that complements this preflight; it is enforced by `opencode.json:permission` (§12.2).
 
 ## Three-Rule Preflight
 
@@ -54,6 +54,7 @@ A pull request that opens without this re-read can be safely rejected.
 - **When in doubt, open an issue** referencing `process` label rather than silently proceeding.
 - **No force-push on `develop`.** Squash merging from feature branches only.
 - **§10.9 amendment.** `centinela:*` tags apply to real Azure resources only (Mode b); emulator-surface closes use Mode (c) — Emulator Commitment.
+- **§12.x OpenCode Execution Contract (ADR-012).** Commit cadence (none/checkpoint/final) is declared in the session preamble per §12.3; `git push` is always per-commit authorized even under `final`. When a §12.4 boundary (ADR acceptance, PR merge, branch protection, Azure auth/apply/destroy, budget, secrets, tracked-issue closure, push to `main`) is encountered, emit the `USER ACTION REQUIRED` block from §12.5 and **stop**. Do not silently perform human-only actions.
 
 ## Companion-template quick reference
 
@@ -99,6 +100,7 @@ Pre-flight (Rule 3):  ADR-010 §10.9.1 + ADR-011 §11.2 + §11.4 + §11.7 + §11
 
 ## Related Documents
 
+- **ADR-012** — `../docs/decision-log/ADR-012-opencode-execution-and-human-handoff.md` (§12.4 human-only action matrix + §12.5 handoff wording; §12.8 commit-message content rule)
 - **ADR-011** — `../docs/decision-log/ADR-011-local-emulator-stack.md` (read when touching emulator surface; ADR-010 §10.9)
 - ADR-010 — `../docs/decision-log/ADR-010-issue-pr-discipline.md` (§10.9 Emulation Amendment)
 - `docs/best-practices/05-pr-and-issue-discipline.md`

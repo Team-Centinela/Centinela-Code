@@ -52,6 +52,8 @@
       "rg*": "allow",
       "cat*": "allow",
       "git push*": "allow",
+      "git push --force*": "deny",
+      "git push -f*": "deny",
       "gh pr merge*": "deny",
       "gh pr close*": "deny",
       "gh issue edit*": "deny",

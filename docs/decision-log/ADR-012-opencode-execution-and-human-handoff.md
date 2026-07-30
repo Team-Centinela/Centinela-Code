@@ -45,6 +45,8 @@ The CONTEXT-MAP (`.opencode/CONTEXT-MAP.md`) MUST accurately describe what the l
 
 **CI gate**: a `link-check`-adjacent job (or a dedicated `instruction-loader-check` job) asserts that every `docs/decision-log/ADR-*.md` file appears in `opencode.json:instructions` (in the enumeration form) OR is covered by a recursive pattern. The job fails CI when a new ADR lands and the instruction list is not updated. **This gate is the enforcement mechanism for #196 item 2.**
 
+**No skipping existing ADRs.** The only legitimate ADR-number skip is one whose file does not exist on disk (currently only ADR-008 — reserved, superseded by ADR-005 per ADR-005 §References line 79). Skipping an existing ADR is forbidden — it is the failure mode §12.1 was designed to prevent. ADR-005 (Monorepo Unification) is **not** a legitimate skip: it is the canonical source for the §"Information routing (post-unification)" table that answers "where does this content belong?" — one of the most-frequent agent questions. `AGENTS.md` §"Persistent vs temporal" cites ADR-005 as the source-of-truth; the agent must read the source, not the summary.
+
 ### 12.2 Permission defaults
 
 `opencode.json` `permission` block MUST declare an explicit catch-all (`"edit": "ask"` is the default; `"bash": "ask"` for unlisted commands) **and** explicit `deny` entries for the human-only actions enumerated in §12.4. The current blanket `"edit": "allow"` + unrestricted `bash` is forbidden — it permits agents to perform any of the human-only actions by default.
@@ -142,7 +144,8 @@ Branch protection on `develop` and on every PR head branch is **configuration, n
 
 | Date | Author | Action | Reference |
 |---|---|---|---|
-| 2026-07-29 | @SrLampi1001 (single-decision-maker per user directive) | Ratified ADR-012 as a governance amendment | This issue (#196); user directive on 2026-07-29 overriding team-ratification requirement |
+| 2026-07-29 | @SrLampi1001 (single-decision-maker per user directive) | Ratified ADR-012 as a governance amendment | #196; user directive on 2026-07-29 overriding team-ratification requirement |
+| 2026-07-29 | @SrLampi1001 (same session, post-PR-open self-correction) | Added ADR-005 to the CONTEXT-MAP read order + ADR-012 References; §12.1 explicitly forbids skipping existing ADRs (only ADR-008 is a legitimate skip — file does not exist) | Pre-existing CONTEXT-MAP read-order skip was inherited without verifying; corrected via follow-up commit on PR #257 |
 | 2026-07-29 | (pending) Lane E (@Santiagodxz) | Land `matrices-build` workflow file | #196 acceptance criteria row 5 |
 | 2026-07-29 | (pending) Lane A (@SrLampi1001) | Wire branch protection via `gh api` | #196 acceptance criteria row 5 |
 | (next ceremony) | Team | Ratify ADR-012 by team review | #196 §"Audit-trail note (single-decision-maker)" |
@@ -203,9 +206,10 @@ The rule is normative; enforcement is by review (Lane A's governance review per 
 - `.github/agent-preflight.md` — three-rule AI preflight (cited by §12.1 enforcement + §12.5 handoff)
 - `AGENTS.md` — root behavior rules + Commit Hygiene (cited by §12.3 + §12.8)
 - `docs/best-practices/05-pr-and-issue-discipline.md` — operational companion to ADR-010 (cited by §12.4 + §12.6)
+- `docs/decision-log/ADR-005-monorepo-unification.md` — peer ADR; canonical source for the Information Routing table + monorepo layout (peer reference for §12.1; mandatory in the read order per §12.1 "No skipping existing ADRs")
 - `docs/decision-log/ADR-010-issue-pr-discipline.md` — base governance ADR (§10.7 branch protection; §10.4 closing-comment discipline)
 - `docs/decision-log/ADR-011-local-emulator-stack.md` — emulator stack ADR (§11.2 verify-script gate; §11.7 hard-prereq)
-- `.opencode/CONTEXT-MAP.md` — context map; updated to include ADR-012 in the read order
+- `.opencode/CONTEXT-MAP.md` — context map; updated to include ADR-012 (and ADR-005 — see §12.7 audit row "Self-corrected ADR-005 inclusion") in the read order
 
 ## Status
 

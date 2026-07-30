@@ -48,7 +48,7 @@ session.
 2. `../docs/AGENTS.md` — `docs/` rules (now includes PR↔Issue↔Azure traceability)
 3. `../docs/architecture/01-overview.md` — what is this thing (now includes Lane-Ownership Overlay)
 4. `../docs/architecture/06-technology-stack.md` — what runs it
-5. **All** ADRs in `../docs/decision-log/` — each is loaded via `opencode.json:instructions` (explicit enumeration per ADR-012 §12.1). Read order: ADR-001 → ADR-002 → ADR-003 → ADR-004 → ADR-006 → ADR-007 → ADR-009 → **ADR-010** → ADR-011 → **ADR-012**. Skip 005 + 008 — those numbers were reserved and never used.
+5. **All** ADRs in `../docs/decision-log/` — each is loaded via `opencode.json:instructions` (explicit enumeration per ADR-012 §12.1). Read order: ADR-001 → ADR-002 → ADR-003 → ADR-004 → **ADR-005** → ADR-006 → ADR-007 → ADR-009 → **ADR-010** → ADR-011 → **ADR-012**. Skip ADR-008 only — that number is reserved and the file does not exist (the draft was superseded by ADR-005; see ADR-005 §References line 79). **Skipping an existing ADR is forbidden** — it is the failure mode ADR-012 §12.1 was designed to prevent.
 6. `../docs/best-practices/05-pr-and-issue-discipline.md` — role matrix + companion infra convention
 7. `../.github/agent-preflight.md` — three-rule AI preflight before any work
 

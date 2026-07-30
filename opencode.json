@@ -56,7 +56,7 @@
       "git push -f*": "deny",
       "gh pr merge*": "deny",
       "gh pr close*": "deny",
-      "gh issue edit*": "deny",
+      "gh issue edit*": "ask",
       "terraform apply*": "deny",
       "terraform destroy*": "deny",
       "az*": "deny"

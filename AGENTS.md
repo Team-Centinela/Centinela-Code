@@ -80,7 +80,7 @@ When you start a new AI session, perform this bootstrap **before answering any p
 - **"Where does my data live?"** → `docs/decision-log/ADR-002-postgresql-only-db.md`
 - **"Why am I working in a monorepo?"** → `docs/decision-log/ADR-005-monorepo-unification.md`
 - **"What PR/issue discipline do I follow?"** → `docs/best-practices/05-pr-and-issue-discipline.md` + `docs/patterns/07-azure-impact-companion-issue.md` + `docs/decision-log/ADR-010-issue-pr-discipline.md`. AI agents read `/.github/agent-preflight.md` first.
-- **"How does an AI agent execute on this repo? What is the human-handoff contract?"** → `docs/decision-log/ADR-012-opencode-execution-and-human-handoff.md` (§12.1 instruction loader; §12.2 permission defaults; §12.3 commit cadence; §12.4 human-only action matrix; §12.5 `USER ACTION REQUIRED` handoff wording; §12.6 branch-protection enforcement; §12.8 commit-message content rule).
+- **"How does an AI agent execute on this repo? What is the human-handoff contract?"** → `docs/decision-log/ADR-012-opencode-execution-and-human-handoff.md` (§12.1 instruction loader; §12.2 permission defaults; §12.3 commit cadence; §12.4 human-only action matrix; §12.5 `USER ACTION REQUIRED` handoff wording; §12.6 Matrices build enforcement; §12.8 commit-message content rule).
 - **"What is the absolute must-and-must-not?"** → `docs/ASSIGNMENT.md`
 
 ## Always
@@ -89,7 +89,7 @@ When you start a new AI session, perform this bootstrap **before answering any p
 - **Apply ADR-012 OpenCode execution + human-handoff contract on every AI session.** Commit cadence (none / checkpoint / final) is declared in the session preamble per §12.3; `git push` is always per-commit authorized. When a §12.4 human-only action boundary is encountered (ADR acceptance, PR merge, branch protection, Azure auth/apply/destroy, budget decisions, secrets, tracked-issue closure, push to `main`), emit the `USER ACTION REQUIRED` block from §12.5 and **stop**. Commit messages contain only durable change context per §12.8; session instructions, compliance filler, and handoff blocks do not belong in repository history.
 - **Fail-safe commit cadence after compaction (ADR-012 §12.9).** OpenCode auto-compaction (`opencode.json:compaction.tail_turns: 50`) can drop the session-preamble cadence declaration from active context. If the agent is uncertain whether it is in `none` / `checkpoint` / `final` mode, it MUST default to `none` (no commit, no push — the conservative mode) and emit `USER ACTION REQUIRED` per §12.5 to reconfirm cadence with the user. The agent MUST NOT assume `final` and push, and MUST NOT assume `checkpoint` and commit without user confirmation. The default-allow posture for `git push*` (per §12.2) is unconditional once §12.3 `final` mode is confirmed; without that confirmation the agent does not push.
 - **Pick a `centinela:*` cost-attribution mode on every azure-impact companion.** Either (a) add a row to `infrastructure/README.md` §"Cost guardrails", or (b) tag the affected Azure resources with the `centinela:lp / epic / issue / sprint / start / close / action` schema in `docs/best-practices/05-pr-and-issue-discipline.md`. (a)+(b) is the gold standard for Tier-1 resources.
-- **Re-read the source-of-truth docs before any code write.** For a lane-managed task the chain is: the ADR(s) —> the pattern doc(s) —> the service README —> this `AGENTS.md` last.
+- **Re-read the source-of-truth docs after pull and before any code write.** For a lane-managed task the chain is: the ADR(s) —> the pattern doc(s) —> the service README —> this `AGENTS.md` last.
 - **Treat in-flight exceptions as grandfathered once.** New events like the rule-break documented in #131 must not recur. The standard template (`task-managed.md` / `infra-change.md`) is the canonical claim path going forward.
 - **Build a todo list** when a task has 3+ steps or can be split.
   Mark items completed only when their acceptance criteria is satisfied. It is valid to:
@@ -107,6 +107,7 @@ When you start a new AI session, perform this bootstrap **before answering any p
   - From `docs/architecture/` or `docs/patterns/`, references into other docs subdirectories start with `../` (`../decision-log/ADR-002-...`, `../patterns/03-outbox-pattern.md`).
   - From `services/<name>/`, references to `docs/` start with `../../docs/`. The same goes for any file two levels deep (e.g. `services/<name>/sub/README.md`).
 - **Cross-doc PRs must enumerate the doc-effect.** If a PR touches more than one of {ADRs, architecture pages, service READMEs, AGENTS.md}, the body must list each affected file and the reason — so a reviewer can see the textual consequence in one PR view instead of digging through commits. Single concern per commit (Commit Hygiene §1) plus cross-doc disclosure is the separation; both are required.
+- **Single-paragraph-per-line in prose files.** A single paragraph occupies a single line; line breaks mark paragraph boundaries only. Wrapping a sentence across lines for visual width is forbidden in `docs/`, issue/PR bodies, and commit messages — readability depends on the reading tool, not on line breaking. Tables, code fences, and list items keep their existing structure.
 
 ## Never
 
@@ -115,13 +116,13 @@ When you start a new AI session, perform this bootstrap **before answering any p
 - **Commit secrets, `.env` files, generated plans, or `.terraform/` state.** The .gitignore covers these.
 - **Add code that contradicts the ADRs** unless you have opened an ADR amendment issue first.
 - **Ignore security debt** to deliver a feature on schedule.
+- **Duplicate revision chronology, PR-by-PR changes, session corrections, progress, or audit events; those belong in git history, Issues, and PRs.**, persistent documentation states current factual or normative truth and durable rationale. ADRs may retain only context, alternatives, supersession, and concise status/provenance needed to interpret the current decision.
 
 ## Skills
 
 Skills live under `.opencode/skills/<name>/SKILL.md`. The following are already provisioned:
 
 - `.opencode/skills/context-compression/SKILL.md` — how to write a context snapshot when a session gets long.
-- More will land as Sprint 0 progresses.
 
 ## Context compression ritual (sessions longer than ~30 turns)
 

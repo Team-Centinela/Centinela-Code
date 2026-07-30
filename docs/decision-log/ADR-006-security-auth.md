@@ -121,7 +121,7 @@ public interface ApiKeyRepository {
 | Service | Identity | Resource Access |
 |---|---|---|
 | **Ingestion API** (ACA) | System-assigned MI `centinela-ingestion-mi` | Key Vault (`get` secrets), PostgreSQL (Azure AD token via `azure-identity` + `pgjdbc`), Service Bus (`Manage` via connection string from KV) |
-| **Serverless Engine** (ACA) | System-assigned MI `centinela-engine-mi` | Key Vault (`get`), PostgreSQL (Azure AD token), Service Bus (`Manage` + `Listen` on `transactions-raw`) |
+| **Serverless Engine** (ACA) | System-assigned MI `centinela-engine-mi` | Key Vault (`get`), PostgreSQL (Azure AD token), Service Bus (`Manage` + `Listen` on `transactions-raw/serverless-engine`) |
 | **Core Backend** (ACA) | System-assigned MI `centinela-core-mi` | Key Vault (`get`), PostgreSQL (Azure AD token), Service Bus (`Manage` + `Send` on `case-events`, `Listen` on `case-events/*`) |
 | **OCR Worker** (ACA) | System-assigned MI `centinela-ocr-mi` | Key Vault (`get`), PostgreSQL (Azure AD token), Service Bus (`Listen` on `documents-pending`), Document Intelligence (Azure AD token) |
 | **Frontend** (SWA) | SWA built-in auth (Entra ID app registration `centinela-swa-app`) | User sign-in → SWA sets `X-MS-CLIENT-PRINCIPAL` header → Core Backend reads roles from header |

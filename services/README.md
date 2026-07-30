@@ -6,8 +6,8 @@ Per ADR-001 (`../docs/decision-log/ADR-001-modular-monolith-hexagonal.md`), the 
 
 | Service | Technology | Reason | What it owns |
 |---|---|---|---|
-| `ingestion/`         | Spring Boot (Java 21) on Azure Container Apps (Consumption, HTTP-scaled) | Independent scaling for burst traffic; failure isolation | Ingest endpoint, `oltp.transactions` writes, `transactions-raw` outbox |
-| `serverless-engine/` | Spring Boot (Java 21) on Azure Container Apps (Consumption, KEDA `azure-servicebus` scaler) | Independent scaling for burst fraud-evaluation work; rule configs change on a different cadence than case management | Pipeline Pattern (FR-1..FR-4), `transactions.triggered_rules` writes, `FraudEvaluationCompleted` outbox |
+| `ingestion/`         | Spring Boot (Java 21) on Azure Container Apps (Consumption, HTTP-scaled) | Independent scaling for burst traffic; failure isolation | Ingest endpoint, `oltp.transactions` writes, `transactions-raw` outbox publisher |
+| `serverless-engine/` | Spring Boot (Java 21) on Azure Container Apps (Consumption, KEDA `azure-servicebus` scaler on `transactions-raw` topic subscription `serverless-engine`) | Independent scaling for burst fraud-evaluation work; rule configs change on a different cadence than case management | Pipeline Pattern (FR-1..FR-4), `transactions.triggered_rules` writes, `FraudEvaluationCompleted` outbox |
 | `core-backend/`      | Spring Boot (Java 21) on Azure Container Apps (Consumption, HTTP-scaled) | Modular monolith host for case-management workflow | `cases`, `alerts`, `reporting`, `auth`, `admin`, `app.transactions` query API |
 | `ocr-worker/`        | FastAPI (Python 3.12) on Azure Container Apps (Consumption, KEDA `azure-servicebus` scaler) | Azure AI Document Intelligence SDK is Python-first | `documents` blob + metadata flow |
 | `frontend/`          | Static SPA on Azure Static Web Apps | Analyst dashboard served from CDN | — |

@@ -8,7 +8,7 @@ Cross-module coordination in the modular monolith must be async by rule (`../arc
 2. Survive transient broker outages without needing distributed transactions.
 3. Expose idempotency on the consumer side as a first-class concern.
 4. Stay under the $60 budget over the 21-day project (due July 31, 2026).
-5. Provide publish/subscribe semantics **and** queue semantics; the architecture references both a `case-events` **topic** (subscriber model) and `documents-pending` / `transactions-raw` **queues** (single-consumer model).
+5. Provide publish/subscribe semantics **and** queue semantics; the architecture references `case-events` and `transactions-raw` **topics** (subscriber model — `case-events` fan-out to `reporting-updates` and `alerts`; `transactions-raw` fan-out to `serverless-engine` and `core-backend`) and a `documents-pending` **queue** (single-consumer model).
 
 Three small decisions are bundled under this ADR: message broker choice, transport primitives (queues vs topics), and reliability patterns.
 
@@ -22,8 +22,8 @@ Three small decisions are bundled under this ADR: message broker choice, transpo
 | **Tier** | **Standard** |
 | **Why Standard, not Basic** | Basic tier forbids Topics. The architecture's `case-events` topic (used for analytics, alerting, future notification consumers) requires Topics. Standard also enables Scheduled Messages, Sessions, Transactions, ForwardTo (forwarding), Large Messages up to 100 KB (Standard) vs 256 KB (Basic), and De-duplication. |
 | Cost | Base charge ≈ $10/mo (first 13M ops/month free, then tiered). For 21 days ≈ **~$7** |
-| Subscriptions | `shared` topic `case-events` with two subscriptions: `reporting-updates` and `alerts` |
-| Queues | `transactions-raw`, `documents-pending` |
+| Subscriptions | `shared` topic `case-events` with two subscriptions: `reporting-updates` and `alerts`; `shared` topic `transactions-raw` with two subscriptions: `serverless-engine` (engine scoring) and `core-backend` (audit / case-side advancement) |
+| Queues | `documents-pending` (OCR inbound) |
 
 **Client library pinning** (per #26 — Week 1 decision, not Week 2):
 
@@ -31,7 +31,7 @@ Three small decisions are bundled under this ADR: message broker choice, transpo
 |---|---|---|---|
 | Core Backend | Java 21 / Spring Boot 3.4.x | `com.azure.spring:spring-cloud-azure-starter-servicebus` (Spring Cloud Azure Service Bus binder) over `spring-cloud-stream` 4.x | Pinned in `services/pom.xml` (`<spring-cloud-azure.version>5.19.0</spring-cloud-azure.version>`, `azure-messaging-servicebus 7.17.7`); see PR #36 for the foundation and sub-issue #39 for the explicit `spring-cloud-stream` pin still pending. |
 | Ingestion API | Java 21 / Spring Boot 3.4.x | Same as Core Backend — shares `services/pom.xml` parent. Same version source. | |
-| Serverless Engine (Rule Engine) | Java 21 / Spring Boot 3.4.x | Same binder chain as Core Backend and Ingestion API — its single consumer adapter binds to the `transactions-raw` queue subscription. KEDA `azure-servicebus` scaler reads from the same `Manage`-policy connection. | Pinned in `services/pom.xml`. |
+| Serverless Engine (Rule Engine) | Java 21 / Spring Boot 3.4.x | Same binder chain as Core Backend and Ingestion API — its consumer adapter binds to the `transactions-raw` topic subscription `serverless-engine`. KEDA `azure-servicebus` scaler reads from the same `Manage`-policy connection. | Pinned in `services/pom.xml`. |
 | OCR Worker | Python 3.12 / FastAPI | `azure-servicebus` 7.x async client (PyPI `azure-servicebus`) | Pinned in `services/ocr-worker/pyproject.toml` once issue #40 implementation lands. |
 
 Why the binder (not raw SDK): the Spring Cloud Azure Service Bus binder is queue/topic-aware, integrates with `spring-cloud-stream` declarative bindings, and gives us idempotency primitives (NACK vs ACK) aligned with ADR-003 §3.3. Raw `com.azure:azure-messaging-servicebus` is reserved for places where the binder model is too restrictive (e.g. session-keyed-by-`aggregateId` for in-order per-aggregate processing). Versions must appear in build files on **Day 1** and may not be bumped during Sprint 1 without an ADR amendment issue.
@@ -55,7 +55,7 @@ Service Bus (queue or topic)
 **No shortcuts allowed**, including in the Ingestion Service (which is an independent deployment). The Ingestion Service will:
 - Persist `transaction` rows to PostgreSQL `oltp` schema.
 - Insert into `outbox_events` in the same transaction.
-- Run its own Outbox publisher `scheduled` task that drains and publishes to the `transactions-raw` queue.
+- Run its own Outbox publisher `scheduled` task that drains and publishes to the `transactions-raw` topic.
 
 This is non-negotiable for ADRs compressing two writes (DB + broker) into one durable operation. Outbox is the published-through classifier for cross-module reliability.
 
@@ -151,8 +151,8 @@ Implementation of both strategies lands in #41 (consumer-side idempotency, sub-i
 
 The ADR's `max_delivery_count = 3` value is governed by Terraform, not application config:
 
-- Location: `infrastructure/modules/servicebus/main.tf` (provisioning) plus per-entity `.tf` files: `queues-transactions-raw.tf`, `queues-documents-pending.tf`, `topics-case-events.tf`.
-- All three queues (`transactions-raw`, `documents-pending`) and both topic subscriptions (`case-events/reporting-updates`, `case-events/alerts`) set `max_delivery_count = 3`.
+- Location: `infrastructure/modules/servicebus/main.tf` (provisioning) plus per-entity `.tf` files: `topics-transactions-raw.tf`, `queues-documents-pending.tf`, `topics-case-events.tf`. (`transactions-raw` is a topic with two subscriptions per §3.1; the previous queue artefact was renamed to a topic-artefact name when the #255 amendment landed.)
+- The `documents-pending` queue and all three topic subscriptions (`transactions-raw/serverless-engine`, `transactions-raw/core-backend`, `case-events/reporting-updates`, `case-events/alerts`) set `max_delivery_count = 3`.
 - Poison routing is provisioned as `azurerm_servicebus_subscription_rule` forwarding-on-dead-letter (or the equivalent for queues) to the named `-poison` sibling. Cost: 5 additional entities (~0 at Standard tier; well under the $10/mo base charge).
 - Drift detection via `terraform plan` in CI; a `checkov` or `tflint` policy encodes the invariant "no Service Bus queue/subscription ships without a `-poison` sibling".
 

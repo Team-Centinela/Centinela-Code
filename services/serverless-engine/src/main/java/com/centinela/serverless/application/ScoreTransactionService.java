@@ -27,8 +27,9 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Application-layer orchestration for scoring a single {@code transactions-raw}
- * message. This is the ACID transaction boundary for the Serverless Engine
+ * Application-layer orchestration for scoring a single message received from the
+ * {@code transactions-raw} Service Bus topic subscription {@code serverless-engine}.
+ * This is the ACID transaction boundary for the Serverless Engine
  * (ADR-003 §3.2 + §3.4 + ADR-004 §4.3):
  *
  * <ol>

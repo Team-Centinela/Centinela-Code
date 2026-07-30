@@ -36,7 +36,7 @@ Every service boundary (HTTP ingress, Service Bus publish/consume, DB query) pro
 | Boundary | Propagation Mechanism |
 |---|---|
 | **Client → Ingestion API (HTTP)** | Client sends `traceparent` header (or SDK generates). Spring `WebMvcTraceFilter` extracts/continues. |
-| **Ingestion API → Service Bus (`transactions-raw`)** | Outbox publisher sets `message.applicationProperties["traceparent"] = currentSpan.traceparent()`; `tracestate` similarly. |
+| **Ingestion API → Service Bus (`transactions-raw` topic)** | Outbox publisher sets `message.applicationProperties["traceparent"] = currentSpan.traceparent()`; `tracestate` similarly. |
 | **Service Bus → Serverless Engine (consumer)** | `SpringCloudStreamBinder` reads `traceparent` from message properties → `Tracer.currentSpanContext()` continues trace. |
 | **Serverless Engine → Service Bus (`case-events` topic)** | Same as above — publisher injects `traceparent`/`tracestate` into outbound message properties. |
 | **Service Bus → Core Backend (consumer)** | Same consumer-side extraction. |
@@ -52,7 +52,7 @@ Every service boundary (HTTP ingress, Service Bus publish/consume, DB query) pro
 | Span Kind | Name Format | Example |
 |---|---|---|
 | SERVER (HTTP ingress) | `HTTP {METHOD} {route}` | `HTTP POST /api/v1/transactions` |
-| CONSUMER (Service Bus) | `SB RECEIVE {queue/topic-sub}` | `SB RECEIVE transactions-raw` |
+| CONSUMER (Service Bus) | `SB RECEIVE {queue/topic-sub}` | `SB RECEIVE transactions-raw/serverless-engine` |
 | PRODUCER (Service Bus) | `SB SEND {queue/topic}` | `SB SEND case-events` |
 | CLIENT (HTTP egress) | `HTTP {METHOD} {host}{path}` | `HTTP POST cognitiveservices.azure.com/documentintelligence` |
 | INTERNAL (DB) | `DB {statement}` | `DB SELECT transactions WHERE account_id = ?` |
@@ -79,7 +79,7 @@ The following **custom metrics** (Micrometer `MeterFilter` + `Counter`/`Gauge` i
 | `centinela.aca.replica_count` | Gauge | `container_app` (`ingestion-api`, `serverless-engine`, `core-backend`, `ocr-worker`) | **Each ACA container app** (Micrometer `Gauge` reading `ContainerAppReplicaCount` from Azure Resource Graph or `az containerapp replica list` via managed identity) | Current replica count. 0 = scaled to zero. |
 | `centinela.aca.cpu_seconds` | Counter (cumulative) | `container_app` | Each ACA container app (Azure Monitor metric `CpuTime` scraped via `azure-monitor-metrics` exporter) | vCPU-seconds consumed. Correlates with ACA Consumption billing. |
 | `centinela.aca.memory_gib_seconds` | Counter (cumulative) | `container_app` | Each ACA container app (Azure Monitor metric `MemoryWorkingSet`) | GiB-seconds consumed. |
-| `centinela.servicebus.operations` | Counter | `entity` (`transactions-raw`, `documents-pending`, `case-events`), `operation` (`send`, `receive`, `peek`) | Each publisher/consumer (Micrometer `Counter` incremented on each SDK call) | Service Bus API operations. Standard tier first 13M/mo free; this tracks proximity. |
+| `centinela.servicebus.operations` | Counter | `entity` (`transactions-raw` topic + subscriptions, `documents-pending` queue, `case-events` topic + subscriptions), `operation` (`send`, `receive`, `peek`) | Each publisher/consumer (Micrometer `Counter` incremented on each SDK call) | Service Bus API operations. Standard tier first 13M/mo free; this tracks proximity. |
 | `centinela.keyvault.operations` | Counter | `operation` (`get`, `list`, `set`) | Each service (Micrometer `Counter` on `SecretClient` calls) | Key Vault transactions. 25k/mo free. |
 | `centinela.document_intelligence.pages` | Counter | `result` (`success`, `error`) | OCR Worker | Pages processed. F0 tier = 500 pages/mo free. |
 

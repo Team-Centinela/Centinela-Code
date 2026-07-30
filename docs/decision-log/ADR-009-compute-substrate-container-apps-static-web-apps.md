@@ -21,7 +21,7 @@ All four backend services run on a single Azure Container Apps Environment using
 | Backend | Scaler | Replica count |
 |---------|--------|---------------|
 | **Ingestion API** | HTTP (concurrent requests) | 0–N, scales on incoming HTTP traffic |
-| **Serverless Engine** (Rule Engine) | KEDA `azure-servicebus` on `transactions-raw` queue depth | 0–N, scales on pending messages |
+| **Serverless Engine** (Rule Engine) | KEDA `azure-servicebus` on `transactions-raw` topic subscription `serverless-engine` depth | 0–N, scales on pending messages |
 | **Core Backend** | HTTP (concurrent requests) | 0–N, scales on incoming HTTP traffic |
 | **OCR Worker** | KEDA `azure-servicebus` on `documents-pending` queue depth | 0–N, scales on pending messages |
 

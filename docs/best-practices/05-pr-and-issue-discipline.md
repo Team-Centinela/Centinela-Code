@@ -10,7 +10,7 @@ Centinela runs **five lanes in parallel**, each with its own code surface and it
 |---|---|---|---|---|
 | **A — ADR & SCRUM** | @SrLampi1001 | `docs/decision-log/`, `docs/architecture/`, `docs/AGENTS.md`, workstream decomposition | None (governance only) | ~12h/sprint |
 | **B — Ingestion Service** | @3105jero | `services/ingestion/` domain, ports, use cases | `infrastructure/services/ingestion/` (App def, MI, env refs from Key Vault) | ~32h/sprint |
-| **C — Serverless Engine + Engine plumbing** | @SebastianT2006 | `services/serverless-engine/` outbox, idempotency, messaging, infra surface | `infrastructure/services/serverless-engine/` (KEDA `azure-servicebus` scaler, MI, `transactions-raw` bindings) | ~36h/sprint |
+| **C — Serverless Engine + Engine plumbing** | @SebastianT2006 | `services/serverless-engine/` outbox, idempotency, messaging, infra surface | `infrastructure/services/serverless-engine/` (KEDA `azure-servicebus` scaler, MI, `transactions-raw` topic subscription `serverless-engine` binding) | ~36h/sprint |
 | **D — Core Backend + Core Azure** | @JjuanGarcia77 | Modular monolith scaffolding: `cases`, `alerts`, `reporting`, `auth`, `admin`, queries | `infrastructure/services/core-backend/` (HTTP App def, MI, `case-events` topic subscription) | ~28h/sprint |
 | **E — Platform + Frontend** | @Santiagodxz | `services/frontend/`, `services/shared-outbox/`, `services/shared-observability/`, `services/test-support/`, `infra/iac-platform/`, CI/CD | Shared `infrastructure/modules/platform/` (Service Bus, KEDA env, Key Vault, App Insights, ACA Env, Budget automation); `infrastructure/services/frontend/` (SWA) | ~30h/sprint |
 
@@ -108,7 +108,7 @@ C.0 parent
    ├── C.99 FraudEvaluationCompleted outbox  (OPEN)  BLOCKED BY #Maven-shared-outbox
    ├── C.100 traceparent        (OPEN)
    ├── C.101 metrics              (OPEN)
-   ├── Companion infra: C.A1 (KEDA scaler + MI on transactions-raw)
+   ├── Companion infra: C.A1 (KEDA scaler + MI on transactions-raw/serverless-engine topic subscription)
                           C.A2 (App Insights DCE + env var)
                           C.A3 (Service Bus SDK pinning if not in #39)
 
@@ -158,7 +158,7 @@ COMPANION:   #B.9
 EXPECTED DELIVERY (Azure side)
   RESOURCE DIFF:
     azurerm_container_app.ingestion              +12/+0/0  identity=SystemAssigned
-    azurerm_role_assignment.ingestion_sb_sender  +1/+0/0   sb_data_sender on transactions-raw (req. scope)
+      azurerm_role_assignment.ingestion_sb_sender  +1/+0/0   sb_data_sender on transactions-raw topic (req. scope)
     azurerm_container_app.ingestion.secret       +1/+0/0   svcbus-conn-str (KV ref)
 
   VERIFICATION EVIDENCE:

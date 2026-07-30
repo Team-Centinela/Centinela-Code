@@ -89,7 +89,7 @@ Outcomes:
 
 ## Why §3.3.1 is still right for Ingestion and Core Backend
 
-Ingestion and Core Backend consume `transactions-raw` and `case-events` respectively but do not advance business state from the message itself — they only emit derived events downstream. For them, the `processed_events` ledger is sufficient and the simpler `INSERT ON CONFLICT` is enough. The Serverless Engine is the only consumer in Sprint 1 that mints a domain decision and writes audit rows, which is what forces §3.3.2.
+Ingestion and Core Backend publish events into `transactions-raw` and `case-events` respectively but do not advance business state from the message itself — they only emit derived events downstream. For them, the `processed_events` ledger is sufficient and the simpler `INSERT ON CONFLICT` is enough. The Serverless Engine is the only consumer in Sprint 1 that mints a domain decision and writes audit rows, which is what forces §3.3.2.
 
 ## Why not just rely on Service Bus deduplication?
 
@@ -139,7 +139,7 @@ If a consumer grows from "ledger-only" into "also advances business state", its 
 **LIVE — both strategies shipped.**
 
 - §3.3.1 (`processed_events` ledger) is implemented via `IdempotencyService` + `processed_events` table in Core Backend. Used by the Core Backend's `case-events` consumer.
-- §3.3.2 (`received_messages` ledger) is implemented via `ReceivedMessageIdempotencyService` + `oltp.received_messages` table in the Serverless Engine. Used by `TransactionsRawConsumer` for the `transactions-raw` queue.
+- §3.3.2 (`received_messages` ledger) is implemented via `ReceivedMessageIdempotencyService` + `oltp.received_messages` table in the Serverless Engine. Used by `TransactionsRawConsumer` for the `transactions-raw` topic subscription `serverless-engine`.
 
 PR #130 was the design + first integration pass for the engine's half of epic #54.
 

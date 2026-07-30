@@ -14,7 +14,7 @@ Distributed transactions (XA) are slow, complex, and often unsupported by cloud 
 
 ## The Solution
 
-Write the event to the same database, in the same ACID transaction, as the business data. A background process reads unsent events and publishes them to the broker. Every service that owns event-emitting aggregates runs its own publisher (the Ingestion API publishes `TransactionReceived` to the `transactions-raw` queue; the Serverless Engine publishes `FraudEvaluationCompleted` to the `case-events` topic; the Core Backend publishes `CaseOpened` / `FraudAlertRaised` / `CaseResolved`).
+Write the event to the same database, in the same ACID transaction, as the business data. A background process reads unsent events and publishes them to the broker. Every service that owns event-emitting aggregates runs its own publisher (the Ingestion API publishes `TransactionReceived` to the `transactions-raw` topic; the Serverless Engine publishes `FraudEvaluationCompleted` to the `case-events` topic; the Core Backend publishes `CaseOpened` / `FraudAlertRaised` / `CaseResolved`).
 
 ```
 Business Operation (ACID)

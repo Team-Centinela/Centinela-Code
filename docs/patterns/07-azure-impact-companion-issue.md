@@ -7,9 +7,9 @@
 ```
    CODE SIDE                                  AZURE SIDE
 
-   [B.9] Outbox Publisher                     [B.A1] Ingestion: System-Assigned MI
-                                                + ServiceBus Data Sender role on
-                                                transactions-raw
+[B.9] Outbox Publisher                     [B.A1] Ingestion: System-Assigned MI
+                                                 + ServiceBus Data Sender role on
+                                                 transactions-raw topic
    type: task                                type: infra-change
    owner: @3105jero                          owner: @3105jero
    lane: B                                   lane: B
@@ -167,7 +167,7 @@ See the example at the head of this file.
 ### Example 2: Engine KEDA scaler declaration (real-Azure close)
 
 ```
-TITLE:       [infra][C.A1] Engine: KEDA azure-servicebus scaler declaration on transactions-raw
+TITLE:       [infra][C.A1] Engine: KEDA azure-servicebus scaler declaration on transactions-raw/serverless-engine topic subscription
 TYPE:        infra-change
 OWNER:       @SebastianT2006
 LANE:        C
@@ -177,14 +177,14 @@ EXPECTED DELIVERY (Azure side)
 
   RESOURCE DIFF:
     azurerm_container_app.serverless_engine.scale           +6/+0/0
-      keda = { AzureServiceBus: { queueName: "transactions-raw" } }
+      keda = { AzureServiceBus: { topicName: "transactions-raw", subscriptionName: "serverless-engine" } }
       min_replicas = 0
       max_replicas = 6
 
   VERIFICATION EVIDENCE:
     terraform apply log → in PR thread
     az containerapp show --name serverless-engine --query "properties.scale"
-    smoke test: post 30 events on transactions-raw → replicas scale to ≥ 2 within 30s
+    smoke test: post 30 events on transactions-raw topic → replicas scale to ≥ 2 within 30s
     commit SHA <XXXXXXXX>
 
   DRIFT GAUGE:
@@ -214,13 +214,13 @@ COST-ATTRIBUTION
 
 The **transaction ingestion** lifecycle ships through two lanes:
 
-- Lane B: `[B.9]` writes `transactions-raw` outbox → companion `[B.A1]` configures the SB queue MI.
-- Lane C: `[C.X]` consumes `transactions-raw` → companion `[C.A1]` declares the KEDA scaler.
+- Lane B: `[B.9]` writes `transactions-raw` outbox → companion `[B.A1]` configures the SB topic MI.
+- Lane C: `[C.X]` consumes `transactions-raw/serverless-engine` topic subscription → companion `[C.A1]` declares the KEDA scaler.
 
-The shared Service Bus Standard + the queue itself is owned by **Lane E** (`E.A1`). Cross-lane handoff:
+The shared Service Bus Standard + the topic itself is owned by **Lane E** (`E.A1`). Cross-lane handoff:
 
-- `[B.A1]` Blocked by `[E.A1]` (queue exists) ✅
-- `[C.A1]` Blocked by `[B.A1]` AND `[E.A1]` (queue exists, RBAC propagated)
+- `[B.A1]` Blocked by `[E.A1]` (topic exists) ✅
+- `[C.A1]` Blocked by `[B.A1]` AND `[E.A1]` (topic exists, RBAC propagated)
 
 Without this convention, **no one** would notice Lane C consuming from a queue Lane B hasn't been granted role on.
 
@@ -240,7 +240,7 @@ This is what unblocks **Mode (a)+(b)** on the **first** `terraform apply` of Pha
 ### Worked example — emulator-surface close (Phase 0 / pre-validation)
 
 ```
-TITLE:       [infra][B.A1-l] Ingestion: local-emulator wiring for outbox publisher on transactions-raw
+TITLE:       [infra][B.A1-l] Ingestion: local-emulator wiring for outbox publisher on transactions-raw topic
 TYPE:        infra-change (emulator surface)
 OWNER:       @3105jero
 LANE:        B
@@ -251,7 +251,7 @@ EXPECTED DELIVERY (Emulator side)
   RESOURCE DIFF:
     docker-compose.yml                                        +12/+0/0
     docker/postgres/init.sql                                  +0/+1/0  (Flyway V1)
-    docker/servicebus/Config.json                             +1/+0/0  (transactions-raw queue declared)
+    docker/servicebus/Config.json                             +1/+0/0  (transactions-raw topic declared with 2 subscriptions)
     services/ingestion/src/main/resources/application-local-emulator.yml  +1/+0/0
 
   VERIFICATION EVIDENCE:

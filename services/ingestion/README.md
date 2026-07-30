@@ -15,8 +15,8 @@ Pulled out per ADR-001's **Selective Extraction Strategy** § (`../../docs/archi
 | HTTP API entry point for `POST /transactions` | Spring Boot @RestController |
 | Persist transactions to PostgreSQL `oltp.transactions` | JPA / JOOQ adapter (`ports.outbound.oltp.*`) |
 | Insert outbox event in same ACID tx | `outbox.outbox_events` |
-| Run outbox publisher draining `transactions-raw` queue | Scheduled job `@1s` |
-| Publish to Azure Service Bus queue `transactions-raw` | `spring-cloud-azure-starter-servicebus` binder adapter (per ADR-003 §3.1). Always-set `messageId` header = `outbox_events.id` (Phase 0.2.6 / §30.5 S2 #2 always-set contract; producer-side mirror of `TransactionsRawConsumer` H7 fix). |
+| Run outbox publisher draining `transactions-raw` topic | Scheduled job `@1s` |
+| Publish to Azure Service Bus topic `transactions-raw` | `spring-cloud-azure-starter-servicebus` binder adapter (per ADR-003 §3.1). Always-set `messageId` header = `outbox_events.id` (Phase 0.2.6 / §30.5 S2 #2 always-set contract; producer-side mirror of `TransactionsRawConsumer` H7 fix). |
 
 ## What it does **not** own
 

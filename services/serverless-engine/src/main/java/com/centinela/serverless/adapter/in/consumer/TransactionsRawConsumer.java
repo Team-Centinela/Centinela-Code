@@ -20,16 +20,16 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Functional inbound adapter for the {@code transactions-raw} Service Bus queue
- * (ADR-003 §3.1, ADR-009 §9.1). Replaces the deleted
- * {@code infrastructure/messaging/TransactionsRawConsumer.java} from PR #130
- * after the merge-reconciliation commit; lives in the BASE-aligned
+ * Functional inbound adapter for the {@code transactions-raw} Service Bus topic
+ * subscription {@code serverless-engine} (ADR-003 §3.1, ADR-009 §9.1).
+ * Replaces the deleted {@code infrastructure/messaging/TransactionsRawConsumer.java}
+ * from PR #130 after the merge-reconciliation commit; lives in the BASE-aligned
  * {@code adapter/in/consumer/} package, which had only an empty
  * {@code package-info.java} marker until now.
  *
  * <p>Spring Cloud Stream binds the functional bean
- * ({@code transactionsRawIn()}) to a queue using the bean name suffix
- * {@code -in-0}:</p>
+ * ({@code transactionsRawIn()}) to the topic subscription using the bean name
+ * suffix {@code -in-0}:</p>
  * <pre>
  *   spring.cloud.stream.bindings.transactionsRawIn-in-0.destination = transactions-raw
  *   spring.cloud.stream.bindings.transactionsRawIn-in-0.group        = serverless-engine

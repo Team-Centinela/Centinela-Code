@@ -2,7 +2,7 @@
 
 > **Status:** active module — registered in `services/pom.xml` as child of `centinela-parent` (closes #51). All dependency versions are inherited from the parent POM single source of truth per ADR-001 §"Decision #4", ADR-003 §3.1, ADR-009 §9.1. Consumer + idempotency + outbox emission closed by PR #130 follow-up commits (`ad69020` ... `7399dd1` on `feature/issue-54-serverless-engine`).
 
-Pulled out per **ADR-001 §Decision #4** as the third extracted service. Lives in its own Spring Boot application on Azure Container Apps (Consumption) with a **KEDA `azure-servicebus` scaler** bound to the `transactions-raw` queue. Per `../../docs/architecture/05-selective-extraction.md`, this service is the *only* deployment unit for the Pipeline Pattern defined in `../../docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md`.
+Pulled out per **ADR-001 §Decision #4** as the third extracted service. Lives in its own Spring Boot application on Azure Container Apps (Consumption) with a **KEDA `azure-servicebus` scaler** bound to the `transactions-raw` topic subscription `serverless-engine`. Per `../../docs/architecture/05-selective-extraction.md`, this service is the *only* deployment unit for the Pipeline Pattern defined in `../../docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md`.
 
 ## Why it is extracted
 
@@ -15,7 +15,7 @@ Pulled out per **ADR-001 §Decision #4** as the third extracted service. Lives i
 
 | Capability | Backing | Implemented by |
 |---|---|---|
-| Consume `transactions-raw` queue from Azure Service Bus | `adapter/in/consumer/TransactionsRawConsumer.java` (functional `Consumer<Message<String>>` bean + spring-cloud-azure-servicebus binder per ADR-003 §3.1, ADR-009 §9.1) | [PR #130](https://github.com/Team-Centinela/Centinela-Code/pull/130) |
+| Consume `transactions-raw` topic subscription `serverless-engine` from Azure Service Bus | `adapter/in/consumer/TransactionsRawConsumer.java` (functional `Consumer<Message<String>>` bean + spring-cloud-azure-servicebus binder per ADR-003 §3.1, ADR-009 §9.1) | [PR #130](https://github.com/Team-Centinela/Centinela-Code/pull/130) |
 | Run the two-stage Pipeline (`STAGE 1`: FR-1 Velocity + FR-4 High-Risk Merchant; `STAGE 2`: FR-3 Impossible Geo + FR-2 Atypical Amount) | `domain/service/FraudPipeline.java` orchestrator per `../../docs/patterns/04-pipeline-pattern.md`; rules under `domain/service/*Rule.java` | [PR #123](https://github.com/Team-Centinela/Centinela-Code/pull/123), [PR #124](https://github.com/Team-Centinela/Centinela-Code/pull/124), [PR #125](https://github.com/Team-Centinela/Centinela-Code/pull/125) |
 | Persist `triggered_rules.triggered_rules` JSONB audit row plus outbox event in one ACID tx | `adapter/out/persistence/JpaTriggeredRuleRepository.java` + `infrastructure/outbox/JpaOutboxEventAppender.java` per ADR-003 §3.2 | [PR #126](https://github.com/Team-Centinela/Centinela-Code/pull/126), [PR #130](https://github.com/Team-Centinela/Centinela-Code/pull/130) |
 | Emit `FraudEvaluationCompleted` to the `case-events` topic | `infrastructure/outbox/EngineOutboxPublisher.java` drives `infrastructure/outbox/EngineServiceBusPublisherImpl.java` (StreamBridge) | [PR #130](https://github.com/Team-Centinela/Centinela-Code/pull/130) |

@@ -51,21 +51,32 @@ The CONTEXT-MAP (`.opencode/CONTEXT-MAP.md`) MUST accurately describe what the l
 
 `opencode.json` `permission` block MUST declare an explicit catch-all (`"edit": "ask"` is the default; `"bash": "ask"` for unlisted commands) **and** explicit `deny` entries for the human-only actions enumerated in §12.4. The current blanket `"edit": "allow"` + unrestricted `bash` is forbidden — it permits agents to perform any of the human-only actions by default.
 
+**Schema verification.** The OpenCode `permission` schema is documented at `https://opencode.ai/docs/permissions/`. Verified facts (verified on 2026-07-29 against the live schema at `https://opencode.ai/config.json` + the docs page):
+
+- `permission` accepts either a string (`"allow" | "ask" | "deny"` — applies globally) or an object with tool-keyed rules.
+- Object form: each top-level key (`edit`, `bash`, `read`, `webfetch`, `websearch`, `glob`, `grep`, `list`, `task`, `lsp`, `skill`, `question`, `external_directory`, `doom_loop`, `todowrite`) is a tool name. **The key `"*"` is a special catch-all** that matches any tool not explicitly named.
+- Per-tool rule values: either a string action, or an object where keys are **wildcard patterns** and values are actions.
+- **Wildcard semantics** (verified against the docs): `*` matches zero or more of any character; `?` matches exactly one character; everything else is literal.
+- **"Last matching rule wins"** — order matters. The catch-all `"*"` is typically placed first; more specific rules override it.
+- **Bash patterns match the parsed command name, not the full shell line.** Per the docs tip: *"Commands like `git status` work for default behavior but require explicit permission (like `git status *`) when arguments are passed."* So `"git push"` matches `git push` (no args) but **not** `git push origin main`; `"git push *"` matches `git push origin main` but **not** `git push` (no args). The cleanest single-rule form is `"git push*"` (no space before `*`), which matches both.
+- **OpenCode defaults**: most permissions default to `"allow"` if unset. `doom_loop` and `external_directory` default to `"ask"`. Without an explicit top-level `"*": "ask"`, unlisted tools (e.g., `webfetch`, `websearch`) default to `allow` and bypass §12.4.
+
 | Command class | Default | Rationale |
 |---|---|---|
-| `gh issue*` (read) | `allow` | Issue reading is an information-gathering action, not state-changing. |
-| `gh issue close` | **deny** | Issue closure requires the closing-comment discipline (ADR-010 §10.4); agents emit `USER ACTION REQUIRED` per §12.5. |
-| `gh issue edit` | `ask` | Issue edits may rewrite acceptance criteria or labels; surface for review. |
-| `gh pr*` (read) | `allow` | PR reading is information-gathering. |
-| `gh pr merge` | **deny** | Merge is a state-changing action requiring human authorization per §12.4 + §12.5. |
-| `gh pr close` | **deny** | PR closure requires human authorization. |
-| `git push` | **deny** | Push is per-commit authorized per §12.3; standing authorization does not extend to push. |
-| `git commit` (with prior `checkpoint` standing authorization) | `allow` | Standing authorization must be explicitly granted per §12.3; the agent must cite the grant in its preamble. |
-| `terraform apply` / `terraform destroy` | **deny** | Real-Azure state mutation requires human authorization per §12.4. |
-| `az *` (write) | **deny** | Same as Terraform. |
-| `gh api` (mutation) | `ask` | Surface for review; the response can include state mutations. |
+| `gh issue view/list/comment*` (read) | `allow` | Issue reading is an information-gathering action, not state-changing. |
+| `gh issue close*` | **deny** | Issue closure requires the closing-comment discipline (ADR-010 §10.4); agents emit `USER ACTION REQUIRED` per §12.5. |
+| `gh issue edit*` | **deny** | Issue edits may rewrite acceptance criteria or labels; surface for review — and per ADR-010 governance, edits to a tracked-issue body require the closing-comment discipline to keep the audit trail. |
+| `gh pr view/list/diff*` (read) | `allow` | PR reading is information-gathering. |
+| `gh pr merge*` | **deny** | Merge is a state-changing action requiring human authorization per §12.4 + §12.5. |
+| `gh pr close*` | **deny** | PR closure requires human authorization. |
+| `git push*` | **deny** | Push is per-commit authorized per §12.3; standing authorization does not extend to push. |
+| `git commit*` (with prior `checkpoint` standing authorization) | `allow` | Standing authorization must be explicitly granted per §12.3; the agent must cite the grant in its preamble. |
+| `terraform apply*` / `terraform destroy*` | **deny** | Real-Azure state mutation requires human authorization per §12.4. |
+| `az*` | **deny** | Real-Azure CLI mutation requires human authorization per §12.4. |
+| `gh api*` (mutation) | `ask` | Surface for review; the response can include state mutations. |
+| `webfetch` / `websearch` | `ask` | External network access requires authorization; no standing allowance. |
 
-The catch-all `bash` MUST be `"ask"`, not `"allow"`. An agent that needs a new command requests authorization at the boundary per §12.5 and stops until granted. **This is the "stop at boundary" contract.**
+The catch-all `permission: {"*": "ask"}` MUST be at the top level of the `permission` block (not just inside `bash`). Without it, unlisted tools default to `allow` per the OpenCode defaults — defeating §12.4. An agent that needs a new command or tool requests authorization at the boundary per §12.5 and stops until granted. **This is the "stop at boundary" contract.**
 
 ### 12.3 Commit cadence contract
 
@@ -146,6 +157,7 @@ Branch protection on `develop` and on every PR head branch is **configuration, n
 |---|---|---|---|
 | 2026-07-29 | @SrLampi1001 (single-decision-maker per user directive) | Ratified ADR-012 as a governance amendment | #196; user directive on 2026-07-29 overriding team-ratification requirement |
 | 2026-07-29 | @SrLampi1001 (same session, post-PR-open self-correction) | Added ADR-005 to the CONTEXT-MAP read order + ADR-012 References; §12.1 explicitly forbids skipping existing ADRs (only ADR-008 is a legitimate skip — file does not exist) | Pre-existing CONTEXT-MAP read-order skip was inherited without verifying; corrected via follow-up commit on PR #257 |
+| 2026-07-29 | @SrLampi1001 (same session, post-PR-open self-correction) | Verified OpenCode `permission` schema against `https://opencode.ai/config.json` + `https://opencode.ai/docs/permissions/`; rewrote deny patterns in `opencode.json` from `"<cmd>"` to `"<cmd>*"` form so they match both no-args and with-args invocations (`git push` vs `git push origin main`); added top-level `permission: {"*": "ask"}` so unlisted tools (webfetch, websearch, lsp, todowrite, etc.) prompt instead of default-allow; §12.2 normative contract now cites the schema-verified semantics (wildcard rules + last-match-wins + parsed-command matching) | Initial patterns were inferred from common-permission-schema pattern-matching (Cursor / Claude Code shape) without verifying the actual OpenCode schema; per the docs tip "Commands like `git status` work for default behavior but require explicit permission (like `git status *`) when arguments are passed," `git push` (no args) and `git push origin main` (with args) require different patterns — only the `<cmd>*` form catches both. Corrected via follow-up commit on PR #257 |
 | 2026-07-29 | (pending) Lane E (@Santiagodxz) | Land `matrices-build` workflow file | #196 acceptance criteria row 5 |
 | 2026-07-29 | (pending) Lane A (@SrLampi1001) | Wire branch protection via `gh api` | #196 acceptance criteria row 5 |
 | (next ceremony) | Team | Ratify ADR-012 by team review | #196 §"Audit-trail note (single-decision-maker)" |

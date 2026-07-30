@@ -29,11 +29,16 @@
     "tail_turns": 25
   },
   "permission": {
+    "*": "ask",
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
     "edit": "ask",
     "bash": {
       "*": "ask",
-      "git status": "allow",
-      "git diff": "allow",
+      "git status*": "allow",
+      "git diff*": "allow",
       "git log*": "allow",
       "git show*": "allow",
       "gh issue view*": "allow",
@@ -42,17 +47,19 @@
       "gh pr view*": "allow",
       "gh pr list*": "allow",
       "gh pr diff*": "allow",
-      "ls *": "allow",
-      "rg *": "allow",
-      "cat *": "allow",
-      "git push": "deny",
-      "gh pr merge": "deny",
-      "gh pr close": "deny",
-      "gh issue close": "deny",
-      "gh issue edit": "deny",
-      "terraform apply": "deny",
-      "terraform destroy": "deny",
-      "az *": "deny"
-    }
+      "ls*": "allow",
+      "rg*": "allow",
+      "cat*": "allow",
+      "git push*": "deny",
+      "gh pr merge*": "deny",
+      "gh pr close*": "deny",
+      "gh issue close*": "deny",
+      "gh issue edit*": "deny",
+      "terraform apply*": "deny",
+      "terraform destroy*": "deny",
+      "az*": "deny"
+    },
+    "webfetch": "ask",
+    "websearch": "ask"
   }
 }

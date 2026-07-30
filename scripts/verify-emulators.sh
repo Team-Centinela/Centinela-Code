@@ -133,21 +133,21 @@ if [[ $sb_ok -eq 0 ]]; then
 fi
 
 sb_log=$(docker logs centinela-servicebus --tail 2000 2>&1 || true)
-for q in transactions-raw documents-pending documents-pending-pub fraud-evaluation; do
+for q in documents-pending documents-pending-pub fraud-evaluation; do
     if grep -qE "Creating queue:[[:space:]]+${q}\b" <<<"$sb_log"; then
         pass "queue '$q' created"
     else
         fail "queue '$q' NOT in SB Emulator startup log"
     fi
 done
-for t in case-events fraud-evaluation-events; do
+for t in transactions-raw case-events fraud-evaluation-events; do
     if grep -qE "Creating topic:[[:space:]]+${t}\b" <<<"$sb_log"; then
         pass "topic '$t' created"
     else
         fail "topic '$t' NOT in SB Emulator startup log"
     fi
 done
-for s in core-backend-sub ingestion-sub; do
+for s in core-backend-sub ingestion-sub serverless-engine core-backend; do
     if grep -qE "Creating subscription[[:space:]]+${s}\b" <<<"$sb_log"; then
         pass "subscription '$s' created"
     else

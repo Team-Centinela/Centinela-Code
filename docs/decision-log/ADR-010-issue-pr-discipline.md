@@ -57,7 +57,7 @@ EXPECTED DELIVERY (Azure side)
     <provider>.<resource_type>.<logical_name>   +n/+m/d
     Example:
       azurerm_container_app.ingestion              +12/+0/0  ACA App identity=SystemAssigned
-      azurerm_role_assignment.ingestion_sb_sender  +1/+0/0   sb_data_sender on transactions-raw
+      azurerm_role_assignment.ingestion_sb_sender  +1/+0/0   sb_data_sender on transactions-raw topic
       azurerm_container_app.ingestion.secret       +1/+0/0   svcbus-conn-str (KV ref)
 
   VERIFICATION EVIDENCE

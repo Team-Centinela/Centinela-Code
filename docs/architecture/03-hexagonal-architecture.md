@@ -117,7 +117,7 @@ com.centinela.core.modules.cases/
       CaseController.java         # GET/POST /api/v1/cases — analyst-facing
 ```
 
-The same layout applies to other in-monolith modules (Transaction, Alert, Reporting, Auth) and to each extracted service (Ingestion API, Serverless Engine, OCR Worker) — the **only** difference is the deployment unit, not the package convention. The Serverless Engine combines the inbound port (`ScoreTransactionUseCase`) with a `transactions-raw` Service Bus consumer adapter instead of (or in addition to) a REST adapter; see `docs/architecture/05-selective-extraction.md` *Serverless Engine*.
+The same layout applies to other in-monolith modules (Transaction, Alert, Reporting, Auth) and to each extracted service (Ingestion API, Serverless Engine, OCR Worker) — the **only** difference is the deployment unit, not the package convention. The Serverless Engine combines the inbound port (`ScoreTransactionUseCase`) with a `transactions-raw` topic subscription consumer adapter (`serverless-engine`) instead of (or in addition to) a REST adapter; see `docs/architecture/05-selective-extraction.md` *Serverless Engine*.
 
 ### Rules
 

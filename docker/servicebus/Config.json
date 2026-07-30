@@ -5,16 +5,6 @@
         "Name": "SbEmulatorConfig",
         "Queues": [
           {
-            "Name": "transactions-raw",
-            "Properties": {
-              "MaxSizeInMegabytes": 1024,
-              "DefaultMessageTimeToLive": "PT1H",
-              "MaxDeliveryCount": 3,
-              "EnablePartitioning": false,
-              "LockDuration": "PT30S"
-            }
-          },
-          {
             "Name": "documents-pending",
             "Properties": {
               "MaxSizeInMegabytes": 1024,
@@ -46,6 +36,33 @@
           }
         ],
         "Topics": [
+          {
+            "Name": "transactions-raw",
+            "Properties": {
+              "MaxSizeInMegabytes": 1024,
+              "DefaultMessageTimeToLive": "PT1H",
+              "MaxDeliveryCount": 3,
+              "EnablePartitioning": false
+            },
+            "Subscriptions": [
+              {
+                "Name": "serverless-engine",
+                "Properties": {
+                  "DefaultMessageTimeToLive": "PT1H",
+                  "MaxDeliveryCount": 3,
+                  "LockDuration": "PT30S"
+                }
+              },
+              {
+                "Name": "core-backend",
+                "Properties": {
+                  "DefaultMessageTimeToLive": "PT1H",
+                  "MaxDeliveryCount": 3,
+                  "LockDuration": "PT30S"
+                }
+              }
+            ]
+          },
           {
             "Name": "case-events",
             "Properties": {

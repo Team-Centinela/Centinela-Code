@@ -26,7 +26,7 @@
   },
   "compaction": {
     "auto": true,
-    "tail_turns": 25
+    "tail_turns": 50
   },
   "permission": {
     "*": "ask",
@@ -44,16 +44,16 @@
       "gh issue view*": "allow",
       "gh issue list*": "allow",
       "gh issue comment*": "allow",
+      "gh issue close*": "allow",
       "gh pr view*": "allow",
       "gh pr list*": "allow",
       "gh pr diff*": "allow",
       "ls*": "allow",
       "rg*": "allow",
       "cat*": "allow",
-      "git push*": "deny",
+      "git push*": "allow",
       "gh pr merge*": "deny",
       "gh pr close*": "deny",
-      "gh issue close*": "deny",
       "gh issue edit*": "deny",
       "terraform apply*": "deny",
       "terraform destroy*": "deny",

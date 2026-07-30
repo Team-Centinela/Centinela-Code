@@ -64,12 +64,12 @@ The CONTEXT-MAP (`.opencode/CONTEXT-MAP.md`) MUST accurately describe what the l
 | Command class | Default | Rationale |
 |---|---|---|
 | `gh issue view/list/comment*` (read) | `allow` | Issue reading is an information-gathering action, not state-changing. |
-| `gh issue close*` | **deny** | Issue closure requires the closing-comment discipline (ADR-010 §10.4); agents emit `USER ACTION REQUIRED` per §12.5. |
-| `gh issue edit*` | **deny** | Issue edits may rewrite acceptance criteria or labels; surface for review — and per ADR-010 governance, edits to a tracked-issue body require the closing-comment discipline to keep the audit trail. |
+| `gh issue close*` | **allow** | Per §12.4 the human-only condition is narrower ("AC includes a doc change"); for ordinary task-completion closures the agent knows the doc-commit SHA from its own work and can write a closing comment per ADR-010 §10.4. Empirically (2026-07-29 review): denying all closures turned a routine chore into manual toil and was over-broad. |
+| `gh issue edit*` | **deny** | Issue-body edits carry *contextual debt* — the developer doesn't see silent edits, and the issue body is the audit trail. The agent must propose the edit text in chat and let the developer apply it manually. |
 | `gh pr view/list/diff*` (read) | `allow` | PR reading is information-gathering. |
 | `gh pr merge*` | **deny** | Merge is a state-changing action requiring human authorization per §12.4 + §12.5. |
 | `gh pr close*` | **deny** | PR closure requires human authorization. |
-| `git push*` | **deny** | Push is per-commit authorized per §12.3; standing authorization does not extend to push. |
+| `git push*` | **allow** | `git push` is non-destructive (no remote history loss unless `--force`), is the natural completion of a `final`-mode session, and denying it caused the developer to lose local work when sessions ended with the laptop closed. §12.3 `final` mode already commits the developer to push at session end with per-push confirmation; that contract is the gate, not the permission system. **Force-push is a separate concern** — `git push --force*` / `git push -f*` should be added as `deny` patterns when the team confirms the failure mode they want to defend against. |
 | `git commit*` (with prior `checkpoint` standing authorization) | `allow` | Standing authorization must be explicitly granted per §12.3; the agent must cite the grant in its preamble. |
 | `terraform apply*` / `terraform destroy*` | **deny** | Real-Azure state mutation requires human authorization per §12.4. |
 | `az*` | **deny** | Real-Azure CLI mutation requires human authorization per §12.4. |
@@ -107,8 +107,10 @@ The following actions are **human-only**. AI agents emit `USER ACTION REQUIRED` 
 | **`terraform apply` / `terraform destroy`** | Real-Azure state mutation; irreversible within a session | ADR-009, ADR-002 |
 | **Budget decisions** (raise ceiling, override alert thresholds) | $60 / 21-day ceiling is the cost-care promise | ADR-007 §7.7 |
 | **Secret rotation / creation** | Secrets are an authentication boundary | ADR-006 §6.3 |
-| **Issue closure on a tracked item whose AC includes a doc change** | The closing-comment discipline (ADR-010 §10.4) requires the SHA of the doc commit; AI cannot synthesize it | ADR-010 §10.4 |
+| **Issue closure on a tracked item whose AC includes a doc change AND the agent did not make the doc commit** | The closing-comment discipline (ADR-010 §10.4) requires the SHA of the doc commit; if the agent did not make the commit (e.g., another lane did), it cannot synthesize the SHA. **For ordinary task-completion closures where the agent *did* the work, this row does not apply** and the agent may close per §12.2. | ADR-010 §10.4 |
+| **Issue-body edit (any change to issue title / body / labels beyond `gh issue close` and `gh issue comment`)** | Silent edits carry *contextual debt* — the developer doesn't see the edit, and the issue body is the audit trail. The agent proposes the edit text in chat; the developer applies it manually. | ADR-010 governance |
 | **Push to `main`** | Released branch; one-maintainer + CI-green rule | ADR-005 monorepo model |
+| **`git push --force*` / `git push -f*`** (planned, not yet configured) | Force-push rewrites remote history; recovery is destructive. Default is to add these as `deny` patterns in `opencode.json:permission.bash` once the team confirms the failure mode. | TBD |
 
 **Cross-reference matrix.** §12.2 deny-list is the *operational* enforcement; this matrix is the *normative* contract. An entry in §12.2 without a corresponding row here is a misconfiguration; a row here without a corresponding §12.2 deny entry is unenforced prose.
 
@@ -158,6 +160,7 @@ Branch protection on `develop` and on every PR head branch is **configuration, n
 | 2026-07-29 | @SrLampi1001 (single-decision-maker per user directive) | Ratified ADR-012 as a governance amendment | #196; user directive on 2026-07-29 overriding team-ratification requirement |
 | 2026-07-29 | @SrLampi1001 (same session, post-PR-open self-correction) | Added ADR-005 to the CONTEXT-MAP read order + ADR-012 References; §12.1 explicitly forbids skipping existing ADRs (only ADR-008 is a legitimate skip — file does not exist) | Pre-existing CONTEXT-MAP read-order skip was inherited without verifying; corrected via follow-up commit on PR #257 |
 | 2026-07-29 | @SrLampi1001 (same session, post-PR-open self-correction) | Verified OpenCode `permission` schema against `https://opencode.ai/config.json` + `https://opencode.ai/docs/permissions/`; rewrote deny patterns in `opencode.json` from `"<cmd>"` to `"<cmd>*"` form so they match both no-args and with-args invocations (`git push` vs `git push origin main`); added top-level `permission: {"*": "ask"}` so unlisted tools (webfetch, websearch, lsp, todowrite, etc.) prompt instead of default-allow; §12.2 normative contract now cites the schema-verified semantics (wildcard rules + last-match-wins + parsed-command matching) | Initial patterns were inferred from common-permission-schema pattern-matching (Cursor / Claude Code shape) without verifying the actual OpenCode schema; per the docs tip "Commands like `git status` work for default behavior but require explicit permission (like `git status *`) when arguments are passed," `git push` (no args) and `git push origin main` (with args) require different patterns — only the `<cmd>*` form catches both. Corrected via follow-up commit on PR #257 |
+| 2026-07-29 | @SrLampi1001 (same session, post-PR-open self-correction) | Relaxed §12.2 + §12.4: `git push*` and `gh issue close*` flipped from `deny` to `allow` (with rationale); §12.4 "Issue closure on a tracked item whose AC includes a doc change" row rephrased to its actual narrow scope; `gh issue edit*` kept `deny` (issue bodies carry contextual debt); `compaction.tail_turns` raised from 25 → 50 so the §12.3 commit-cadence preamble survives longer; AGENTS.md gains the "fail-safe commit-cadence" rule for §12.9; `git push --force*` added to §12.4 as a planned-deny row (not yet in `opencode.json`). | Initial §12.2 was internally contradictory (§12.3 `final` mode allowed push; §12.2 denied `git push*`), and the `gh issue close*` deny was over-broad — the user reviewed the original justifications and pointed out that (a) developers close laptops and lose local work when push is denied, (b) most issue closures are routine chores where the agent has the SHA, (c) compaction drops the cadence decision from active context. The relaxations preserve the §12.4 human-only matrix for actions that are genuinely irreversible or audit-trail-sensitive. |
 | 2026-07-29 | (pending) Lane E (@Santiagodxz) | Land `matrices-build` workflow file | #196 acceptance criteria row 5 |
 | 2026-07-29 | (pending) Lane A (@SrLampi1001) | Wire branch protection via `gh api` | #196 acceptance criteria row 5 |
 | (next ceremony) | Team | Ratify ADR-012 by team review | #196 §"Audit-trail note (single-decision-maker)" |
@@ -179,6 +182,21 @@ The commit message describes **what was changed and why the change is durable**,
 This rule reconciles with the existing Commit Hygiene (§"Single concern per commit, with cross-referenced docs") — the cross-reference is by issue/PR number and ADR filename, not by quoted prose.
 
 The rule is normative; enforcement is by review (Lane A's governance review per `#134` §"Verification Checklist" + the `link-check` job as the CI gate for cross-references that resolve). Commit messages that violate the rule are amended in a follow-up commit, not silently accepted.
+
+### 12.9 Compaction reality and the fail-safe commit-cadence rule
+
+**Observed problem.** OpenCode auto-compaction (per `opencode.json:compaction`, default `tail_turns: 2`, raised to `50` by §12.7 audit trail) keeps only the most recent N user turns verbatim in active context. Everything before is summarized. Two consequences:
+
+1. The `opencode.json` content read at session start (and any §12.x contract derived from it) is summarized away. The agent may forget which commands are `deny` / `ask` / `allow` even though OpenCode itself still enforces them.
+2. The §12.3 commit-cadence decision (`none` / `checkpoint` / `final`) was declared in the session preamble — the first user turn. For a long session (>50 turns), the cadence declaration is in the summarized part. The agent may default to *no remembered mode* and either ask repeatedly or pick the wrong mode.
+
+**Mitigation layer 1 — config.** `compaction.tail_turns: 50` (raised from `25`) keeps the cadence preamble and most of the working context verbatim. The empirical upper bound on turn count for a single-session ADR-012 rollout (~30 turns) is well under 50, so the cadence is preserved for the working session.
+
+**Mitigation layer 2 — agent self-check (normative).** When the agent is uncertain about the commit cadence, it MUST default to `none` (the conservative mode) and emit `USER ACTION REQUIRED` per §12.5 to reconfirm cadence with the user. It MUST NOT assume `final` and push, and MUST NOT assume `checkpoint` and commit without user confirmation. This rule is codified in `AGENTS.md` §"Always" as the fail-safe commit-cadence clause.
+
+**Mitigation layer 3 — instructions survive compaction.** The `opencode.json:instructions` array (AGENTS.md + ADRs + CONTEXT-MAP) is part of the agent's system-level prompt, not user-turn content. Compaction does not prune system-prompt content. The §12.x normative contract therefore remains in the agent's effective context even after compaction of the user-turn layer. The risk is the agent's *working memory* (recent turns) losing the cadence decision, not the *instructions* themselves.
+
+**Known limitation.** If `tail_turns: 50` proves insufficient for very long sessions (>100 turns), the mitigation is to (a) raise `tail_turns` further, or (b) require the user to re-state cadence at session start as a matter of course (a developer-counseling norm, not an ADR-enforced rule). The first is a one-line config change; the second is documented in the developer-handoff guide (TBD — Lane A owes the guide).
 
 ## Consequences
 

@@ -29,12 +29,13 @@ public record FraudDecision(
      * disagree).
      *
      * <p>This is the ADR-004 §4.4 contract + SrLampi1001 review on PR #268
-     * (finding 3) fix: the previous version called
-     * {@code Recommendation.fromScore(totalScore)} which hardcoded
-     * {@code BLOCK >= 70} and {@code FLAG >= 30}, ignoring the aggregator's
-     * configured thresholds. With a configured {@code scoreThreshold=80} and
-     * {@code totalScore=75}, the aggregator computed {@code FLAG} but
-     * {@code FraudDecision} emitted {@code BLOCK} — a silent inconsistency.</p>
+     * (finding 3) fix: the previous version recomputed the recommendation
+     * via a hardcoded {@code Recommendation.fromScore(totalScore)} helper
+     * (BLOCK &gt;= 70, FLAG &gt;= 30), ignoring the aggregator's configured
+     * thresholds. With a configured {@code scoreThreshold=80} and
+     * {@code totalScore=75}, the aggregator correctly computed {@code FLAG}
+     * but {@code FraudDecision} emitted {@code BLOCK} — a silent inconsistency.
+     * The hardcoded helper was deleted in PR #271 review item 3.</p>
      *
      * <p>{@code scoreThreshold} is recorded on the decision so downstream
      * consumers (Reporting, analytics, the explainer template) see which

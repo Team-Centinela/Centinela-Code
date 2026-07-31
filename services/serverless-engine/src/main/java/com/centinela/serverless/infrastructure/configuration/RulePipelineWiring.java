@@ -5,7 +5,6 @@ import com.centinela.serverless.adapter.out.persistence.InMemoryRuleConfigReposi
 import com.centinela.serverless.adapter.out.persistence.InMemoryTransactionStatisticsRepository;
 import com.centinela.serverless.adapter.out.persistence.InMemoryTransactionStatsRepository;
 import com.centinela.serverless.domain.port.FlaggedMerchantRepository;
-import com.centinela.serverless.domain.port.RuleConfig;
 import com.centinela.serverless.domain.port.RuleConfigRepository;
 import com.centinela.serverless.domain.port.TransactionStatisticsRepository;
 import com.centinela.serverless.domain.port.TransactionStatsRepository;
@@ -14,12 +13,9 @@ import com.centinela.serverless.domain.service.AtypicalAmountRule;
 import com.centinela.serverless.domain.service.FraudPipeline;
 import com.centinela.serverless.domain.service.HighRiskMerchantRule;
 import com.centinela.serverless.domain.service.ImpossibleGeoRule;
-import com.centinela.serverless.domain.service.PipelineStage;
 import com.centinela.serverless.domain.service.VelocityRule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.List;
 
 /**
  * Spring wiring for the {@code domain/service/} layer of the Serverless Engine.
@@ -30,6 +26,18 @@ import java.util.List;
  * by ADR-001 §Hexagonal: no {@code @Component} annotations. Wiring them
  * centrally keeps the domain layer pure Java and makes the dependency
  * graph explicit.</p>
+ *
+ * <p>Two-stage pipeline wiring per ADR-004 §4.1 + SrLampi1001 review on
+ * PR #271 (comment 5143599891 item 1):</p>
+ * <ul>
+ *   <li>Stage 1 (cheap, always): {@code VelocityRule} (FR-1),
+ *       {@code HighRiskMerchantRule} (FR-4). Both run on indexed lookups
+ *       and never touch PostGIS.</li>
+ *   <li>Stage 2 (expensive, conditional): {@code ImpossibleGeoRule} (FR-3),
+ *       {@code AtypicalAmountRule} (FR-2). The PostGIS scan in FR-3 is the
+ *       dominant cost; gating it behind a Stage-1 hit keeps median
+ *       evaluation time low.</li>
+ * </ul>
  *
  * <p>Threshold loading per ADR-004 §4.4 + SrLampi1001 review on PR #268
  * (finding 3): {@code scoreThreshold} (PIPELINE config) is loaded ONCE
@@ -115,10 +123,21 @@ public class RulePipelineWiring {
         return new AggregatorStage(scoreThreshold, flagThreshold);
     }
 
+    /**
+     * Stage 1 (cheap, always) — FR-1 Velocity + FR-4 High-Risk Merchant.
+     * ADR-004 §4.1 cost table: both are indexed lookups, no PostGIS scan.
+     */
     @Bean
-    public FraudPipeline fraudPipeline(List<PipelineStage> stages,
+    public FraudPipeline fraudPipeline(VelocityRule velocityRule,
+                                       HighRiskMerchantRule highRiskMerchantRule,
+                                       ImpossibleGeoRule impossibleGeoRule,
+                                       AtypicalAmountRule atypicalAmountRule,
                                        AggregatorStage aggregator,
                                        int scoreThreshold) {
-        return new FraudPipeline(stages, aggregator, scoreThreshold);
+        var stages1 = java.util.List.<com.centinela.serverless.domain.service.PipelineStage>of(
+                velocityRule, highRiskMerchantRule);
+        var stages2 = java.util.List.<com.centinela.serverless.domain.service.PipelineStage>of(
+                impossibleGeoRule, atypicalAmountRule);
+        return new FraudPipeline(stages1, stages2, aggregator, scoreThreshold);
     }
 }

@@ -17,20 +17,21 @@ public final class AggregatorStage implements PipelineStage {
      * ADR-004 §4.4: {@code scoreThreshold} (default 70) is the single canonical
      * threshold shared with {@link FraudPipeline}. The pipeline reads it from
      * the PIPELINE {@code rules_config} row and passes it to the Aggregator
-     * constructor so both components see the same value. The Aggregator
-     * does NOT load {@code scoreThreshold} from its own rules_config row —
-     * doing so would re-introduce the two-threshold drift ADR-004 §4.4 / #30
-     * S-1 fix explicitly forbids.
+     * constructor so both components see the same value.
      *
-     * <p>The Aggregator still owns its {@code flagThreshold} (the soft
-     * "needs review" floor). Validation per SrLampi1001 review on PR #268
-     * (finding 1 action 3): {@code 0 <= flagThreshold < scoreThreshold <= 100}
-     * with STRICT inequality — equality would collapse FLAG and BLOCK into
-     * the same recommendation.</p>
+     * <p>The Aggregator's {@code flagThreshold} (soft "needs review" floor)
+     * validation per SrLampi1001 review on PR #268 (finding 1 action 3):
+     * {@code 0 <= flagThreshold < scoreThreshold <= 100} with STRICT inequality
+     * — equality would collapse FLAG and BLOCK into the same recommendation.</p>
+     *
+     * <p>Thread-safety note: the Aggregator is a stateless rule. The
+     * recommendation is carried on the returned {@link TriggeredRule}'s
+     * {@code rawEvidence} map, NOT in a singleton field. {@link FraudPipeline}
+     * reads the recommendation from that map, eliminating the singleton-field
+     * race that SrLampi1001's concurrency probe (PR #271) exposed.</p>
      */
     private final int scoreThreshold;
     private final int flagThreshold;
-    private Recommendation lastRecommendation = Recommendation.APPROVE;
 
     public AggregatorStage(int scoreThreshold, int flagThreshold) {
         validate(scoreThreshold, flagThreshold);
@@ -42,7 +43,6 @@ public final class AggregatorStage implements PipelineStage {
     public Optional<TriggeredRule> evaluate(EvaluationContext ctx) {
         int clampedScore = Math.min(100, Math.max(0, ctx.accumulatedScore()));
         Recommendation rec = computeRecommendation(clampedScore, flagThreshold, scoreThreshold);
-        lastRecommendation = rec;
 
         Map<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("totalScore", clampedScore);
@@ -55,15 +55,12 @@ public final class AggregatorStage implements PipelineStage {
     }
 
     /**
-     * Canonical decision for this aggregator instance, recomputed on every
-     * {@link #evaluate(EvaluationContext)} call. {@link FraudPipeline} reads
-     * this value so {@link com.centinela.serverless.domain.model.FraudDecision}
-     * carries the same recommendation as the raw evidence + the
-     * FraudEvaluationCompleted envelope — eliminating the hardcoded 70/30
-     * drift flagged by SrLampi1001 (PR #268 finding 3).
+     * Helper for callers that need the canonical recommendation outside of
+     * the {@code rawEvidence} flow. Pure function — no instance state, so
+     * thread-safe by construction.
      */
-    public Recommendation lastRecommendation() {
-        return lastRecommendation;
+    public Recommendation computeRecommendation(int totalScore) {
+        return computeRecommendation(totalScore, flagThreshold, scoreThreshold);
     }
 
     public int flagThreshold() {

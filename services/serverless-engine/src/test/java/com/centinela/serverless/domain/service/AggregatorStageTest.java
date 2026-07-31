@@ -104,10 +104,13 @@ class AggregatorStageTest {
         ctx.addTriggeredRule(new TriggeredRule("FR-4", 25, Map.of(), Instant.now()));
         var stage = newAggregator();
 
-        stage.evaluate(ctx);
+        var result = stage.evaluate(ctx);
 
         // SrLampi1001 probe: total = 80, recommendation must be BLOCK.
-        assertEquals(Recommendation.BLOCK, stage.lastRecommendation(),
+        // After PR #271 review concurrency fix, the recommendation travels on
+        // the returned TriggeredRule's rawEvidence (not a singleton field)
+        // so the read is thread-safe.
+        assertEquals(Recommendation.BLOCK, Recommendation.valueOf((String) result.get().rawEvidence().get("recommendation")),
                 "30 + 25 + 25 = 80 must produce BLOCK under ADR-004 §4.4 (single scoreThreshold=70)");
         assertEquals(80, ctx.accumulatedScore());
     }

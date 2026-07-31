@@ -84,6 +84,8 @@ Per-lane cost rows (live):
 | _pending_ | _pending_ | sprint-1 | _companion issues [B.A1] etc. land rows here as they close_ | _TBD_ | _TBD_ | _TBD_ | _TBD_ |
 | _phase-0_ | _emulator surface_ | sprint-1 | _Mode (c) closes land here with `$0.00–0.00` + verify-script marker_ | _$0.00_ | _TBD_ | _TBD_ | _$0.00_ |
 
+**Row format and apply-time procedure**: see [`RUNBOOK-FIRST-APPLY.md`](RUNBOOK-FIRST-APPLY.md) — the operational recipe for the first Phase-2 `terraform apply` (pre-flight gates, Apply steps A–H, Mode (a) row format, budget alarm confirmation, drift monitoring, rollback).
+
 ## Day-1 region & quota verification
 
 Every Azure service in this directory must be verified against the assigned region and the Azure Free Account tier limits **before** any IaC is applied. See [`REGION-QUOTA-CHECK.md`](REGION-QUOTA-CHECK.md) for the verification matrix and audit log (issue #34). Any service that resolves to `no` requires an ADR amendment issue opened before Week 1 starts.

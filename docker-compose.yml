@@ -189,6 +189,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: local-emulator
       AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus:5672;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;TransportType=Amqp;UseDevelopmentEmulator=true;"
+      SPRING_CLOUD_STREAM_ENABLED: "true"
     ports:
       - "${CORE_BACKEND_PORT:-8080}:8080"
     networks:

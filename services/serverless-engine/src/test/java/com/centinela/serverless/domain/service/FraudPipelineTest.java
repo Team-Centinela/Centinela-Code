@@ -98,10 +98,10 @@ class FraudPipelineTest {
         // Score clamping happens in AggregatorStage (max(0, min(100, accumulatedScore)));
         // see AggregatorStageTest.shouldClampScoreTo100 for the full coverage.
         // The pipeline's role is to short-circuit + sum; with default
-        // thresholds (50/70) and 4 stages of 40 each, the loop short-circuits
-        // after stage 1 (40 >= 50 is false, 40+40=80 >= 50 is true). Total
-        // accumulated score stays at 80, well under the 100 ceiling.
-        // This test asserts the Aggregator's BLOCK recommendation fires.
+        // thresholds (70 shortCircuit / 70 caseCreation / 30 flag) and 4 stages
+        // of 40 each, the loop short-circuits after stage 2 (40 < 70, 40+40=80 >= 70).
+        // Accumulated score stays at 80, well under the 100 ceiling. This test
+        // asserts the Aggregator's BLOCK recommendation fires.
         var stages = List.<PipelineStage>of(
                 new StubStage(40),
                 new StubStage(40),
@@ -114,7 +114,7 @@ class FraudPipelineTest {
 
         FraudDecision decision = pipeline.execute(ctx);
 
-        // Two stages run before the loop hits shortCircuitThreshold=50 (40, then 40+40=80 -> break).
+        // Two stages run before the loop hits scoreThreshold=70 (40, then 40+40=80 -> break).
         assertEquals(80, decision.totalScore());
         assertEquals(com.centinela.serverless.domain.model.Recommendation.BLOCK, decision.recommendation());
     }
@@ -146,12 +146,12 @@ class FraudPipelineTest {
 
         assertEquals(50, decision.totalScore());
         assertEquals(com.centinela.serverless.domain.model.Recommendation.FLAG, decision.recommendation());
-        assertFalse(stage2.called, "stage2 should be skipped when accumulatedScore == shortCircuitThreshold");
+        assertFalse(stage2.called, "stage2 should be skipped when accumulatedScore == scoreThreshold");
     }
 
     @Test
-    void shouldUseConfiguredShortCircuitThreshold() {
-        var cfg = new RuleConfig("PIPELINE", true, Map.of("shortCircuitThreshold", 15));
+    void shouldUseConfiguredScoreThreshold() {
+        var cfg = new RuleConfig("PIPELINE", true, Map.of("scoreThreshold", 15));
         var stage1 = new StubStage(20);
         var stage2 = new TrackerStage();
         var stages = List.<PipelineStage>of(stage1, stage2);

@@ -153,10 +153,11 @@ public class OutboxPublisher {
                 event.setPublishedAt(Instant.now());
                 published++;
             } catch (Exception e) {
-                log.warn("Failed to publish outbox event {}: {}", event.getId(), e.getMessage());
+                // SLF4J: Throwable as last arg → stack trace is logged (was swallowed before #272 fix)
+                log.warn("Failed to publish outbox event {}", event.getId(), e);
                 if (event.getAttempts() >= maxAttempts) {
                     event.setStatus(OutboxEventEntity.Status.DEAD_LETTER);
-                    log.error("Event {} moved to DEAD_LETTER after {} attempts", event.getId(), maxAttempts);
+                    log.error("Event {} moved to DEAD_LETTER after {} attempts", event.getId(), maxAttempts, e);
                 }
                 // else keep as PENDING for retry
             }

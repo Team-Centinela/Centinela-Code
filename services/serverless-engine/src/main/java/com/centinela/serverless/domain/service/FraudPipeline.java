@@ -49,6 +49,6 @@ public final class FraudPipeline {
         if (opt.isEmpty() || !opt.get().enabled()) {
             return DEFAULT_SCORE_THRESHOLD;
         }
-        return opt.get().get("scoreThreshold", DEFAULT_SCORE_THRESHOLD);
+        return opt.get().getInt("scoreThreshold", DEFAULT_SCORE_THRESHOLD);
     }
 }

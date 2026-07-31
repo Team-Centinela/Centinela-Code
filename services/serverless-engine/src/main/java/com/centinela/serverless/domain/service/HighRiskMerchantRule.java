@@ -48,6 +48,6 @@ public final class HighRiskMerchantRule implements PipelineStage {
         if (opt.isEmpty() || !opt.get().enabled()) {
             return DEFAULT_SCORE;
         }
-        return opt.get().get("score", DEFAULT_SCORE);
+        return opt.get().getInt("score", DEFAULT_SCORE);
     }
 }

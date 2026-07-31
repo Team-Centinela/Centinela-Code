@@ -67,8 +67,8 @@ public final class AtypicalAmountRule implements PipelineStage {
         }
         var cfg = opt.get();
         return new Config(
-                cfg.get("zScoreThreshold", DEFAULT_ZSCORE_THRESHOLD),
-                cfg.get("score", DEFAULT_SCORE)
+                cfg.getDouble("zScoreThreshold", DEFAULT_ZSCORE_THRESHOLD),
+                cfg.getInt("score", DEFAULT_SCORE)
         );
     }
 

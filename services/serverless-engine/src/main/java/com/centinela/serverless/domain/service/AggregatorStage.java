@@ -51,8 +51,8 @@ public final class AggregatorStage implements PipelineStage {
         }
         var cfg = opt.get();
         return new Config(
-                cfg.get("flagThreshold", DEFAULT_FLAG_THRESHOLD),
-                cfg.get("blockThreshold", DEFAULT_BLOCK_THRESHOLD)
+                cfg.getInt("flagThreshold", DEFAULT_FLAG_THRESHOLD),
+                cfg.getInt("blockThreshold", DEFAULT_BLOCK_THRESHOLD)
         );
     }
 

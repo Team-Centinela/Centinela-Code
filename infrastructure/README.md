@@ -92,7 +92,7 @@ Every Azure service in this directory must be verified against the assigned regi
 
 ## WORM ownership
 
-Per ADR-002 §WORM policy, the `documents-worm` container's immutable blob policy is owned by the `centinela-platform@centinela.onmicrosoft.com` AAD group (Terraform variable `worm_owner_group_principal`). **Do not** shorten the immutability retention period once set — policies are themselves immutable. Lifecycle (Hot → Cool at 90d, Cool → Archive at 1y) is managed by `azurerm_storage_management_policy` and is **separate** from the immutability policy.
+Per ADR-002 §WORM policy, the `documents-worm` container's immutable blob policy is owned by the AAD group configured in Terraform variable `aad_owner_email` (default resolves to the operator's tenant; the historical `centinela-platform@centinela.onmicrosoft.com` AAD group does not exist in the live subscription — the variable defaults to a real email and is overridable per environment). **Do not** shorten the immutability retention period once set — policies are themselves immutable. Lifecycle (Hot → Cool at 90d, Cool → Archive at 1y) is managed by `azurerm_storage_management_policy` and is **separate** from the immutability policy.
 
 See:
 - [ADR-002 storage matrix](../docs/decision-log/ADR-002-postgresql-only-db.md#storage-matrix)

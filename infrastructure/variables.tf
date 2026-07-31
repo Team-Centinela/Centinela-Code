@@ -47,3 +47,12 @@ variable "oidc_federated_branch" {
   type        = string
   default     = "develop"
 }
+
+# AAD owner / budget recipients. Default is the operator tenant seeded for
+# Phase 0 (#274); AAD group creation lives in a follow-up. Override per
+# environment via terraform.tfvars when promoting past Phase 0.
+variable "aad_owner_email" {
+  description = "AAD group email used as the documents-worm owner (ADR-002 §WORM) and as the budget-alert recipient (ADR-007 §7.7)."
+  type        = string
+  default     = "torreslopezjeronimo@gmail.com"
+}

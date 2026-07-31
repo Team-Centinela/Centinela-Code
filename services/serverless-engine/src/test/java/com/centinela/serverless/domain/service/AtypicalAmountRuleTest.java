@@ -114,13 +114,42 @@ class AtypicalAmountRuleTest {
         assertTrue(result.isPresent());
         Map<String, Object> evidence = result.get().rawEvidence();
         // ADR-004 §4.2: only the pinned FR-2 keys may be present (plus the
-        // rule's `current_score_added`).
-        assertEquals(200.0, evidence.get("current_amount_usd"));
-        assertEquals(100.0, evidence.get("historical_avg_usd"));
-        assertEquals(20.0, evidence.get("std_dev_usd"));
+        // rule's `current_score_added`). Amount fields are BigDecimal after
+        // the §0.2.2 precision fix (#231); the explainer renders them with
+        // their full scale rather than via double rounding.
+        assertEquals(new BigDecimal("200.00"), evidence.get("current_amount_usd"));
+        assertEquals(new BigDecimal("100.00"), evidence.get("historical_avg_usd"));
+        assertEquals(new BigDecimal("20.00"), evidence.get("std_dev_usd"));
         assertEquals(50L, evidence.get("historical_sample_size"));
-        assertEquals(5.0, evidence.get("z_score"));
+        assertEquals(0, new BigDecimal("5.0")
+                .compareTo((BigDecimal) evidence.get("z_score")),
+                "z_score must be BigDecimal 5.0 (scale 10) after precision fix");
         assertEquals(25, evidence.get("current_score_added"));
+    }
+
+    @Test
+    void zScoreIsComputedInBigDecimalPrecisionNoDoubleRounding() {
+        // Regression fixture for #231: with avg=99.99, stdDev=0.01, amount=100.00
+        // a double-precision path produces z_score ~= 1.0 (or NaN-like due to
+        // catastrophic cancellation). BigDecimal MathContext.DECIMAL64 keeps
+        // the result exact at 1.00.
+        var preciseStats = new TransactionStats(
+                new BigDecimal("99.99"), new BigDecimal("0.01"), 200L
+        );
+        var preciseTx = new TransactionReceivedEvent(
+                UUID.randomUUID(), "acc-bd", new BigDecimal("100.00"), "USD",
+                "merchant-1", null, null, Instant.now()
+        );
+        var statsRepo = new StubStatsRepo(Optional.of(preciseStats));
+        var cfgRepo = new StubConfigRepo(Optional.empty());
+        var rule = new AtypicalAmountRule(statsRepo, cfgRepo);
+        var ctx = new EvaluationContext(preciseTx);
+
+        Optional<TriggeredRule> result = rule.evaluate(ctx);
+
+        // z-score = (100.00 - 99.99) / 0.01 = 1.00; below threshold 2.5, so no trigger.
+        assertTrue(result.isEmpty(),
+                "z_score 1.00 must not trigger (below 2.5); BigDecimal keeps it exact");
     }
 
     @Test
@@ -160,7 +189,9 @@ class AtypicalAmountRuleTest {
         // ADR-004 §4.2 FR-2: the new schema has no separate `threshold` key.
         // z_score is the computed value for the actual tx, not the threshold.
         // Here amount=200, avg=100, stdDev=20 => z_score = |200-100|/20 = 5.0.
-        assertEquals(5.0, ((Number) result.get().rawEvidence().get("z_score")).doubleValue(), 0.01);
+        assertEquals(0, new BigDecimal("5.0")
+                .compareTo((BigDecimal) result.get().rawEvidence().get("z_score")),
+                "z_score must be BigDecimal 5.0 after precision fix");
         assertEquals(25, result.get().rawEvidence().get("current_score_added"));
     }
 

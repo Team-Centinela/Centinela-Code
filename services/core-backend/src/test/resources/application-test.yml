@@ -1,0 +1,42 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:centinela;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  flyway:
+    enabled: true
+    schemas: cases,alerts,reporting,auth,rules_config,outbox
+    create-schemas: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        default_schema: PUBLIC
+
+  cloud:
+    stream:
+      enabled: false
+      bindings:
+        transactionsRaw-in-0:
+          destination: transactions-raw
+          group: core-backend
+        caseEventsIn-in-0:
+          destination: case-events
+          group: core-backend-sub
+    azure:
+      servicebus:
+        connection-string: ""
+        processor:
+          auto-startup: false
+
+  autoconfigure:
+    exclude:
+      - com.azure.spring.cloud.autoconfigure.implementation.servicebus.AzureServiceBusAutoConfiguration
+      - com.azure.spring.cloud.autoconfigure.implementation.servicebus.AzureServiceBusMessagingAutoConfiguration

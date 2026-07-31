@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Centinela Phase 0.0 emulator verification.
-# Issue #167 / PR #171. Phase 0.0 acceptance checklist, automated.
+# Centinela Phase 0.0 + Phase 0.1 emulator verification.
+# Issue #167 / PR #171 (§0.0 gate) + #167 §0.1 dry-runs (opt-in via --phase01).
 #
-# Usage:
-#   ./scripts/verify-emulators.sh           verify only, leave containers running
-#   ./scripts/verify-emulators.sh --down    verify then docker compose down
-#   ./scripts/verify-emulators.sh --help    help
+# Sections 1-7 are the §0.0 acceptance gate (always on).
+# Sections 8-10 are Phase 0.1 dry-runs (opt-in via --phase01):
+#   8/10  PostGIS V1 migration dry-run
+#   9/10  SB Emulator consumer-replay smoke (coarse publisher check)
+#   10/10 Floci-AZ wiring smoke (coarse endpoint check)
+# Full round-trip tests (AMQP, KV PUT/GET, Blob PUT/GET) are JUnit-based
+# and live with their lane owners per #167.
 
 set -euo pipefail
 
@@ -41,17 +44,24 @@ fail() { FAIL=$((FAIL+1)); printf "  ${RED}[FAIL]${RESET} %s\n" "$1"; }
 info() { printf "  ${GRAY}[..]${RESET}  %s\n" "$1"; }
 
 TEARDOWN=0
+PHASE01=0
 for arg in "$@"; do
     case "$arg" in
         --down|-d) TEARDOWN=1 ;;
+        --phase01|-p01) PHASE01=1 ;;
         --help|-h)
             cat <<EOF
-Centinela Phase 0.0 emulator verification.
+Centinela Phase 0.0 + Phase 0.1 emulator verification (issue #167).
 
 Usage:
-  $0              verify only, leave containers running
-  $0 --down       verify then docker compose down
-  $0 --help       this help
+  $0                verify only, leave containers running
+  $0 --phase01      also run the three Phase 0.1 dry-runs (sections 8-10)
+  $0 --down         verify then docker compose down
+  $0 --help         this help
+
+Sections 1-7 are the §0.0 acceptance gate. Sections 8-10 are Phase 0.1
+dry-runs, opt-in via --phase01 so the fast path stays within the
+ADR-011 §11.2 cold-start budget (≤3 min).
 EOF
             exit 0
             ;;
@@ -59,7 +69,7 @@ EOF
     esac
 done
 
-printf "\n${YELLOW}[1/7] Booting emulator stack...${RESET}\n"
+printf "\n${YELLOW}[1/10] Booting emulator stack...${RESET}\n"
 if docker compose up -d --wait; then
     pass "docker compose up -d --wait completed"
 else
@@ -67,7 +77,7 @@ else
     exit 1
 fi
 
-printf "\n${YELLOW}[2/7] Postgres (postgis/postgis:16-3.4-alpine)...${RESET}\n"
+printf "\n${YELLOW}[2/10] Postgres (postgis/postgis:16-3.4-alpine)...${RESET}\n"
 if docker exec centinela-postgres pg_isready -U postgres -d centinela >/dev/null 2>&1; then
     pass "pg_isready"
 else
@@ -116,7 +126,7 @@ else
     fail "expected 2 extensions, got '$exts'"
 fi
 
-printf "\n${YELLOW}[3/7] Service Bus Emulator...${RESET}\n"
+printf "\n${YELLOW}[3/10] Service Bus Emulator...${RESET}\n"
 sb_ok=0
 for i in $(seq 1 30); do
     if body=$(curl -fsS "http://localhost:${SERVICEBUS_MGMT_PORT}/health" 2>/dev/null); then
@@ -155,7 +165,7 @@ for s in core-backend-sub ingestion-sub serverless-engine core-backend; do
     fi
 done
 
-printf "\n${YELLOW}[4/7] Floci-AZ (Blob + KV + AppConfig + Monitor)...${RESET}\n"
+printf "\n${YELLOW}[4/10] Floci-AZ (Blob + KV + AppConfig + Monitor)...${RESET}\n"
 floci_ok=0
 for i in $(seq 1 15); do
     if body=$(curl -fsS "http://localhost:${FLOCI_AZ_PORT}/_floci/health" 2>/dev/null); then
@@ -171,14 +181,14 @@ if [[ $floci_ok -eq 0 ]]; then
     fail "Floci-AZ /health did not become healthy in 30s"
 fi
 
-printf "\n${YELLOW}[5/7] SQL Edge (state store for SB Emulator)...${RESET}\n"
+printf "\n${YELLOW}[5/10] SQL Edge (state store for SB Emulator)...${RESET}\n"
 if docker exec centinela-sqledge bash -c "timeout 3 bash -c 'echo > /dev/tcp/localhost/1433'" >/dev/null 2>&1; then
     pass "SQL Edge TCP 1433 reachable"
 else
     fail "SQL Edge TCP 1433 reachable"
 fi
 
-printf "\n${YELLOW}[6/7] Spring Boot services (actuator /health)...${RESET}\n"
+printf "\n${YELLOW}[6/10] Spring Boot services (actuator /health)...${RESET}\n"
 for svc_port in "ingestion ${INGESTION_PORT}" "core-backend ${CORE_BACKEND_PORT}" "serverless-engine ${SERVERLESS_ENGINE_PORT}"; do
     name=$(echo "$svc_port" | awk '{print $1}')
     port=$(echo "$svc_port" | awk '{print $2}')
@@ -205,7 +215,7 @@ else
     fail "core-backend restarted ${core_backend_restarts} time(s) during startup (#191)"
 fi
 
-printf "\n${YELLOW}[7/7] Flyway-owned service schemas...${RESET}\n"
+printf "\n${YELLOW}[7/10] Flyway-owned service schemas...${RESET}\n"
 # Tracked by #189 (and refined after #190): now that all three Spring services
 # report /actuator/health = UP, every service's Flyway history must exist in
 # the *first* schema listed in its `spring.flyway.schemas` (Flyway writes
@@ -227,6 +237,67 @@ if [[ ${#missing[@]} -eq 0 ]]; then
     pass "Flyway schema history present in $count service-owned first-schemas (#182/#189)"
 else
     fail "missing Flyway schema history for: ${missing[*]}"
+fi
+
+if [[ $PHASE01 -eq 1 ]]; then
+    printf "\n${YELLOW}[8/10] PostGIS V1 migration dry-run (Phase 0.1 - opt-in)...${RESET}\n"
+    for svc in oltp cases rules_config; do
+        ok=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c \
+            "SELECT count(*) FROM ${svc}.flyway_schema_history WHERE success = true;" | tr -d ' \r\n')
+        fail_count=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c \
+            "SELECT count(*) FROM ${svc}.flyway_schema_history WHERE success = false;" | tr -d ' \r\n')
+        if [[ "$ok" =~ ^[0-9]+$ ]] && [[ "$fail_count" =~ ^[0-9]+$ ]] && [[ $ok -gt 0 ]] && [[ $fail_count -eq 0 ]]; then
+            pass "Flyway V1+ clean in $svc ($ok successful, 0 failed)"
+        elif [[ "$ok" =~ ^[0-9]+$ ]] && [[ $ok -eq 0 ]]; then
+            fail "Flyway state in $svc: 0 successful migrations (no V1 applied?)"
+        else
+            fail "Flyway state in $svc: ok=$ok fail=$fail_count (expected ok>0 fail=0)"
+        fi
+    done
+
+    printf "\n${YELLOW}[9/10] SB Emulator consumer-replay smoke (Phase 0.1 - opt-in)...${RESET}\n"
+    published_recent=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c \
+        "SELECT count(*) FROM outbox.outbox_events WHERE status = 'PUBLISHED' AND published_at > NOW() - INTERVAL '10 minutes';" | tr -d ' \r\n')
+    pending_stale=$(docker exec centinela-postgres psql -U postgres -d centinela -tA -c \
+        "SELECT count(*) FROM outbox.outbox_events WHERE status = 'PENDING' AND created_at < NOW() - INTERVAL '60 seconds';" | tr -d ' \r\n')
+    if [[ "$pending_stale" =~ ^[0-9]+$ ]] && [[ $pending_stale -eq 0 ]]; then
+        pass "no stale PENDING outbox rows (publisher not stuck)"
+    else
+        fail "$pending_stale PENDING outbox rows older than 60s (publisher stuck?)"
+    fi
+    if [[ "$published_recent" =~ ^[0-9]+$ ]] && [[ $published_recent -gt 0 ]]; then
+        pass "$published_recent outbox events published in last 10 min (AMQP publish path observed)"
+    else
+        info "no outbox events published in last 10 min (no traffic; AMQP topology covered by [3/10] and [6/10])"
+    fi
+
+    printf "\n${YELLOW}[10/10] Floci-AZ wiring smoke (Phase 0.1 - opt-in)...${RESET}\n"
+    # Each line: name|path|expected-class.
+    #   wired   = responds 2xx or 401 (auth challenge)
+    #   stubbed = responds 501 (route present, impl pending)
+    floci_checks=(
+        "Key Vault|/devstoreaccount1-keyvault/?api-version=7.4|wired"
+        "Blob|/devstoreaccount1/?comp=list|wired"
+        "Monitor|/dataCollectionRules|stubbed"
+        "AppConfig|/appconfig|stubbed"
+        "Logs|/v1/logs|stubbed"
+    )
+    for entry in "${floci_checks[@]}"; do
+        name=${entry%%|*}
+        rest=${entry#*|}
+        path=${rest%|*}
+        expected=${rest##*|}
+        code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://localhost:${FLOCI_AZ_PORT}${path}" 2>/dev/null || echo 000)
+        if [[ "$expected" == "wired" ]] && [[ "$code" == "200" || "$code" == "401" ]]; then
+            pass "Floci-AZ $name wired (HTTP $code)"
+        elif [[ "$expected" == "stubbed" ]] && [[ "$code" == "501" ]]; then
+            info "Floci-AZ $name stubbed (HTTP 501 = route present, impl pending)"
+        elif [[ "$code" == "000" ]]; then
+            fail "Floci-AZ $name unreachable (connection reset on $path)"
+        else
+            fail "Floci-AZ $name returned HTTP $code on $path (expected $expected)"
+        fi
+    done
 fi
 
 printf "\n${CYAN}==============================${RESET}\n"

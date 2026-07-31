@@ -1,15 +1,59 @@
-# Centinela Phase 0.0 emulator verification.
-# Issue #167 / PR #171. Phase 0.0 acceptance checklist, automated.
+# Centinela Phase 0.0 + Phase 0.1 emulator verification.
+# Issue #167 / PR #171 (§0.0 gate) + #167 §0.1 dry-runs (opt-in via -Phase01).
 #
-# Usage:
-#   .\scripts\verify-emulators.ps1           verify only, leave containers running
-#   .\scripts\verify-emulators.ps1 -Down     verify then docker compose down
-#   .\scripts\verify-emulators.ps1 -Help     help
+# Sections 1-7 are the §0.0 acceptance gate (always on).
+# Sections 8-10 are Phase 0.1 dry-runs (opt-in via -Phase01):
+#   8/10  PostGIS V1 migration dry-run
+#   9/10  SB Emulator consumer-replay smoke (coarse publisher check)
+#   10/10 Floci-AZ wiring smoke (coarse endpoint check)
+# Full round-trip tests (AMQP, KV PUT/GET, Blob PUT/GET) are JUnit-based
+# and live with their lane owners per #167.
+
+<#
+.SYNOPSIS
+    Centinela Phase 0.0 + Phase 0.1 emulator verification (issue #167).
+
+.DESCRIPTION
+    Boots the Docker Compose emulator stack and asserts every service-owned
+    first-schema + queue/topic + Spring Boot actuator endpoint is healthy.
+    Sections 1-7 are the §0.0 acceptance gate. Sections 8-10 are Phase 0.1
+    dry-runs, opt-in via -Phase01 so the fast path stays within the
+    ADR-011 §11.2 cold-start budget (≤3 min).
+
+.PARAMETER Down
+    Tear down the compose stack after verification (docker compose down).
+
+.PARAMETER Phase01
+    Run the three Phase 0.1 dry-run sections (8/10, 9/10, 10/10).
+    Off by default.
+
+.PARAMETER Help
+    Show this help.
+
+.EXAMPLE
+    .\scripts\verify-emulators.ps1
+    Run only the §0.0 acceptance checks (~3 min).
+
+.EXAMPLE
+    .\scripts\verify-emulators.ps1 -Phase01
+    Run §0.0 + the three Phase 0.1 dry-runs.
+
+.EXAMPLE
+    .\scripts\verify-emulators.ps1 -Phase01 -Down
+    Run §0.0 + Phase 0.1, then tear down the stack.
+#>
 
 [CmdletBinding()]
 param(
-    [switch]$Down
+    [switch]$Down,
+    [switch]$Phase01,
+    [switch]$Help
 )
+
+if ($Help) {
+    Get-Help $MyInvocation.MyCommand.Path -Full | Out-Host
+    exit 0
+}
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path "$ScriptDir/..").Path
@@ -67,7 +111,7 @@ Write-Host "Centinela - Phase 0.0 emulator verification" -ForegroundColor Cyan
 Write-Host "Repo: $RepoRoot" -ForegroundColor DarkGray
 Write-Host ""
 
-Write-Host "[1/7] Booting emulator stack..." -ForegroundColor Yellow
+Write-Host "[1/10] Booting emulator stack..." -ForegroundColor Yellow
 $proc = Start-Process -FilePath "docker" -ArgumentList "compose","up","-d","--wait" -NoNewWindow -Wait -PassThru
 if ($proc.ExitCode -ne 0) {
     Write-Fail "docker compose up -d --wait exited $($proc.ExitCode)"
@@ -76,7 +120,7 @@ if ($proc.ExitCode -ne 0) {
 Write-Pass "docker compose up -d --wait completed"
 
 Write-Host ""
-Write-Host "[2/7] Postgres (postgis/postgis:16-3.4-alpine)..." -ForegroundColor Yellow
+Write-Host "[2/10] Postgres (postgis/postgis:16-3.4-alpine)..." -ForegroundColor Yellow
 docker exec centinela-postgres pg_isready -U postgres -d centinela *>$null
 if ($LASTEXITCODE -eq 0) { Write-Pass "pg_isready" } else { Write-Fail "pg_isready" }
 
@@ -117,7 +161,7 @@ $exts = (docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SE
 if ($exts -eq "2") { Write-Pass "postgis + uuid-ossp extensions" } else { Write-Fail "expected 2 extensions, got '$exts'" }
 
 Write-Host ""
-Write-Host "[3/7] Service Bus Emulator..." -ForegroundColor Yellow
+Write-Host "[3/10] Service Bus Emulator..." -ForegroundColor Yellow
 $null = Test-HttpStatus -Url "http://localhost:${ServiceBusMgmtPort}/health" -Label "SB Emulator /health"
 
 $sbLog = docker logs centinela-servicebus --tail 2000 2>&1
@@ -135,16 +179,16 @@ foreach ($s in 'core-backend-sub','ingestion-sub','serverless-engine','core-back
 }
 
 Write-Host ""
-Write-Host "[4/7] Floci-AZ (Blob + KV + AppConfig + Monitor)..." -ForegroundColor Yellow
+Write-Host "[4/10] Floci-AZ (Blob + KV + AppConfig + Monitor)..." -ForegroundColor Yellow
 $null = Test-HttpStatus -Url "http://localhost:${FlociAzPort}/_floci/health" -Label "Floci-AZ /health" -MaxAttempts 15 -DelaySeconds 2
 
 Write-Host ""
-Write-Host "[5/7] SQL Edge (state store for SB Emulator)..." -ForegroundColor Yellow
+Write-Host "[5/10] SQL Edge (state store for SB Emulator)..." -ForegroundColor Yellow
 docker exec centinela-sqledge bash -c "timeout 3 bash -c 'echo > /dev/tcp/localhost/1433'" *>$null
 if ($LASTEXITCODE -eq 0) { Write-Pass "SQL Edge TCP 1433 reachable" } else { Write-Fail "SQL Edge TCP 1433 reachable" }
 
 Write-Host ""
-Write-Host "[6/7] Spring Boot services (actuator /health)..." -ForegroundColor Yellow
+Write-Host "[6/10] Spring Boot services (actuator /health)..." -ForegroundColor Yellow
 $null = Test-HttpStatus -Url "http://localhost:${IngestionPort}/actuator/health" -Label "ingestion /actuator/health" -MaxAttempts 60 -DelaySeconds 2
 $null = Test-HttpStatus -Url "http://localhost:${CoreBackendPort}/actuator/health" -Label "core-backend /actuator/health" -MaxAttempts 60 -DelaySeconds 2
 $null = Test-HttpStatus -Url "http://localhost:${ServerlessEnginePort}/actuator/health" -Label "serverless-engine /actuator/health" -MaxAttempts 60 -DelaySeconds 2
@@ -157,7 +201,7 @@ if ($coreBackendRestarts -eq "0") {
 }
 
 Write-Host ""
-Write-Host "[7/7] Flyway-owned service schemas..." -ForegroundColor Yellow
+Write-Host "[7/10] Flyway-owned service schemas..." -ForegroundColor Yellow
 # Tracked by #189 (and refined after #190): now that all three Spring services
 # report /actuator/health = UP, every service's Flyway history must exist in
 # the *first* schema listed in its `spring.flyway.schemas` (Flyway writes
@@ -181,6 +225,70 @@ if ($missing.Count -eq 0) {
     Write-Pass ("Flyway schema history present in " + $matching.Count + " service-owned first-schemas (#182/#189)")
 } else {
     Write-Fail ("missing Flyway schema history for: " + ($missing -join ', '))
+}
+
+if ($Phase01) {
+    Write-Host ""
+    Write-Host "[8/10] PostGIS V1 migration dry-run (Phase 0.1 - opt-in)..." -ForegroundColor Yellow
+    foreach ($svc in @('oltp','cases','rules_config')) {
+        $ok = (docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT count(*) FROM ${svc}.flyway_schema_history WHERE success = true;" 2>$null).Trim()
+        $failCount = (docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT count(*) FROM ${svc}.flyway_schema_history WHERE success = false;" 2>$null).Trim()
+        if ($ok -match '^\d+$' -and $failCount -match '^\d+$' -and [int]$ok -gt 0 -and [int]$failCount -eq 0) {
+            Write-Pass "Flyway V1+ clean in $svc ($ok successful, 0 failed)"
+        } elseif ($ok -match '^\d+$' -and [int]$ok -eq 0) {
+            Write-Fail "Flyway state in ${svc}: 0 successful migrations (no V1 applied?)"
+        } else {
+            Write-Fail "Flyway state in ${svc}: ok=$ok fail=$failCount (expected ok>0 fail=0)"
+        }
+    }
+
+    Write-Host ""
+    Write-Host "[9/10] SB Emulator consumer-replay smoke (Phase 0.1 - opt-in)..." -ForegroundColor Yellow
+    $publishedRecent = (docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT count(*) FROM outbox.outbox_events WHERE status = 'PUBLISHED' AND published_at > NOW() - INTERVAL '10 minutes';" 2>$null).Trim()
+    $pendingStale = (docker exec centinela-postgres psql -U postgres -d centinela -tA -c "SELECT count(*) FROM outbox.outbox_events WHERE status = 'PENDING' AND created_at < NOW() - INTERVAL '60 seconds';" 2>$null).Trim()
+    if ($pendingStale -match '^\d+$' -and [int]$pendingStale -eq 0) {
+        Write-Pass "no stale PENDING outbox rows (publisher not stuck)"
+    } else {
+        Write-Fail "$pendingStale PENDING outbox rows older than 60s (publisher stuck?)"
+    }
+    if ($publishedRecent -match '^\d+$' -and [int]$publishedRecent -gt 0) {
+        Write-Pass "$publishedRecent outbox events published in last 10 min (AMQP publish path observed)"
+    } else {
+        Write-Info "no outbox events published in last 10 min (no traffic; AMQP topology covered by [3/10] and [6/10])"
+    }
+
+    Write-Host ""
+    Write-Host "[10/10] Floci-AZ wiring smoke (Phase 0.1 - opt-in)..." -ForegroundColor Yellow
+    # Each entry: name, expected-path, expected-class ("wired" returns 2xx or 401,
+    # "stubbed" returns 501 = routed but not implemented yet).
+    $flociChecks = @(
+        @{ Name = 'Key Vault'; Path = "/devstoreaccount1-keyvault/?api-version=7.4"; Expected = 'wired' },
+        @{ Name = 'Blob';      Path = "/devstoreaccount1/?comp=list";                Expected = 'wired' },
+        @{ Name = 'Monitor';   Path = "/dataCollectionRules";                        Expected = 'stubbed' },
+        @{ Name = 'AppConfig'; Path = "/appconfig";                                  Expected = 'stubbed' },
+        @{ Name = 'Logs';      Path = "/v1/logs";                                    Expected = 'stubbed' }
+    )
+    foreach ($check in $flociChecks) {
+        $name = $check.Name
+        $path = $check.Path
+        $expected = $check.Expected
+        $code = 0
+        try {
+            $r = Invoke-WebRequest -Uri "http://localhost:${FlociAzPort}${path}" -Method Get -UseBasicParsing -ErrorAction Stop
+            $code = [int]$r.StatusCode
+        } catch {
+            if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode } else { $code = 0 }
+        }
+        if ($expected -eq 'wired' -and ($code -eq 200 -or $code -eq 401)) {
+            Write-Pass "Floci-AZ $name wired (HTTP $code)"
+        } elseif ($expected -eq 'stubbed' -and $code -eq 501) {
+            Write-Info "Floci-AZ $name stubbed (HTTP 501 = route present, impl pending)"
+        } elseif ($code -eq 0) {
+            Write-Fail "Floci-AZ $name unreachable (connection reset on $path)"
+        } else {
+            Write-Fail "Floci-AZ $name returned HTTP $code on $path (expected $expected)"
+        }
+    }
 }
 
 Write-Host ""

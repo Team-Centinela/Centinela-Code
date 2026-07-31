@@ -87,7 +87,7 @@ class TransactionsRawConsumerTest {
 
         ScoreTransactionService score = mock(ScoreTransactionService.class);
         when(score.score(eq(row), anyString()))
-                .thenReturn(new FraudDecision(UUID.randomUUID(), 0, List.of(), Recommendation.APPROVE, Instant.now()));
+                .thenReturn(new FraudDecision(UUID.randomUUID(), 0, List.of(), Recommendation.APPROVE, 70, Instant.now()));
 
         buildConsumer(idem, score).handle(message("msg-1"));
         verify(score).score(eq(row), anyString());

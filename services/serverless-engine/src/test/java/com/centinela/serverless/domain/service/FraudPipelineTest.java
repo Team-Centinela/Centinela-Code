@@ -101,8 +101,12 @@ class FraudPipelineTest {
                 new StubStage(40),
                 new StubStage(40)
         );
-        var pipelineCfg = new RuleConfig("PIPELINE", true, Map.of("scoreThreshold", 200));
-        var aggCfg = new RuleConfig("AGGREGATOR", true, Map.of("flagThreshold", 30, "blockThreshold", 70));
+        // ADR-004 §4.4 + #237: 'scoreThreshold' renamed to 'shortCircuitThreshold',
+        // 'blockThreshold' renamed to 'caseCreationThreshold'. Setting the
+        // pivot to 200 means the loop never short-circuits before all four
+        // stages run; the score is then clamped to 100 by the Aggregator.
+        var pipelineCfg = new RuleConfig("PIPELINE", true, Map.of("shortCircuitThreshold", 200));
+        var aggCfg = new RuleConfig("AGGREGATOR", true, Map.of("flagThreshold", 30, "caseCreationThreshold", 70));
         var cfgRepo = new StubConfigRepo(Map.of("PIPELINE", pipelineCfg, "AGGREGATOR", aggCfg));
         var pipeline = new FraudPipeline(stages, new AggregatorStage(cfgRepo), cfgRepo);
         var ctx = new EvaluationContext(tx);
@@ -140,12 +144,12 @@ class FraudPipelineTest {
 
         assertEquals(50, decision.totalScore());
         assertEquals(com.centinela.serverless.domain.model.Recommendation.FLAG, decision.recommendation());
-        assertFalse(stage2.called, "stage2 should be skipped when accumulatedScore == scoreThreshold");
+        assertFalse(stage2.called, "stage2 should be skipped when accumulatedScore == shortCircuitThreshold");
     }
 
     @Test
-    void shouldUseConfiguredScoreThreshold() {
-        var cfg = new RuleConfig("PIPELINE", true, Map.of("scoreThreshold", 15));
+    void shouldUseConfiguredShortCircuitThreshold() {
+        var cfg = new RuleConfig("PIPELINE", true, Map.of("shortCircuitThreshold", 15));
         var stage1 = new StubStage(20);
         var stage2 = new TrackerStage();
         var stages = List.<PipelineStage>of(stage1, stage2);

@@ -93,7 +93,7 @@ class AggregatorStageTest {
     void shouldUseConfiguredThresholds() {
         var cfg = new RuleConfig("AGGREGATOR", true, Map.of(
                 "flagThreshold", 10,
-                "blockThreshold", 80
+                "caseCreationThreshold", 80
         ));
         var ctx = new EvaluationContext(tx);
         ctx.addTriggeredRule(new TriggeredRule("FR-1", 20, Map.of(), Instant.now()));
@@ -137,7 +137,9 @@ class AggregatorStageTest {
         assertEquals("FLAG", evidence.get("recommendation"));
         assertEquals(1, evidence.get("rulesTriggered"));
         assertEquals(30, evidence.get("flagThreshold"));
-        assertEquals(70, evidence.get("blockThreshold"));
+        // ADR-004 §4.4 + #237: renamed from 'blockThreshold' to 'caseCreationThreshold'
+        // because the role is the case-creation gate, not a generic block threshold.
+        assertEquals(70, evidence.get("caseCreationThreshold"));
     }
 
     @Test

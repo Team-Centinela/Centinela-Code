@@ -1,7 +1,6 @@
 package com.centinela.serverless.infrastructure.configuration;
 
 import com.centinela.serverless.adapter.out.persistence.InMemoryFlaggedMerchantRepository;
-import com.centinela.serverless.adapter.out.persistence.InMemoryRuleConfigRepository;
 import com.centinela.serverless.adapter.out.persistence.InMemoryTransactionStatisticsRepository;
 import com.centinela.serverless.adapter.out.persistence.InMemoryTransactionStatsRepository;
 import com.centinela.serverless.domain.port.FlaggedMerchantRepository;
@@ -49,10 +48,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RulePipelineWiring {
 
-    @Bean
-    public RuleConfigRepository ruleConfigRepository() {
-        return new InMemoryRuleConfigRepository();
-    }
+    /**
+     * {@link RuleConfigRepository} is auto-wired by Spring from the
+     * {@code @Repository}-annotated {@code JpaRuleConfigRepository}. The
+     * previous in-memory placeholder (#270) has been removed — operators
+     * now tune the FR-1..FR-4 tunables + the PIPELINE scoreThreshold via
+     * the {@code rules_config.rule_configs} rows seeded by
+     * {@code V2__seed_rule_configs.sql}.
+     */
 
     @Bean
     public TransactionStatisticsRepository transactionStatisticsRepository() {
@@ -70,23 +73,23 @@ public class RulePipelineWiring {
     }
 
     @Bean
-    public VelocityRule velocityRule() {
-        return new VelocityRule(transactionStatisticsRepository(), ruleConfigRepository());
+    public VelocityRule velocityRule(RuleConfigRepository ruleConfigRepository) {
+        return new VelocityRule(transactionStatisticsRepository(), ruleConfigRepository);
     }
 
     @Bean
-    public AtypicalAmountRule atypicalAmountRule() {
-        return new AtypicalAmountRule(transactionStatsRepository(), ruleConfigRepository());
+    public AtypicalAmountRule atypicalAmountRule(RuleConfigRepository ruleConfigRepository) {
+        return new AtypicalAmountRule(transactionStatsRepository(), ruleConfigRepository);
     }
 
     @Bean
-    public ImpossibleGeoRule impossibleGeoRule() {
-        return new ImpossibleGeoRule(ruleConfigRepository());
+    public ImpossibleGeoRule impossibleGeoRule(RuleConfigRepository ruleConfigRepository) {
+        return new ImpossibleGeoRule(ruleConfigRepository);
     }
 
     @Bean
-    public HighRiskMerchantRule highRiskMerchantRule() {
-        return new HighRiskMerchantRule(flaggedMerchantRepository(), ruleConfigRepository());
+    public HighRiskMerchantRule highRiskMerchantRule(RuleConfigRepository ruleConfigRepository) {
+        return new HighRiskMerchantRule(flaggedMerchantRepository(), ruleConfigRepository);
     }
 
     /**

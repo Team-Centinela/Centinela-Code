@@ -165,6 +165,49 @@ class AggregatorStageTest {
         assertEquals("APPROVE", result.get().rawEvidence().get("recommendation"));
     }
 
+    @Test
+    void constructorFailsClosedWhenCaseCreationThresholdIsNegative() {
+        // #238 fail-closed: a negative caseCreationThreshold would make
+        // BLOCK unreachable and the rule would silently never open a case.
+        var cfg = new RuleConfig("AGGREGATOR", true, Map.of("caseCreationThreshold", -1));
+        var cfgRepo = new StubConfigRepo(Optional.of(cfg));
+
+        assertThrows(AggregatorStage.InvalidAggregatorConfigException.class,
+                () -> new AggregatorStage(cfgRepo));
+    }
+
+    @Test
+    void constructorFailsClosedWhenCaseCreationBelowShortCircuit() {
+        // #238 + ADR-004 §4.4: caseCreationThreshold must be >= shortCircuitThreshold,
+        // otherwise the pipeline short-circuits before the case gate ever fires.
+        var cfg = new RuleConfig("AGGREGATOR", true, Map.of("caseCreationThreshold", 20));
+        var cfgRepo = new StubConfigRepo(Optional.of(cfg));
+
+        assertThrows(AggregatorStage.InvalidAggregatorConfigException.class,
+                () -> new AggregatorStage(cfgRepo));
+    }
+
+    @Test
+    void constructorFailsClosedWhenCaseCreationBelowFlagThreshold() {
+        // flagThreshold 50 > caseCreationThreshold 30 means a score of 35
+        // would be FLAG but a score of 31 (which already triggered FLAG)
+        // could not possibly reach BLOCK — inconsistent recommendation.
+        var cfg = new RuleConfig("AGGREGATOR", true, Map.of(
+                "flagThreshold", 50,
+                "caseCreationThreshold", 30));
+        var cfgRepo = new StubConfigRepo(Optional.of(cfg));
+
+        assertThrows(AggregatorStage.InvalidAggregatorConfigException.class,
+                () -> new AggregatorStage(cfgRepo));
+    }
+
+    @Test
+    void staticValidateAcceptsConsistentThresholds() {
+        // Default 30/70 + shortCircuit 50 — well-formed.
+        var cfg = new AggregatorStage.Config(30, 70);
+        assertDoesNotThrow(() -> AggregatorStage.validate(cfg, 50));
+    }
+
     private record StubConfigRepo(Optional<RuleConfig> config) implements RuleConfigRepository {
         @Override
         public Optional<RuleConfig> findByRuleCode(String ruleCode) {

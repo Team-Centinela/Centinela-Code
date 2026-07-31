@@ -121,15 +121,15 @@ Write-Host "[3/7] Service Bus Emulator..." -ForegroundColor Yellow
 $null = Test-HttpStatus -Url "http://localhost:${ServiceBusMgmtPort}/health" -Label "SB Emulator /health"
 
 $sbLog = docker logs centinela-servicebus --tail 2000 2>&1
-foreach ($q in 'transactions-raw','documents-pending','documents-pending-pub','fraud-evaluation') {
+foreach ($q in 'documents-pending','documents-pending-pub','fraud-evaluation') {
     if ($sbLog -match "Creating queue:\s+$([regex]::Escape($q))\b") { Write-Pass "queue '$q' created" }
     else { Write-Fail "queue '$q' NOT in SB Emulator startup log" }
 }
-foreach ($t in 'case-events','fraud-evaluation-events') {
+foreach ($t in 'transactions-raw','case-events','fraud-evaluation-events') {
     if ($sbLog -match "Creating topic:\s+$([regex]::Escape($t))\b") { Write-Pass "topic '$t' created" }
     else { Write-Fail "topic '$t' NOT in SB Emulator startup log" }
 }
-foreach ($s in 'core-backend-sub','ingestion-sub') {
+foreach ($s in 'core-backend-sub','ingestion-sub','serverless-engine','core-backend') {
     if ($sbLog -match "Creating subscription\s+$([regex]::Escape($s))\b") { Write-Pass "subscription '$s' created" }
     else { Write-Fail "subscription '$s' NOT in SB Emulator startup log" }
 }

@@ -89,8 +89,8 @@ public final class ImpossibleGeoRule implements PipelineStage {
         }
         var cfg = opt.get();
         return new Config(
-                cfg.get("maxSpeedKmph", DEFAULT_MAX_SPEED_KMPH),
-                cfg.get("score", DEFAULT_SCORE)
+                cfg.getDouble("maxSpeedKmph", DEFAULT_MAX_SPEED_KMPH),
+                cfg.getInt("score", DEFAULT_SCORE)
         );
     }
 

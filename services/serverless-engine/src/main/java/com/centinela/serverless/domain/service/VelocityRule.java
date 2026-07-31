@@ -52,9 +52,9 @@ public final class VelocityRule implements PipelineStage {
         }
         var cfg = opt.get();
         return new RuleConfigSnapshot(
-                cfg.get("windowMinutes", DEFAULT_WINDOW_MINUTES),
-                cfg.get("maxTxPerWindow", DEFAULT_MAX_TX_PER_WINDOW),
-                cfg.get("score", DEFAULT_SCORE)
+                cfg.getInt("windowMinutes", DEFAULT_WINDOW_MINUTES),
+                cfg.getInt("maxTxPerWindow", DEFAULT_MAX_TX_PER_WINDOW),
+                cfg.getInt("score", DEFAULT_SCORE)
         );
     }
 

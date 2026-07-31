@@ -13,12 +13,9 @@ import com.centinela.serverless.domain.service.AtypicalAmountRule;
 import com.centinela.serverless.domain.service.FraudPipeline;
 import com.centinela.serverless.domain.service.HighRiskMerchantRule;
 import com.centinela.serverless.domain.service.ImpossibleGeoRule;
-import com.centinela.serverless.domain.service.PipelineStage;
 import com.centinela.serverless.domain.service.VelocityRule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.List;
 
 /**
  * Spring wiring for the {@code domain/service/} layer of the Serverless Engine.
@@ -30,22 +27,24 @@ import java.util.List;
  * centrally keeps the domain layer pure Java and makes the dependency
  * graph explicit.</p>
  *
- * <pre>
- *   VelocityRule            ─┐
- *   AtypicalAmountRule      ─┤   List&lt;PipelineStage&gt;
- *   ImpossibleGeoRule       ─┤   ───▶ FraudPipeline(stages, aggregator, configRepo)
- *   HighRiskMerchantRule    ─┘
- *                            ┌──▶ AggregatorStage(configRepo)
+ * <p>Two-stage pipeline wiring per ADR-004 §4.1 + SrLampi1001 review on
+ * PR #271 (comment 5143599891 item 1):</p>
+ * <ul>
+ *   <li>Stage 1 (cheap, always): {@code VelocityRule} (FR-1),
+ *       {@code HighRiskMerchantRule} (FR-4). Both run on indexed lookups
+ *       and never touch PostGIS.</li>
+ *   <li>Stage 2 (expensive, conditional): {@code ImpossibleGeoRule} (FR-3),
+ *       {@code AtypicalAmountRule} (FR-2). The PostGIS scan in FR-3 is the
+ *       dominant cost; gating it behind a Stage-1 hit keeps median
+ *       evaluation time low.</li>
+ * </ul>
  *
- *   InMemoryRuleConfigRepository           ──┐
- *   InMemoryTransactionStatisticsRepository ─┤
- *   InMemoryTransactionStatsRepository      ─┼──▶ rule constructors
- *   InMemoryFlaggedMerchantRepository       ─┘
- * </pre>
- *
- * <p>The in-memory repository stubs return empty {@code Optional} / 0 so each
- * rule falls back to compile-time defaults. JPA-backed implementations are
- * tracked as @3105jero follow-ups under epic #54.</p>
+ * <p>Threshold loading per ADR-004 §4.4 + SrLampi1001 review on PR #268
+ * (finding 3): {@code scoreThreshold} (PIPELINE config) is loaded ONCE
+ * here and passed to both the {@code FraudPipeline} (short-circuit) and
+ * the {@code AggregatorStage} (BLOCK recommendation) so the two components
+ * see the same canonical value. {@code flagThreshold} (AGGREGATOR config)
+ * is loaded separately and passed to {@code AggregatorStage} only.</p>
  */
 @Configuration
 public class RulePipelineWiring {
@@ -90,13 +89,55 @@ public class RulePipelineWiring {
         return new HighRiskMerchantRule(flaggedMerchantRepository(), ruleConfigRepository());
     }
 
+    /**
+     * Single source of truth for {@code scoreThreshold} (ADR-004 §4.4
+     * canonical threshold). Loaded once from the PIPELINE {@code rules_config}
+     * row and passed to both {@link FraudPipeline} and {@link AggregatorStage}.
+     */
     @Bean
-    public AggregatorStage aggregatorStage() {
-        return new AggregatorStage(ruleConfigRepository());
+    public int scoreThreshold(RuleConfigRepository repo) {
+        var opt = repo.findByRuleCode(FraudPipeline.PIPELINE_CONFIG_CODE);
+        if (opt.isEmpty() || !opt.get().enabled()) {
+            return FraudPipeline.DEFAULT_SCORE_THRESHOLD;
+        }
+        return opt.get().getInt("scoreThreshold", FraudPipeline.DEFAULT_SCORE_THRESHOLD);
+    }
+
+    /**
+     * {@code flagThreshold} loaded once from the AGGREGATOR {@code rules_config}
+     * row and passed only to {@link AggregatorStage}. Strict validation
+     * {@code flagThreshold < scoreThreshold} is enforced in
+     * {@link AggregatorStage}'s constructor.
+     */
+    @Bean
+    public int flagThreshold(RuleConfigRepository repo) {
+        var opt = repo.findByRuleCode(AggregatorStage.RULE_CODE);
+        if (opt.isEmpty() || !opt.get().enabled()) {
+            return AggregatorStage.DEFAULT_FLAG_THRESHOLD;
+        }
+        return opt.get().getInt("flagThreshold", AggregatorStage.DEFAULT_FLAG_THRESHOLD);
     }
 
     @Bean
-    public FraudPipeline fraudPipeline(List<PipelineStage> stages, AggregatorStage aggregator) {
-        return new FraudPipeline(stages, aggregator, ruleConfigRepository());
+    public AggregatorStage aggregatorStage(int scoreThreshold, int flagThreshold) {
+        return new AggregatorStage(scoreThreshold, flagThreshold);
+    }
+
+    /**
+     * Stage 1 (cheap, always) — FR-1 Velocity + FR-4 High-Risk Merchant.
+     * ADR-004 §4.1 cost table: both are indexed lookups, no PostGIS scan.
+     */
+    @Bean
+    public FraudPipeline fraudPipeline(VelocityRule velocityRule,
+                                       HighRiskMerchantRule highRiskMerchantRule,
+                                       ImpossibleGeoRule impossibleGeoRule,
+                                       AtypicalAmountRule atypicalAmountRule,
+                                       AggregatorStage aggregator,
+                                       int scoreThreshold) {
+        var stages1 = java.util.List.<com.centinela.serverless.domain.service.PipelineStage>of(
+                velocityRule, highRiskMerchantRule);
+        var stages2 = java.util.List.<com.centinela.serverless.domain.service.PipelineStage>of(
+                impossibleGeoRule, atypicalAmountRule);
+        return new FraudPipeline(stages1, stages2, aggregator, scoreThreshold);
     }
 }

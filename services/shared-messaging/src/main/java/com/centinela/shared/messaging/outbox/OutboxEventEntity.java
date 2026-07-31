@@ -14,7 +14,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "outbox_events", schema = "outbox")
-class OutboxEventEntity {
+public class OutboxEventEntity {
 
     @Id
     private UUID id;
@@ -51,8 +51,8 @@ class OutboxEventEntity {
     protected OutboxEventEntity() {
     }
 
-    OutboxEventEntity(String eventType, String aggregateType, String aggregateId,
-                      String payload, Status status) {
+    public OutboxEventEntity(String eventType, String aggregateType, String aggregateId,
+                             String payload, Status status) {
         this.id = UUID.randomUUID();
         this.eventType = eventType;
         this.aggregateType = aggregateType;

@@ -2,12 +2,18 @@ package com.centinela.ingestion.infrastructure.persistence;
 
 import com.centinela.ingestion.domain.port.OutboxEvent;
 import com.centinela.ingestion.domain.port.OutboxEventPort;
+import com.centinela.shared.messaging.outbox.OutboxEventEntity;
+import com.centinela.shared.messaging.outbox.OutboxEventJpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
-
+/**
+ * Adapter implementing {@link OutboxEventPort} against the shared-messaging
+ * outbox infrastructure. Per the §0.3 unblocker (commit 97c5773, PR #266),
+ * the canonical {@link OutboxEventEntity} + {@link OutboxEventJpaRepository}
+ * live in {@code com.centinela.shared.messaging.outbox}; this module owns
+ * only the domain port + the translation from the domain event shape to the
+ * shared entity.
+ */
 @Repository
 public class JpaOutboxEventAdapter implements OutboxEventPort {
 
@@ -20,49 +26,12 @@ public class JpaOutboxEventAdapter implements OutboxEventPort {
     @Override
     public void save(OutboxEvent event) {
         OutboxEventEntity entity = new OutboxEventEntity(
-                event.id(),
                 event.eventType(),
-                event.aggregateId(),
                 event.aggregateType(),
+                event.aggregateId(),
                 event.payload(),
-                "PENDING",
-                event.retryCount(),
-                null,
-                event.createdAt(),
-                null
+                OutboxEventEntity.Status.PENDING
         );
         jpaRepository.save(entity);
-    }
-
-    public List<OutboxEventEntity> findPending(int limit) {
-        return jpaRepository.findPending(limit);
-    }
-
-    public List<OutboxEventEntity> findStalePending(Instant olderThan, int limit) {
-        return jpaRepository.findStalePending(olderThan, limit);
-    }
-
-    public void markPublished(UUID eventId) {
-        jpaRepository.markPublished(eventId);
-    }
-
-    public void markDeadLetter(UUID eventId) {
-        jpaRepository.markDeadLetter(eventId);
-    }
-
-    public void incrementAttempt(UUID eventId) {
-        jpaRepository.incrementAttempt(eventId);
-    }
-
-    public int resetStaleAttempts(int limit) {
-        return jpaRepository.resetStaleAttempts(limit);
-    }
-
-    public long countByStatus(String status) {
-        return jpaRepository.countByStatus(status);
-    }
-
-    public Instant oldestByStatus(String status) {
-        return jpaRepository.oldestByStatus(status);
     }
 }

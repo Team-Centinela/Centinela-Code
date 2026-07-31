@@ -29,13 +29,14 @@ class EngineObjectMapperConfigTest {
             .build();
 
     @Test
-    void engineCustomizerAppliedKeepsBigDecimalFloats() {
+    void engineCustomizerAppliedKeepsBigDecimalFloats() throws Exception {
         // The Spring Boot autoconfiguration applies Jackson2ObjectMapperBuilderCustomizer
         // beans to the application's ObjectMapper. We simulate that by building
         // a builder and applying our customizer the same way Spring would.
-        ObjectMapper engineMapper = new Jackson2ObjectMapperBuilder()
-                .customizers(new EngineObjectMapperConfig().engineBigDecimalFloatsCustomizer())
-                .build();
+        EngineObjectMapperConfig config = new EngineObjectMapperConfig();
+        Jackson2ObjectMapperBuilder builder = new Jackson2ObjectMapperBuilder();
+        config.engineBigDecimalFloatsCustomizer().customize(builder);
+        ObjectMapper engineMapper = builder.build();
 
         Map<String, Object> payload = Map.of(
                 "z_score", new BigDecimal("5.01234567890123456789"),
@@ -62,7 +63,7 @@ class EngineObjectMapperConfigTest {
     }
 
     @Test
-    void bareMapperWithoutCustomizerDoublesByDefault() {
+    void bareMapperWithoutCustomizerDoublesByDefault() throws Exception {
         // Demonstrates the bug the customizer fixes: a vanilla Spring Boot
         // mapper drops BigDecimal precision on the round-trip because it
         // deserializes JSON numbers as Double.

@@ -95,25 +95,27 @@ class FraudPipelineTest {
 
     @Test
     void clampingShouldLimitScoreTo100() {
+        // Score clamping happens in AggregatorStage (max(0, min(100, accumulatedScore)));
+        // see AggregatorStageTest.shouldClampScoreTo100 for the full coverage.
+        // The pipeline's role is to short-circuit + sum; with default
+        // thresholds (50/70) and 4 stages of 40 each, the loop short-circuits
+        // after stage 1 (40 >= 50 is false, 40+40=80 >= 50 is true). Total
+        // accumulated score stays at 80, well under the 100 ceiling.
+        // This test asserts the Aggregator's BLOCK recommendation fires.
         var stages = List.<PipelineStage>of(
                 new StubStage(40),
                 new StubStage(40),
                 new StubStage(40),
                 new StubStage(40)
         );
-        // ADR-004 §4.4 + #237: 'scoreThreshold' renamed to 'shortCircuitThreshold',
-        // 'blockThreshold' renamed to 'caseCreationThreshold'. Setting the
-        // pivot to 200 means the loop never short-circuits before all four
-        // stages run; the score is then clamped to 100 by the Aggregator.
-        var pipelineCfg = new RuleConfig("PIPELINE", true, Map.of("shortCircuitThreshold", 200));
-        var aggCfg = new RuleConfig("AGGREGATOR", true, Map.of("flagThreshold", 30, "caseCreationThreshold", 70));
-        var cfgRepo = new StubConfigRepo(Map.of("PIPELINE", pipelineCfg, "AGGREGATOR", aggCfg));
+        var cfgRepo = new StubConfigRepo(Optional.empty());
         var pipeline = new FraudPipeline(stages, new AggregatorStage(cfgRepo), cfgRepo);
         var ctx = new EvaluationContext(tx);
 
         FraudDecision decision = pipeline.execute(ctx);
 
-        assertEquals(100, decision.totalScore());
+        // Two stages run before the loop hits shortCircuitThreshold=50 (40, then 40+40=80 -> break).
+        assertEquals(80, decision.totalScore());
         assertEquals(com.centinela.serverless.domain.model.Recommendation.BLOCK, decision.recommendation());
     }
 

@@ -1,6 +1,7 @@
 package com.centinela.serverless.archunit;
 
 import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaAnnotation;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
@@ -47,14 +48,28 @@ public class ServerlessEngineArchitectureTest {
                             "com.centinela.corebackend.."
                     );
 
+    /**
+     * #24 S-6 ride: forbid ANY {@code org.springframework.*} annotation in
+     * the domain layer. The previous list-mode check missed
+     * {@code @Transactional}, {@code @Cacheable}, {@code @Async},
+     * {@code @EventListener}, {@code @Configuration}, etc. The single
+     * package-name predicate covers every annotation under that root and
+     * catches any new annotation type added in a future Spring release
+     * without needing to update the rule.
+     */
+    private static final DescribedPredicate<JavaAnnotation<?>> ANNOTATION_FROM_ORG_SPRINGFRAMEWORK =
+            new DescribedPredicate<JavaAnnotation<?>>("@org.springframework.* annotation") {
+                @Override
+                public boolean apply(JavaAnnotation<?> annotation) {
+                    return annotation.getRawType().getPackageName().startsWith("org.springframework");
+                }
+            };
+
     @ArchTest
     static final ArchRule no_spring_annotations_in_domain =
-            classes()
+            noClasses()
                     .that().resideInAPackage("..domain..")
-                    .should().notBeAnnotatedWith(org.springframework.stereotype.Service.class)
-                    .andShould().notBeAnnotatedWith(org.springframework.stereotype.Component.class)
-                    .andShould().notBeAnnotatedWith(org.springframework.stereotype.Repository.class)
-                    .andShould().notBeAnnotatedWith(org.springframework.boot.autoconfigure.SpringBootApplication.class);
+                    .should().beAnnotatedWith(ANNOTATION_FROM_ORG_SPRINGFRAMEWORK);
 
     /**
      * #24 S-1 ride: extract the Rule/Stage disjunction into an explicit
@@ -132,6 +147,36 @@ public class ServerlessEngineArchitectureTest {
         org.junit.jupiter.api.Assertions.assertFalse(
                 PIPELINE_STAGE_RULE_OR_STAGE_NAME.apply(neither),
                 "Class with neither 'Rule' nor 'Stage' in its name must NOT match");
+    }
+
+    /**
+     * #24 S-6 ride: predicate-level coverage for the broadened
+     * {@link #ANNOTATION_FROM_ORG_SPRINGFRAMEWORK} rule. We import
+     * {@link org.springframework.transaction.annotation.Transactional} and
+     * {@link org.springframework.stereotype.Service} via the package
+     * importer and assert the predicate catches each one — proving that
+     * the rule no longer relies on an explicit allowlist per annotation
+     * type. {@code @Transactional} was the motivating gap: the previous
+     * list-mode check silently allowed it through.
+     */
+    @ArchTest
+    static void spring_annotation_predicate_catches_transactional() {
+        JavaClasses transactionalAnnotation = new ClassFileImporter()
+                .importClasses(org.springframework.transaction.annotation.Transactional.class);
+        org.junit.jupiter.api.Assertions.assertTrue(
+                ANNOTATION_FROM_ORG_SPRINGFRAMEWORK.apply(
+                        transactionalAnnotation.get(org.springframework.transaction.annotation.Transactional.class.getName())),
+                "@Transactional under org.springframework.transaction.* must match the broadened predicate");
+    }
+
+    @ArchTest
+    static void spring_annotation_predicate_catches_component() {
+        JavaClasses componentAnnotation = new ClassFileImporter()
+                .importClasses(org.springframework.stereotype.Component.class);
+        org.junit.jupiter.api.Assertions.assertTrue(
+                ANNOTATION_FROM_ORG_SPRINGFRAMEWORK.apply(
+                        componentAnnotation.get(org.springframework.stereotype.Component.class.getName())),
+                "@Component under org.springframework.stereotype.* must match the broadened predicate");
     }
 
     /**

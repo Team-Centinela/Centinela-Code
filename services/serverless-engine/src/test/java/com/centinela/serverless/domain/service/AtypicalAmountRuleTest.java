@@ -128,6 +128,46 @@ class AtypicalAmountRuleTest {
     }
 
     @Test
+    void shouldNotTriggerWhenSampleSizeBelowMinSampleSize() {
+        // #232: a freshly-onboarded account with too few historical transactions
+        // must not trip FR-2. With stats.sampleSize=3 and default minSampleSize=10,
+        // the rule silently returns empty even though the z-score would otherwise
+        // fire (5.0 > 2.5).
+        var smallStats = new TransactionStats(
+                new BigDecimal("100.00"), new BigDecimal("20.00"), 3L
+        );
+        var statsRepo = new StubStatsRepo(Optional.of(smallStats));
+        var cfgRepo = new StubConfigRepo(Optional.empty());
+        var rule = new AtypicalAmountRule(statsRepo, cfgRepo);
+        var ctx = new EvaluationContext(TX);
+
+        Optional<TriggeredRule> result = rule.evaluate(ctx);
+
+        assertTrue(result.isEmpty(),
+                "stats.sampleSize=3 < default minSampleSize=10 must NOT trigger FR-2");
+    }
+
+    @Test
+    void shouldTriggerWhenSampleSizeMeetsMinSampleSizeOverride() {
+        var cfg = new RuleConfig("FR-2", true, Map.of(
+                "minSampleSize", 2,
+                "zScoreThreshold", 2.5
+        ));
+        var smallStats = new TransactionStats(
+                new BigDecimal("100.00"), new BigDecimal("20.00"), 3L
+        );
+        var statsRepo = new StubStatsRepo(Optional.of(smallStats));
+        var cfgRepo = new StubConfigRepo(Optional.of(cfg));
+        var rule = new AtypicalAmountRule(statsRepo, cfgRepo);
+        var ctx = new EvaluationContext(TX);
+
+        Optional<TriggeredRule> result = rule.evaluate(ctx);
+
+        assertTrue(result.isPresent(),
+                "sampleSize=3 >= override minSampleSize=2 must trigger (z=5.0 > 2.5)");
+    }
+
+    @Test
     void zScoreIsComputedInBigDecimalPrecisionNoDoubleRounding() {
         // Regression fixture for #231: with avg=99.99, stdDev=0.01, amount=100.00
         // a double-precision path produces z_score ~= 1.0 (or NaN-like due to

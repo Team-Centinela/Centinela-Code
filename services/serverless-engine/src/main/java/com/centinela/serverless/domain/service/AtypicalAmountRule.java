@@ -18,6 +18,13 @@ public final class AtypicalAmountRule implements PipelineStage {
     private static final String RULE_CODE = "FR-2";
     static final double DEFAULT_ZSCORE_THRESHOLD = 2.5;
     static final int DEFAULT_SCORE = 25;
+    /**
+     * ADR-004 §4.2 + #232: z-score is only meaningful with enough history.
+     * Below this many historical samples, the rule silently returns
+     * Optional.empty (no trigger, no score contribution) so a freshly-onboarded
+     * account with one or two transactions cannot trip FR-2.
+     */
+    static final int DEFAULT_MIN_SAMPLE_SIZE = 10;
 
     /**
      * ADR-004 §4.2: the z-score carried in rawEvidence and compared to the
@@ -55,6 +62,13 @@ public final class AtypicalAmountRule implements PipelineStage {
                 .setScale(ZSCORE_SCALE, RoundingMode.HALF_UP);
 
         var cfg = loadConfig();
+        if (stats.sampleSize() < cfg.minSampleSize) {
+            // Too little history to compute a meaningful z-score; ADR-004 §4.2 +
+            // #232 require the rule to silently skip (no trigger, no score
+            // contribution). We log at DEBUG to keep noise off prod logs but
+            // still surface the skip in traces.
+            return Optional.empty();
+        }
         BigDecimal threshold = BigDecimal.valueOf(cfg.zScoreThreshold);
         if (zScore.compareTo(threshold) > 0) {
             // ADR-004 §4.2: FR-2 rawEvidence schema is pinned to
@@ -79,14 +93,15 @@ public final class AtypicalAmountRule implements PipelineStage {
     private Config loadConfig() {
         var opt = configRepo.findByRuleCode(RULE_CODE);
         if (opt.isEmpty() || !opt.get().enabled()) {
-            return new Config(DEFAULT_ZSCORE_THRESHOLD, DEFAULT_SCORE);
+            return new Config(DEFAULT_ZSCORE_THRESHOLD, DEFAULT_SCORE, DEFAULT_MIN_SAMPLE_SIZE);
         }
         var cfg = opt.get();
         return new Config(
                 cfg.getDouble("zScoreThreshold", DEFAULT_ZSCORE_THRESHOLD),
-                cfg.getInt("score", DEFAULT_SCORE)
+                cfg.getInt("score", DEFAULT_SCORE),
+                cfg.getInt("minSampleSize", DEFAULT_MIN_SAMPLE_SIZE)
         );
     }
 
-    private record Config(double zScoreThreshold, int score) {}
+    private record Config(double zScoreThreshold, int score, int minSampleSize) {}
 }

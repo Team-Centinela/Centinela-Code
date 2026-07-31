@@ -42,6 +42,7 @@
         <spring-cloud-stream.version>4.3.3</spring-cloud-stream.version>
         <azure-messaging-servicebus.version>7.17.11</azure-messaging-servicebus.version>
         <azure-storage-blob.version>12.29.0</azure-storage-blob.version>
+        <azure-security-keyvault-secrets.version>4.9.0</azure-security-keyvault-secrets.version>
         <azure-identity.version>1.15.3</azure-identity.version>
         <archunit.version>1.3.0</archunit.version>
         <springdoc.version>2.8.6</springdoc.version>
@@ -70,6 +71,11 @@
                 <groupId>com.azure</groupId>
                 <artifactId>azure-storage-blob</artifactId>
                 <version>${azure-storage-blob.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.azure</groupId>
+                <artifactId>azure-security-keyvault-secrets</artifactId>
+                <version>${azure-security-keyvault-secrets.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.azure</groupId>

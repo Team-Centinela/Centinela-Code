@@ -184,4 +184,4 @@ If a budget threshold triggers during apply or shortly after:
 - `../docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md` §9.3
 - `infrastructure/REGION-QUOTA-CHECK.md` (Day-1 verification)
 - `.context-snapshots/phase-0-0.0-finish.md` (historical Phase 0 close)
-- Issues: #127 (bootstrap, already done), #159 (Phase 0 close-out), #167 (Phase 0 AC), #169 (Phase 2 critical path), #170 (real-Azure smoke)
+- Issues: #62 (bootstrap; PR #127 merged 2026-07-24), #159 (Phase 0 close-out), #167 (Phase 0 AC), #169 (Phase 2 critical path), #170 (real-Azure smoke)

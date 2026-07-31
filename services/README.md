@@ -43,4 +43,4 @@ See [`../docs/best-practices/05-pr-and-issue-discipline.md`](../docs/best-practi
 ## Open issues on this directory
 
 - **#51** — *Register serverless-engine Maven module in `services/pom.xml`*. **Closed by PR #121** (2026-07-24). This entry is kept for cross-link purposes only. Maintenance: none.
-- **#127** is the per-lane Epic #5-Day-A infrastructure bootstrap; **#139-#150** are the companion infra issues per ADR-010.
+- **#62** is the per-lane Epic #5-Day-A infrastructure bootstrap (closed by PR #127, 2026-07-24); **#139-#150** are the companion infra issues per ADR-010.

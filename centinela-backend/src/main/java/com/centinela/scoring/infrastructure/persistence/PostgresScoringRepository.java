@@ -9,7 +9,6 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -46,7 +45,7 @@ public class PostgresScoringRepository implements ScoringRepository {
     public List<TransactionHistory> findRecentByCuentaId(String cuentaId, Instant since) {
         @SuppressWarnings("unchecked")
         List<Object[]> results = entityManager.createNativeQuery(
-            "SELECT id, cuenta_id, monto, marca_tiempo, ubicacion_lat, ubicacion_lon, comercio_id, comercio_categoria " +
+            "SELECT transaction_id, cuenta_id, monto, marca_tiempo, ubicacion_lat, ubicacion_lon, comercio_id, comercio_categoria " +
             "FROM transacciones WHERE cuenta_id = :cuentaId AND marca_tiempo >= :since " +
             "ORDER BY marca_tiempo DESC")
             .setParameter("cuentaId", cuentaId)
@@ -58,7 +57,7 @@ public class PostgresScoringRepository implements ScoringRepository {
             th.setTransactionId((String) row[0]);
             th.setCuentaId((String) row[1]);
             th.setMonto((BigDecimal) row[2]);
-            th.setMarcaTiempo(((Timestamp) row[3]).toInstant());
+            th.setMarcaTiempo(toInstant(row[3]));
             th.setUbicacionLat(row[4] != null ? ((Number) row[4]).doubleValue() : null);
             th.setUbicacionLon(row[5] != null ? ((Number) row[5]).doubleValue() : null);
             th.setComercioId((String) row[6]);
@@ -71,7 +70,7 @@ public class PostgresScoringRepository implements ScoringRepository {
     public Optional<TransactionHistory> findLastByCuentaId(String cuentaId) {
         @SuppressWarnings("unchecked")
         List<Object[]> results = entityManager.createNativeQuery(
-            "SELECT id, cuenta_id, monto, marca_tiempo, ubicacion_lat, ubicacion_lon, comercio_id, comercio_categoria " +
+            "SELECT transaction_id, cuenta_id, monto, marca_tiempo, ubicacion_lat, ubicacion_lon, comercio_id, comercio_categoria " +
             "FROM transacciones WHERE cuenta_id = :cuentaId " +
             "ORDER BY marca_tiempo DESC LIMIT 1")
             .setParameter("cuentaId", cuentaId)
@@ -82,7 +81,7 @@ public class PostgresScoringRepository implements ScoringRepository {
             th.setTransactionId((String) row[0]);
             th.setCuentaId((String) row[1]);
             th.setMonto((BigDecimal) row[2]);
-            th.setMarcaTiempo(((Timestamp) row[3]).toInstant());
+            th.setMarcaTiempo(toInstant(row[3]));
             th.setUbicacionLat(row[4] != null ? ((Number) row[4]).doubleValue() : null);
             th.setUbicacionLon(row[5] != null ? ((Number) row[5]).doubleValue() : null);
             th.setComercioId((String) row[6]);
@@ -108,5 +107,13 @@ public class PostgresScoringRepository implements ScoringRepository {
             .setParameter("since", since)
             .getSingleResult();
         return ((Number) result).longValue();
+    }
+
+    private Instant toInstant(Object dbValue) {
+        if (dbValue == null) return null;
+        if (dbValue instanceof Instant) return (Instant) dbValue;
+        if (dbValue instanceof java.sql.Timestamp) return ((java.sql.Timestamp) dbValue).toInstant();
+        if (dbValue instanceof java.time.OffsetDateTime) return ((java.time.OffsetDateTime) dbValue).toInstant();
+        return Instant.parse(dbValue.toString());
     }
 }

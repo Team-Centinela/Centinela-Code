@@ -7,6 +7,7 @@ import com.centinela.scoring.domain.model.TransactionHistory;
 import com.centinela.scoring.domain.port.CaseRepository;
 import com.centinela.scoring.domain.port.Rule;
 import com.centinela.scoring.domain.port.ScoringRepository;
+import com.centinela.explanation.application.service.ExplanationService;
 import com.centinela.shared.events.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,9 @@ class ScoringServiceTest {
     private EventPublisher eventPublisher;
 
     @Mock
+    private ExplanationService explanationService;
+
+    @Mock
     private Rule velocityRule;
 
     @Mock
@@ -64,6 +68,7 @@ class ScoringServiceTest {
         transaction.setMarcaTiempo(Instant.now());
 
         lenient().when(scoringRepository.findRecentByCuentaId(any(), any())).thenReturn(Collections.emptyList());
+        lenient().when(explanationService.generateExplanation(any())).thenReturn("Explicacion de prueba");
     }
 
     @Test

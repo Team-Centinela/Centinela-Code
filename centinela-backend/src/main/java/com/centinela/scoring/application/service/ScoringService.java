@@ -4,6 +4,7 @@ import com.centinela.scoring.domain.model.*;
 import com.centinela.scoring.domain.port.CaseRepository;
 import com.centinela.scoring.domain.port.Rule;
 import com.centinela.scoring.domain.port.ScoringRepository;
+import com.centinela.explanation.application.service.ExplanationService;
 import com.centinela.shared.events.DomainEvent;
 import com.centinela.shared.events.EventPublisher;
 import com.centinela.shared.events.EventTypes;
@@ -24,6 +25,7 @@ public class ScoringService {
     private final ScoringRepository scoringRepository;
     private final CaseRepository caseRepository;
     private final EventPublisher eventPublisher;
+    private final ExplanationService explanationService;
     private final List<Rule> rules;
 
     @Value("${centinela.scoring.threshold:60}")
@@ -32,10 +34,12 @@ public class ScoringService {
     public ScoringService(ScoringRepository scoringRepository,
                           CaseRepository caseRepository,
                           EventPublisher eventPublisher,
+                          ExplanationService explanationService,
                           List<Rule> rules) {
         this.scoringRepository = scoringRepository;
         this.caseRepository = caseRepository;
         this.eventPublisher = eventPublisher;
+        this.explanationService = explanationService;
         this.rules = rules;
     }
 
@@ -73,7 +77,7 @@ public class ScoringService {
             fraudCase.setCuentaId(transaccion.getCuentaId());
             fraudCase.setScore(scored.getScore());
             fraudCase.setUmbral(threshold);
-            fraudCase.setExplicacion(generarExplicacion(scored));
+            fraudCase.setExplicacion(explanationService.generateExplanation(scored));
 
             caseRepository.save(fraudCase);
 
@@ -95,17 +99,5 @@ public class ScoringService {
         )));
 
         return scored;
-    }
-
-    private String generarExplicacion(ScoredTransaction scored) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("Transaccion marcada con score %s (umbral: %s).%n%n",
-                scored.getScore().toPlainString(), scored.getUmbral().toPlainString()));
-
-        for (RuleActivation activation : scored.getReglasActivadas()) {
-            sb.append(activation.getDescripcion()).append(".\n\n");
-        }
-
-        return sb.toString();
     }
 }

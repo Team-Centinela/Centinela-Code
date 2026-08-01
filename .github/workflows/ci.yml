@@ -2,9 +2,14 @@ name: ci
 
 on:
   push:
-    branches: [developer, main]
+    branches: [main]
   pull_request:
-    branches: [developer, main]
+    branches: [main]
+
+env:
+  ACR_NAME: centinelaacr1785613282
+  RESOURCE_GROUP: rg-centinela-prod
+  BACKEND_APP: centinela-api-1785613299
 
 jobs:
   docs-lint:
@@ -14,25 +19,99 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check markdown link integrity
         run: |
-          # Lightweight check — fail if any stale Centinela-docs URL is referenced.
           if grep -RIl "centinela-docs/issues\|Centinela-Code\)\|#\(github\)\?\.com/Team-Centinela/Centinela-docs/" docs/ 2>/dev/null; then
-            echo "❌ Stale Centinela-docs references found in docs/. Commit a fix."
+            echo "Stale Centinela-docs references found in docs/."
             exit 1
           fi
-          echo "✅ No stale references in docs/"
+          echo "No stale references in docs/"
 
-  code-lint:
-    name: Code Build & Lint (placeholder)
+  build-and-test:
+    name: Build & Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Stub
-        run: echo 'Service-level CI will land in Sprint 1 (see issue #4).'
 
-  terraform-lint:
-    name: Terraform Validate (placeholder)
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build backend
+        run: cd centinela-backend && mvn clean compile -q
+
+      - name: Run tests
+        run: cd centinela-backend && mvn test -q
+
+      - name: Build frontend
+        run: cd centinela-frontend && npm install --legacy-peer-deps && npx next build
+
+  build-and-push-images:
+    name: Build & Push Docker Images
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Stub
-        run: echo 'Terraform validation lands in Sprint 1 (see issue #4).'
+
+      - name: Login to ACR
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ env.ACR_NAME }}.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and push backend image
+        run: |
+          cd centinela-backend
+          docker build -t ${{ env.ACR_NAME }}.azurecr.io/centinela-backend:${{ github.sha }} .
+          docker build -t ${{ env.ACR_NAME }}.azurecr.io/centinela-backend:latest .
+          docker push ${{ env.ACR_NAME }}.azurecr.io/centinela-backend:${{ github.sha }}
+          docker push ${{ env.ACR_NAME }}.azurecr.io/centinela-backend:latest
+
+      - name: Build and push frontend image
+        run: |
+          cd centinela-frontend
+          docker build -t ${{ env.ACR_NAME }}.azurecr.io/centinela-frontend:${{ github.sha }} .
+          docker build -t ${{ env.ACR_NAME }}.azurecr.io/centinela-frontend:latest .
+          docker push ${{ env.ACR_NAME }}.azurecr.io/centinela-frontend:${{ github.sha }}
+          docker push ${{ env.ACR_NAME }}.azurecr.io/centinela-frontend:latest
+
+  deploy:
+    name: Deploy to Azure
+    needs: build-and-push-images
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy backend to App Service
+        run: |
+          az webapp config container set \
+            --name ${{ env.BACKEND_APP }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --docker-custom-image-name ${{ env.ACR_NAME }}.azurecr.io/centinela-backend:${{ github.sha }} \
+            --docker-registry-server-url https://${{ env.ACR_NAME }}.azurecr.io \
+            --docker-registry-server-user ${{ secrets.ACR_USERNAME }} \
+            --docker-registry-server-password ${{ secrets.ACR_PASSWORD }}
+
+      - name: Restart App Service
+        run: az webapp restart --name ${{ env.BACKEND_APP }} --resource-group ${{ env.RESOURCE_GROUP }}
+
+      - name: Verify deployment
+        run: |
+          sleep 30
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://${{ env.BACKEND_APP }}.azurewebsites.net/actuator/health)
+          if [ "$STATUS" != "200" ]; then
+            echo "Deployment verification failed with status $STATUS"
+            exit 1
+          fi
+          echo "Deployment verified successfully"

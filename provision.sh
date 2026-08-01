@@ -8,7 +8,7 @@
 set -e
 
 # ========================= PARAMETROS =========================
-RESOURCE_GROUP="centinela-rg"
+RESOURCE_GROUP="rg-centinela-prod"
 LOCATION="polandcentral"
 STORAGE_ACCOUNT="centinestorage$(date +%s)"
 POSTGRESQL_SERVER="centinela-pg-$(date +%s)"

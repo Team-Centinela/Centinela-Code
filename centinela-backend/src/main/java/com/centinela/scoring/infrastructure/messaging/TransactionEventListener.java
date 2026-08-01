@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class TransactionEventListener {
@@ -21,6 +23,7 @@ public class TransactionEventListener {
 
     private final ScoringService scoringService;
     private final ScoringRepository scoringRepository;
+    private final Set<String> processedTransactions = ConcurrentHashMap.newKeySet();
 
     public TransactionEventListener(ScoringService scoringService,
                                     ScoringRepository scoringRepository) {
@@ -34,12 +37,18 @@ public class TransactionEventListener {
             return;
         }
 
-        log.info("Evento recibido: {} para transaccion {}", event.getEventType(), event.getPayload().get("transactionId"));
+        String transactionId = (String) event.getPayload().get("transactionId");
+        if (!processedTransactions.add(transactionId)) {
+            log.debug("Transaccion {} ya procesada, ignorando duplicado", transactionId);
+            return;
+        }
+
+        log.info("Evento recibido: {} para transaccion {}", event.getEventType(), transactionId);
 
         Map<String, Object> payload = event.getPayload();
 
         TransactionHistory history = new TransactionHistory();
-        history.setTransactionId((String) payload.get("transactionId"));
+        history.setTransactionId(transactionId);
         history.setCuentaId((String) payload.get("cuentaId"));
         history.setMonto(new BigDecimal((String) payload.get("monto")));
         history.setMarcaTiempo(Instant.parse((String) payload.get("marcaTiempo")));
@@ -47,9 +56,6 @@ public class TransactionEventListener {
         history.setUbicacionLon((Double) payload.get("ubicacionLon"));
         history.setComercioId((String) payload.get("comercioId"));
 
-        // Save to scoring repository for history queries
         scoringRepository.save(history);
-
-        scoringService.evaluarTransaccion(history);
     }
 }

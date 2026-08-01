@@ -2,6 +2,9 @@ package com.centinela.ingestion.application.service;
 
 import com.centinela.ingestion.domain.model.Transaccion;
 import com.centinela.ingestion.domain.port.TransaccionRepository;
+import com.centinela.scoring.application.service.ScoringService;
+import com.centinela.scoring.domain.model.TransactionHistory;
+import com.centinela.scoring.domain.port.ScoringRepository;
 import com.centinela.shared.events.DomainEvent;
 import com.centinela.shared.events.EventPublisher;
 import com.centinela.shared.events.EventTypes;
@@ -20,10 +23,16 @@ public class IngestionService {
 
     private final TransaccionRepository repository;
     private final EventPublisher eventPublisher;
+    private final Optional<ScoringService> scoringService;
+    private final Optional<ScoringRepository> scoringRepository;
 
-    public IngestionService(TransaccionRepository repository, EventPublisher eventPublisher) {
+    public IngestionService(TransaccionRepository repository, EventPublisher eventPublisher,
+                            Optional<ScoringService> scoringService,
+                            Optional<ScoringRepository> scoringRepository) {
         this.repository = repository;
         this.eventPublisher = eventPublisher;
+        this.scoringService = scoringService;
+        this.scoringRepository = scoringRepository;
     }
 
     public Transaccion procesarTransaccion(Transaccion transaccion) {
@@ -43,6 +52,28 @@ public class IngestionService {
                 "comercioCategoria", guardada.getComercioCategoria() != null ? guardada.getComercioCategoria() : ""
         ));
         eventPublisher.publishSafe(event);
+
+        scoringService.ifPresent(ss -> {
+            try {
+                TransactionHistory th = new TransactionHistory();
+                th.setTransactionId(guardada.getId());
+                th.setCuentaId(guardada.getCuentaId());
+                th.setMonto(guardada.getMonto());
+                th.setMarcaTiempo(guardada.getMarcaTiempo());
+                if (guardada.getUbicacion() != null) {
+                    th.setUbicacionLat(guardada.getUbicacion().getLatitud());
+                    th.setUbicacionLon(guardada.getUbicacion().getLongitud());
+                }
+                th.setComercioId(guardada.getComercioId());
+                th.setComercioCategoria(guardada.getComercioCategoria());
+
+                scoringRepository.ifPresent(repo -> repo.save(th));
+
+                ss.evaluarTransaccion(th);
+            } catch (Exception e) {
+                log.error("Error en scoring directo: {}", e.getMessage());
+            }
+        });
 
         log.info("Transaccion {} persistida y evento publicado", guardada.getId());
         return guardada;

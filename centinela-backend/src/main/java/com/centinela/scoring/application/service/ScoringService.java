@@ -47,7 +47,10 @@ public class ScoringService {
         log.info("Evaluando transaccion {} de cuenta {}", transaccion.getTransactionId(), transaccion.getCuentaId());
 
         Instant windowStart = transaccion.getMarcaTiempo().minus(java.time.Duration.ofMinutes(30));
-        List<TransactionHistory> history = scoringRepository.findRecentByCuentaId(transaccion.getCuentaId(), windowStart);
+        List<TransactionHistory> history = scoringRepository.findRecentByCuentaId(transaccion.getCuentaId(), windowStart)
+                .stream()
+                .filter(t -> !t.getTransactionId().equals(transaccion.getTransactionId()))
+                .toList();
 
         ScoredTransaction scored = new ScoredTransaction();
         scored.setTransactionId(transaccion.getTransactionId());

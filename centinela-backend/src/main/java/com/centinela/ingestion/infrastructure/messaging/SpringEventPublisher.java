@@ -5,11 +5,11 @@ import com.centinela.shared.events.EventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Profile;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("!azure")
+@Primary
 public class SpringEventPublisher implements EventPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(SpringEventPublisher.class);

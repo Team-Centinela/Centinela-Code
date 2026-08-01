@@ -7,22 +7,23 @@
 
 set -e
 
-RESOURCE_GROUP="centinela-rg"
+RESOURCE_GROUP="rg-centinela-prod"
 
 echo "=== Apagando recursos de Centinela ==="
 echo ""
 
 # Detener App Service
 echo "Deteniendo App Service..."
-az webapp stop --resource-group $RESOURCE_GROUP --name $(az webapp list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv) 2>/dev/null || true
+az webapp stop --resource-group $RESOURCE_GROUP --name centinela-api-1785613299 2>/dev/null || true
+az webapp stop --resource-group $RESOURCE_GROUP --name centinela-web-1785613299 2>/dev/null || true
 
 # Detener Redis Cache
 echo "Deteniendo Redis Cache..."
-az redis stop --resource-group $RESOURCE_GROUP --name $(az redis list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv) 2>/dev/null || true
+az redis stop --resource-group $RESOURCE_GROUP --name centinela-redis 2>/dev/null || true
 
-# Detener PostgreSQL (pausa, no elimina)
+# Pausar PostgreSQL (ahorra ~90% del costo)
 echo "Pausando PostgreSQL..."
-az postgres flexible-server stop --resource-group $RESOURCE_GROUP --name $(az postgres flexible-server list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv) 2>/dev/null || true
+az postgres flexible-server stop --resource-group $RESOURCE_GROUP --name centinela-pg-v2 2>/dev/null || true
 
 echo ""
 echo "=== Recursos detenidos ==="

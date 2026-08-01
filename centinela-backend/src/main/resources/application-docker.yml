@@ -1,0 +1,31 @@
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+centinela:
+  scoring:
+    threshold: ${SCORING_THRESHOLD:60}
+  rules:
+    velocity:
+      window-minutes: 5
+      max-transactions: 3
+      points: 35
+    amount:
+      multiplier-threshold: 10
+      points: 30
+    geo:
+      max-distance-km: 1000
+      min-time-minutes: 60
+      points: 25
+    merchant:
+      points: 20
+
+management:
+  endpoint:
+    health:
+      show-details: always

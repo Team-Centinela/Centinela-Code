@@ -11,4 +11,5 @@ public interface CaseRepository {
     FraudCase findByTransactionId(String transactionId);
     List<FraudCase> findByCuentaId(String cuentaId);
     List<FraudCase> findByEstado(String estado);
+    List<FraudCase> findAll();
 }

@@ -4,6 +4,7 @@
 -- Transactions table (high-volume, write-heavy)
 CREATE TABLE IF NOT EXISTS transacciones (
     id VARCHAR(36) PRIMARY KEY,
+    transaction_id VARCHAR(36) NOT NULL UNIQUE,
     cuenta_id VARCHAR(64) NOT NULL,
     monto DECIMAL(18,2) NOT NULL,
     moneda VARCHAR(3) NOT NULL DEFAULT 'USD',

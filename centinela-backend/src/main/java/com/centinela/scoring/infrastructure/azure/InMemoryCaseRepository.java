@@ -50,6 +50,11 @@ public class InMemoryCaseRepository implements CaseRepository {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<FraudCase> findAll() {
+        return List.copyOf(cases.values());
+    }
+
     public Map<String, FraudCase> getAllCases() {
         return cases;
     }

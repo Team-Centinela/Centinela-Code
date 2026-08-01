@@ -9,4 +9,5 @@ public interface TransaccionRepository {
     Optional<Transaccion> findById(String id);
     List<Transaccion> findByCuentaId(String cuentaId);
     List<Transaccion> findRecentByCuentaId(String cuentaId, int limit);
+    List<Transaccion> findAll();
 }

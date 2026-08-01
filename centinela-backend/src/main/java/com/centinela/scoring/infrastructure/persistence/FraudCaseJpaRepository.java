@@ -15,6 +15,8 @@ public interface FraudCaseJpaRepository extends JpaRepository<FraudCaseJpaEntity
 
     List<FraudCaseJpaEntity> findByAnalistaIdAndEstadoNot(String analistaId, String estado);
 
+    FraudCaseJpaEntity findByTransactionId(String transactionId);
+
     @Query("SELECT fc.estado, COUNT(fc) FROM FraudCaseJpaEntity fc GROUP BY fc.estado")
     List<Object[]> countByEstado();
 

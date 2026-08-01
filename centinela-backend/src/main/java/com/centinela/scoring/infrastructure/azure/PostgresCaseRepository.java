@@ -15,7 +15,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Repository
-@Profile("azure")
+@Profile("!local")
 public class PostgresCaseRepository implements CaseRepository {
 
     private final FraudCaseJpaRepository jpaRepository;
@@ -70,6 +70,18 @@ public class PostgresCaseRepository implements CaseRepository {
     public List<FraudCase> findByEstado(String estado) {
         return jpaRepository.findByEstadoOrderByFechaAperturaDesc(estado)
                 .stream().map(this::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<FraudCase> findAll() {
+        return jpaRepository.findAll()
+                .stream().map(this::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public FraudCase findByTransactionId(String transactionId) {
+        FraudCaseJpaEntity entity = jpaRepository.findByTransactionId(transactionId);
+        return entity != null ? toDomain(entity) : null;
     }
 
     private FraudCase toDomain(FraudCaseJpaEntity entity) {

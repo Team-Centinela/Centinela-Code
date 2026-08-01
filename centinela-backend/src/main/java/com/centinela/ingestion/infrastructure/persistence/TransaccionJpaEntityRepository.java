@@ -7,7 +7,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
-public interface TransaccionJpaEntityRepository extends JpaRepository<TransaccionJpaEntity, Long> {
+public interface TransaccionJpaEntityRepository extends JpaRepository<TransaccionJpaEntity, String> {
     Optional<TransaccionJpaEntity> findByTransactionId(String transactionId);
     List<TransaccionJpaEntity> findByCuentaIdOrderByMarcaTiempoDesc(String cuentaId);
 

@@ -11,6 +11,7 @@ public class TransactionHistory {
     private Double ubicacionLat;
     private Double ubicacionLon;
     private String comercioId;
+    private String comercioCategoria;
 
     public TransactionHistory() {}
 
@@ -28,4 +29,6 @@ public class TransactionHistory {
     public void setUbicacionLon(Double ubicacionLon) { this.ubicacionLon = ubicacionLon; }
     public String getComercioId() { return comercioId; }
     public void setComercioId(String comercioId) { this.comercioId = comercioId; }
+    public String getComercioCategoria() { return comercioCategoria; }
+    public void setComercioCategoria(String comercioCategoria) { this.comercioCategoria = comercioCategoria; }
 }

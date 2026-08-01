@@ -59,4 +59,8 @@ public class IngestionService {
     public List<Transaccion> obtenerTransaccionesRecientes(String cuentaId, int limit) {
         return repository.findRecentByCuentaId(cuentaId, limit);
     }
+
+    public List<Transaccion> obtenerTodas() {
+        return repository.findAll();
+    }
 }

@@ -1,6 +1,8 @@
 package com.centinela.ingestion.infrastructure.persistence;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.math.BigDecimal;
 import java.time.Instant;
 
@@ -9,35 +11,54 @@ import java.time.Instant;
 public class TransaccionJpaEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(length = 36)
+    private String id;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "transaction_id", nullable = false, unique = true, length = 36)
     private String transactionId;
 
-    @Column(nullable = false)
+    @Column(name = "cuenta_id", nullable = false, length = 64)
     private String cuentaId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal monto;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 3)
     private String moneda;
 
-    @Column(nullable = false)
+    @Column(name = "marca_tiempo", nullable = false)
     private Instant marcaTiempo;
 
+    @Column(name = "ubicacion_lat")
     private Double ubicacionLat;
+
+    @Column(name = "ubicacion_lon")
     private Double ubicacionLon;
 
+    @Column(name = "comercio_id", length = 128)
     private String comercioId;
+
+    @Column(name = "comercio_categoria", length = 128)
     private String comercioCategoria;
 
-    @Column(nullable = false)
-    private Instant fechaCreacion;
+    @Column(precision = 5, scale = 2)
+    private BigDecimal score;
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    @Column(nullable = false)
+    private Boolean marcada = false;
+
+    @Column(name = "fecha_evaluacion")
+    private Instant fechaEvaluacion;
+
+    @Column(name = "reglas_activadas")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String reglasActivadas;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt = Instant.now();
+
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
     public String getTransactionId() { return transactionId; }
     public void setTransactionId(String transactionId) { this.transactionId = transactionId; }
     public String getCuentaId() { return cuentaId; }
@@ -56,6 +77,14 @@ public class TransaccionJpaEntity {
     public void setComercioId(String comercioId) { this.comercioId = comercioId; }
     public String getComercioCategoria() { return comercioCategoria; }
     public void setComercioCategoria(String comercioCategoria) { this.comercioCategoria = comercioCategoria; }
-    public Instant getFechaCreacion() { return fechaCreacion; }
-    public void setFechaCreacion(Instant fechaCreacion) { this.fechaCreacion = fechaCreacion; }
+    public BigDecimal getScore() { return score; }
+    public void setScore(BigDecimal score) { this.score = score; }
+    public Boolean getMarcada() { return marcada; }
+    public void setMarcada(Boolean marcada) { this.marcada = marcada; }
+    public Instant getFechaEvaluacion() { return fechaEvaluacion; }
+    public void setFechaEvaluacion(Instant fechaEvaluacion) { this.fechaEvaluacion = fechaEvaluacion; }
+    public String getReglasActivadas() { return reglasActivadas; }
+    public void setReglasActivadas(String reglasActivadas) { this.reglasActivadas = reglasActivadas; }
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

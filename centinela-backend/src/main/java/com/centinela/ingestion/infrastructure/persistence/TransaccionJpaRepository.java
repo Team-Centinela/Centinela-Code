@@ -45,8 +45,15 @@ public class TransaccionJpaRepository implements TransaccionRepository {
                 .stream().map(this::toDomain).collect(Collectors.toList());
     }
 
+    @Override
+    public List<Transaccion> findAll() {
+        return jpaRepo.findAll()
+                .stream().map(this::toDomain).collect(Collectors.toList());
+    }
+
     private TransaccionJpaEntity toEntity(Transaccion t) {
         TransaccionJpaEntity e = new TransaccionJpaEntity();
+        e.setId(t.getId() != null ? t.getId() : java.util.UUID.randomUUID().toString());
         e.setTransactionId(t.getId());
         e.setCuentaId(t.getCuentaId());
         e.setMonto(t.getMonto());
@@ -58,7 +65,7 @@ public class TransaccionJpaRepository implements TransaccionRepository {
         }
         e.setComercioId(t.getComercioId());
         e.setComercioCategoria(t.getComercioCategoria());
-        e.setFechaCreacion(t.getFechaCreacion());
+        e.setCreatedAt(t.getFechaCreacion() != null ? t.getFechaCreacion() : Instant.now());
         return e;
     }
 
@@ -76,7 +83,7 @@ public class TransaccionJpaRepository implements TransaccionRepository {
                 .ubicacion(ubicacion)
                 .comercioId(e.getComercioId())
                 .comercioCategoria(e.getComercioCategoria())
-                .fechaCreacion(e.getFechaCreacion())
+                .fechaCreacion(e.getCreatedAt())
                 .build();
     }
 }

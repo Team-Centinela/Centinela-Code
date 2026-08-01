@@ -2,7 +2,7 @@ package com.centinela.scoring.infrastructure.messaging;
 
 import com.centinela.scoring.application.service.ScoringService;
 import com.centinela.scoring.domain.model.TransactionHistory;
-import com.centinela.scoring.infrastructure.azure.InMemoryScoringRepository;
+import com.centinela.scoring.domain.port.ScoringRepository;
 import com.centinela.shared.events.DomainEvent;
 import com.centinela.shared.events.EventTypes;
 import org.slf4j.Logger;
@@ -20,10 +20,10 @@ public class TransactionEventListener {
     private static final Logger log = LoggerFactory.getLogger(TransactionEventListener.class);
 
     private final ScoringService scoringService;
-    private final InMemoryScoringRepository scoringRepository;
+    private final ScoringRepository scoringRepository;
 
     public TransactionEventListener(ScoringService scoringService,
-                                    InMemoryScoringRepository scoringRepository) {
+                                    ScoringRepository scoringRepository) {
         this.scoringService = scoringService;
         this.scoringRepository = scoringRepository;
     }

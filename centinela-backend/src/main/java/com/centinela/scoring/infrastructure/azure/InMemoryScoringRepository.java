@@ -49,6 +49,7 @@ public class InMemoryScoringRepository implements ScoringRepository {
                 .count();
     }
 
+    @Override
     public void save(TransactionHistory transaction) {
         store.computeIfAbsent(transaction.getCuentaId(), k -> new ArrayList<>()).add(transaction);
     }

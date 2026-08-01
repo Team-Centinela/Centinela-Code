@@ -8,10 +8,22 @@ spring:
     username: ${DB_USERNAME:centinela}
     password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
 
   jpa:
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
 
   data:
     redis:
@@ -22,19 +34,20 @@ azure:
   storage:
     blob:
       container-name: documentos-verificacion
-    queue:
-      name: transacciones-pendientes
-  cosmos:
-    database: centinela
-    container: transacciones
   keyvault:
     vault-url: ${KEYVAULT_URL:}
-  appconfig:
-    connection-string: ${APPCONFIG_CONNECTION:}
 
 centinela:
   scoring:
     threshold: ${SCORING_THRESHOLD:60}
+  servicebus:
+    namespace: ${SERVICEBUS_NAMESPACE:}
+    queue:
+      ingestion: transacciones-ingestion
+    topic:
+      cases: casos-fraude
+    subscription:
+      gestion: gestion-casos
   rules:
     velocity:
       window-minutes: 5
@@ -49,3 +62,20 @@ centinela:
       points: 25
     merchant:
       points: 20
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    com.centinela: INFO

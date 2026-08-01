@@ -11,8 +11,12 @@ services:
       - SPRING_PROFILES_ACTIVE=local
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - DB_HOST=postgres
+      - DB_NAME=centinela_db
+      - DB_USERNAME=centinela
+      - DB_PASSWORD=centinela
     depends_on:
-      - mysql
+      - postgres
       - redis
     networks:
       - centinela-net
@@ -30,15 +34,16 @@ services:
     networks:
       - centinela-net
 
-  mysql:
-    image: mysql:8.0
+  postgres:
+    image: postgres:16-alpine
     ports:
-      - "3306:3306"
+      - "5432:5432"
     environment:
-      - MYSQL_ROOT_PASSWORD=root
-      - MYSQL_DATABASE=centinela_db
+      - POSTGRES_DB=centinela_db
+      - POSTGRES_USER=centinela
+      - POSTGRES_PASSWORD=centinela
     volumes:
-      - mysql-data:/var/lib/mysql
+      - postgres-data:/var/lib/postgresql/data
     networks:
       - centinela-net
 
@@ -50,7 +55,7 @@ services:
       - centinela-net
 
 volumes:
-  mysql-data:
+  postgres-data:
 
 networks:
   centinela-net:

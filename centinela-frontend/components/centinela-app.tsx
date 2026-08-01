@@ -30,6 +30,8 @@ import {
   User,
 } from "lucide-react"
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+
 type Theme = "light" | "dark"
 
 function useTheme() {
@@ -92,51 +94,65 @@ interface Metrics {
   scorePromedio: number
 }
 
-const MOCK_CASES: FraudCase[] = [
-  {
-    id: "CASE-001",
-    transactionId: "TXN-100234",
-    cuentaId: "ACC-001",
-    score: 85,
-    umbral: 60,
-    estado: "ABIERTO",
-    fechaApertura: new Date(Date.now() - 3600000).toISOString(),
-    explicacion: "Transaccion marcada con score 85 (umbral: 60).\n\nSe detectaron 4 transacciones de esta cuenta en los ultimos 5 minutos, cuando el limite es de 3 (+35 puntos).\n\nEl monto de $4.200.000 supera en 84x el promedio historico de la cuenta ($50.000) (+30 puntos).\n\nLa transaccion anterior de esta cuenta se origino en Medellin hace 11 minutos; esta se origina en Madrid, a 8.000 km (+20 puntos).",
-    reglasActivadas: ["VELOCITY", "AMOUNT", "GEO_IMPOSSIBLE"],
-  },
-  {
-    id: "CASE-002",
-    transactionId: "TXN-100233",
-    cuentaId: "ACC-003",
-    score: 72,
-    umbral: 60,
-    estado: "EN_REVISION",
-    fechaApertura: new Date(Date.now() - 7200000).toISOString(),
-    explicacion: "Transaccion marcada con score 72 (umbral: 60).\n\nSe detectaron 3 transacciones de esta cuenta en los ultimos 5 minutos (+35 puntos).\n\nEl comercio destino esta en la lista de entidades de riesgo (+20 puntos).\n\nEl monto de $850.000 supera en 12x el promedio historico (+17 puntos).",
-    reglasActivadas: ["VELOCITY", "MERCHANT_RISK", "AMOUNT"],
-  },
-  {
-    id: "CASE-003",
-    transactionId: "TXN-100230",
-    cuentaId: "ACC-002",
-    score: 65,
-    umbral: 60,
-    estado: "CERRADO",
-    fechaApertura: new Date(Date.now() - 86400000).toISOString(),
-    explicacion: "Transaccion marcada con score 65 (umbral: 60).\n\nLa transaccion anterior de esta cuenta se origino en Bogota; esta se origina en Panama, con 30 minutos de diferencia (+25 puntos).\n\nEl monto de $1.200.000 supera en 15x el promedio historico (+20 puntos).\n\nComercio categorizado como de alto riesgo (+20 puntos).",
-    reglasActivadas: ["GEO_IMPOSSIBLE", "AMOUNT", "MERCHANT_RISK"],
-  },
-]
+function useApiData() {
+  const [cases, setCases] = useState<FraudCase[]>([])
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-const MOCK_TRANSACTIONS: Transaction[] = [
-  { id: "TXN-100234", cuentaId: "ACC-001", monto: 4200000, moneda: "USD", marcaTiempo: new Date(Date.now() - 300000).toISOString(), ubicacion: "Madrid, ES", comercioId: "darkmarket", score: 85, marcada: true },
-  { id: "TXN-100233", cuentaId: "ACC-003", monto: 850000, moneda: "USD", marcaTiempo: new Date(Date.now() - 600000).toISOString(), ubicacion: "Bogota, CO", comercioId: "gambling", score: 72, marcada: true },
-  { id: "TXN-100232", cuentaId: "ACC-002", monto: 15000, moneda: "USD", marcaTiempo: new Date(Date.now() - 900000).toISOString(), ubicacion: "Medellin, CO", comercioId: "retail", score: 15, marcada: false },
-  { id: "TXN-100231", cuentaId: "ACC-001", monto: 50000, moneda: "USD", marcaTiempo: new Date(Date.now() - 1200000).toISOString(), ubicacion: "Medellin, CO", comercioId: "restaurant", score: 10, marcada: false },
-  { id: "TXN-100230", cuentaId: "ACC-002", monto: 1200000, moneda: "USD", marcaTiempo: new Date(Date.now() - 1800000).toISOString(), ubicacion: "Panama City, PA", comercioId: "crypto-mixer", score: 65, marcada: true },
-  { id: "TXN-100229", cuentaId: "ACC-004", monto: 25000, moneda: "USD", marcaTiempo: new Date(Date.now() - 2400000).toISOString(), ubicacion: "Lima, PE", comercioId: "grocery", score: 5, marcada: false },
-  { id: "TXN-100228", cuentaId: "ACC-003", monto: 45000, moneda: "USD", marcaTiempo: new Date(Date.now() - 3600000).toISOString(), ubicacion: "Santiago, CL", comercioId: "restaurant", score: 8, marcada: false },
-]
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true)
+
+        const casesRes = await fetch(`${API_URL}/api/v1/cases`)
+        if (casesRes.ok) {
+          const casesData = await casesRes.json()
+          setCases(casesData.map((c: any) => ({
+            id: c.id,
+            transactionId: c.transactionId,
+            cuentaId: c.cuentaId,
+            score: c.score,
+            umbral: c.umbral,
+            estado: c.estado,
+            fechaApertura: c.fechaApertura,
+            explicacion: c.explicacion || "",
+            reglasActivadas: c.reglasActivadas || [],
+          })))
+        }
+
+        const txnRes = await fetch(`${API_URL}/api/v1/transacciones`)
+        if (txnRes.ok) {
+          const txnData = await txnRes.json()
+          setTransactions(txnData.map((t: any) => ({
+            id: t.id,
+            cuentaId: t.cuentaId,
+            monto: t.monto,
+            moneda: t.moneda,
+            marcaTiempo: t.marcaTiempo,
+            ubicacion: t.ubicacion ? `${t.ubicacion.latitud}, ${t.ubicacion.longitud}` : "",
+            comercioId: t.comercioId || "",
+            score: t.score || 0,
+            marcada: t.marcada || false,
+          })))
+        }
+
+        setError(null)
+      } catch (err) {
+        console.error("Error fetching data:", err)
+        setError("No se pudo conectar al backend. Usando datos de demostracion.")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+    const interval = setInterval(fetchData, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  return { cases, transactions, loading, error }
+}
 
 const currency = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })
 const formatDate = (s: string) => new Date(s).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
@@ -282,7 +298,7 @@ function Metric({ icon, label, value, accent }: { icon: React.ReactNode; label: 
   )
 }
 
-function AnalystDashboard({ cases, transactions, onSelectCase, onLogout, theme, toggleTheme }: { cases: FraudCase[]; transactions: Transaction[]; onSelectCase: (c: FraudCase) => void; onLogout: () => void; theme: Theme; toggleTheme: () => void }) {
+function AnalystDashboard({ cases, transactions, onSelectCase, onLogout, theme, toggleTheme, loading, error }: { cases: FraudCase[]; transactions: Transaction[]; onSelectCase: (c: FraudCase) => void; onLogout: () => void; theme: Theme; toggleTheme: () => void; loading: boolean; error: string | null }) {
   const [filter, setFilter] = useState<string>("all")
   const [search, setSearch] = useState("")
 
@@ -308,6 +324,7 @@ function AnalystDashboard({ cases, transactions, onSelectCase, onLogout, theme, 
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Panel de Analista</h1>
           <p className="text-sm text-muted-foreground">Monitoreo y gestion de casos de fraude en tiempo real</p>
+          {error && <p className="mt-2 text-sm text-yellow-600">{error}</p>}
         </div>
 
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -479,6 +496,7 @@ export default function CentinelaApp() {
   const [view, setView] = useState<"login" | "analyst" | "admin">("login")
   const [selectedCase, setSelectedCase] = useState<FraudCase | null>(null)
   const { theme, toggle: toggleTheme } = useTheme()
+  const { cases, transactions, loading, error } = useApiData()
 
   const handleLogin = (email: string) => {
     if (email.includes("admin")) {
@@ -502,12 +520,14 @@ export default function CentinelaApp() {
   return (
     <>
       <AnalystDashboard
-        cases={MOCK_CASES}
-        transactions={MOCK_TRANSACTIONS}
+        cases={cases}
+        transactions={transactions}
         onSelectCase={setSelectedCase}
         onLogout={handleLogout}
         theme={theme}
         toggleTheme={toggleTheme}
+        loading={loading}
+        error={error}
       />
       {selectedCase && <CaseDetailModal case={selectedCase} onClose={() => setSelectedCase(null)} />}
     </>

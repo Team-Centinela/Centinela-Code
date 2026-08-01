@@ -1,0 +1,42 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  datasource:
+    url: jdbc:h2:mem:centinela;DB_CLOSE_DELAY=-1;MODE=MySQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.H2Dialect
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+
+centinela:
+  scoring:
+    threshold: 60
+  rules:
+    velocity:
+      window-minutes: 5
+      max-transactions: 3
+      points: 35
+    amount:
+      multiplier-threshold: 10
+      points: 30
+    geo:
+      max-distance-km: 1000
+      min-time-minutes: 60
+      points: 25
+    merchant:
+      points: 20

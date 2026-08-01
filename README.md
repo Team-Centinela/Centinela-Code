@@ -1,101 +1,253 @@
----
-title: Centinela — Real-time Fraud Detection Platform
-type: overview
-tags:
-  - overview
-  - onboarding
-created: 2026-07-15
----
+# Centinela — Motor de Deteccion de Fraude Transaccional en Tiempo Real
 
-# Centinela
-
-Real-time transactional fraud detection platform for a small / medium
-fintech, built within a **$60 / 21-day** budget by a **4-person** team
-using AI-driven development.
-
-This is a **monorepo**: code, infrastructure, and persistent
-architectural documents live together so AI agents and humans can move
-between them without context fragmentation.
-
-## Project at a glance
-
-| | |
-|---|---|
-| **Money budget**       | $60 over 21 days |
-| **Team**               | 4 people (full-stack, AI-assisted) |
-| **Delivery model**     | Modular monolith + selective extraction (ADR-001) |
-| **Storage**            | Azure PostgreSQL Flexible Server (B1ms, schema-per-module) (ADR-002) |
-| **Async backbone**     | Azure Service Bus Standard tier (Topics required for `case-events`) (ADR-003) |
-| **Rule Engine**        | Pipeline Pattern w/ deterministic NL Explainer (ADR-004) |
-| **Repo posture**       | Single monorepo (ADR-005) |
-| **Deployment model**   | Azure Container Apps + Static Web Apps |
-
-## Repository Navigation
+## Arquitectura
 
 ```
-Centinela-Code/
-├── README.md              ← you are here
-├── AGENTS.md              ← AI agent behavior rules (every session loads this)
-├── opencode.json          ← AI tooling config
-├── docs/                  ← persistent architectural context
-│   ├── AGENTS.md          ← rules specific to the docs/ tree
-│   ├── architecture/      ← 6 narrative files
-│   ├── patterns/          ← 6 design patterns
-│   ├── best-practices/    ← 4 convention files
-│   ├── decision-log/      ← ADRs (Architecture Decision Records)
-│   └── ASSIGNMENT.md      ← project-fixed constraints
-├── services/              ← runtime services (4)
-├── infrastructure/        ← Terraform IaC
-├── .github/               ← CI workflows + Issue templates
-└── .opencode/             ← context map + project-specific AI skills
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          CENTINELA                                       │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐           │
+│  │   Frontend    │     │   Backend    │     │   Scoring    │           │
+│  │   Next.js     │────▶│  Spring Boot │────▶│   Engine     │           │
+│  │   React       │     │  Hexagonal   │     │  Serverless  │           │
+│  └──────────────┘     └──────────────┘     └──────────────┘           │
+│         │                    │                    │                     │
+│         │                    │                    │                     │
+│         ▼                    ▼                    ▼                     │
+│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐           │
+│  │  Azure CDN   │     │  Azure SQL   │     │  Cosmos DB   │           │
+│  │  Front Door  │     │  PostgreSQL  │     │  NoSQL       │           │
+│  └──────────────┘     └──────────────┘     └──────────────┘           │
+│                                                                          │
+│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐           │
+│  │  Key Vault   │     │  Event Grid  │     │  Blob Storage│           │
+│  │  Secretos    │     │  Mensajeria  │     │  Documentos  │           │
+│  └──────────────┘     └──────────────┘     └──────────────┘           │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Where to start
+## Equipo
 
-- **You are a human joining the project** → read `docs/ASSIGNMENT.md`
-  then `docs/architecture/01-overview.md`.
-- **You are an AI agent** → read `AGENTS.md` first (it is referenced
-  by `opencode.json` `instructions:`). Then `.opencode/CONTEXT-MAP.md`
-  to find the right doc for the work at hand.
-- **You want to add a feature** → find or open a GitHub Issue
-  (`gh issue list`); the issue templates in `.github/ISSUE_TEMPLATE/`
-  guarantee that each issue points to its driving ADR/doc.
-- **You want to record a decision** → use the **ADR draft** template
-  and create `docs/decision-log/ADR-NNN-<name>.md` linked from the
-  issue body.
+| Nombre | Rol | Responsabilidad |
+|--------|-----|-----------------|
+| Santiago G. | Tech Lead | Arquitectura, Infraestructura Azure |
+| Sebastian | Backend Developer | Motor de scoring, Reglas de deteccion |
+| Jeronimo | Backend Developer | API de ingesta, Dominio |
+| Santiago S. | Frontend Developer | Dashboard de analista, UI/UX |
+| Juan David | DevOps Engineer | CI/CD, Containers, Observabilidad |
 
-## Persisted decisions (ADRs)
+## Stack Tecnologico
 
-| ADR | Title | Status |
-|---|---|---|
-| [ADR-001](docs/decision-log/ADR-001-modular-monolith-hexagonal.md) | Modular Monolith + Hexagonal | DRAFT → pending Sprint 0 review |
-| [ADR-002](docs/decision-log/ADR-002-postgresql-only-db.md) | Unified PostgreSQL Persistence | DRAFT → pending Sprint 0 review |
-| [ADR-003](docs/decision-log/ADR-003-async-messaging-reliability.md) | Async Messaging & Reliability | DRAFT → pending Sprint 0 review |
-| [ADR-004](docs/decision-log/ADR-004-rule-engine-pipeline-explainer.md) | Rule Engine — Pipeline Pattern | DRAFT → pending Sprint 0 review |
-| [ADR-005](docs/decision-log/ADR-005-monorepo-unification.md) | Monorepo Unification | EXECUTED (2026-07-15) |
+### Backend
+- **Lenguaje:** Java 17
+- **Framework:** Spring Boot 3.3.5
+- **Arquitectura:** Hexagonal (puertos y adaptadores)
+- **Base de datos:** PostgreSQL (relacional), Cosmos DB (NoSQL)
+- **Cache:** Redis
+- **Mensajeria:** Azure Service Bus / Event Grid
 
-> ADR-006 (Security & Auth), ADR-007 (Observability/Cost), and ADR-008
-> (Config & Secrets) are tracked as issues and will land after Sprint 0.
+### Frontend
+- **Framework:** Next.js 16
+- **UI:** React 19, Tailwind CSS, shadcn/ui
+- **Lenguaje:** TypeScript
 
-## What is *not* in this repo
+### Azure
+- **Region:** Poland Central
+- **Recursos:**
+  - App Service (B1) - Backend API
+  - Cosmos DB (Serverless) - Transacciones
+  - Azure SQL PostgreSQL - Casos de fraude
+  - Blob Storage - Documentos de verificacion
+  - Service Bus - Cola de transacciones
+  - Event Grid - Publicacion de eventos
+  - Key Vault - Secretos
+  - Redis Cache - Cache de sesion
+  - Container Registry - Imagenes Docker
+  - Application Insights - Observabilidad
 
-- ❌ Job control code (TargetProcess / Linear)
-- ❌ Customer data — no data is committed, ever
-- ❌ Any binary that could fit in `git lfs` (large models, media)
-- ❌ The historical `Centinela-docs` repo (archived
-  [here](https://github.com/Team-Centinela/Centinela-docs))
+## Estructura del Proyecto
 
-## Quick links
+```
+centinela/
+├── centinela-backend/           # Backend Spring Boot
+│   ├── src/main/java/com/centinela/
+│   │   ├── shared/              # Componentes compartidos
+│   │   │   ├── config/
+│   │   │   ├── events/
+│   │   │   └── exceptions/
+│   │   ├── ingestion/           # Modulo de ingesta
+│   │   │   ├── domain/
+│   │   │   ├── application/
+│   │   │   └── infrastructure/
+│   │   ├── scoring/             # Modulo de scoring
+│   │   │   ├── domain/
+│   │   │   ├── application/
+│   │   │   └── infrastructure/
+│   │   ├── cases/               # Modulo de casos
+│   │   │   ├── domain/
+│   │   │   ├── application/
+│   │   │   └── infrastructure/
+│   │   └── explanation/         # Modulo de explicacion
+│   │       ├── domain/
+│   │       ├── application/
+│   │       └── infrastructure/
+│   └── Dockerfile
+├── centinela-frontend/          # Frontend Next.js
+│   ├── app/
+│   ├── components/
+│   └── Dockerfile
+├── provision.sh                 # Script de aprovisionamiento
+├── shutdown.sh                  # Script de apagado
+└── setup.sh                     # Script de configuracion local
+```
 
-- Issues: <https://github.com/Team-Centinela/Centinela-Code/issues>
-- Issue templates enforcing ADR linkage:
-  `.github/ISSUE_TEMPLATE/adr.md`, `sprint-task.md`, `bug.md`
-- CI: `.github/workflows/ci.yml`
-- AI tooling: `opencode.json`
+## Arquitectura Hexagonal
 
----
+El backend sigue el patron de arquitectura hexagonal (puertos y adaptadores):
 
-> **Repository courtesy:** All architecture state is owned by an
-> Agent in this monorepo. The historical `Centinela-docs` repository is
-> archived (read-only) and contains only the 6 closed issues that
-> pre-date the unification.
+### Dominio
+- **Entidades:** Transaccion, ScoredTransaction, FraudCase
+- **Puertos de entrada:** API REST, Event Listeners
+- **Puertos de salida:** Repositories, Event Publishers
+
+### Modulos
+1. **Ingestion:** Recibe y valida transacciones
+2. **Scoring:** Evalua transacciones contra reglas de fraude
+3. **Cases:** Gestiona casos de fraude
+4. **Explanation:** Genera explicaciones legibles
+
+## Reglas de Deteccion
+
+| Regla | Descripcion | Puntos |
+|-------|-------------|--------|
+| VELOCITY | Multiples transacciones en ventana corta | 35 |
+| AMOUNT | Monto significativamente superior al historico | 30 |
+| GEO_IMPOSSIBLE | Ubicaciones incompatibles en tiempo | 25 |
+| MERCHANT_RISK | Comercio o categoria de riesgo | 20 |
+
+**Umbral:** 60 puntos (configurable via Azure App Configuration)
+
+## Contrato de Transaccion
+
+```json
+{
+  "cuentaId": "string (requerido)",
+  "monto": "number (requerido, min: 0.01)",
+  "moneda": "string (default: USD)",
+  "marcaTiempo": "long (epoch millis)",
+  "ubicacionLat": "double (-90 a 90)",
+  "ubicacionLon": "double (-180 a 180)",
+  "comercioId": "string",
+  "comercioCategoria": "string"
+}
+```
+
+## Configuracion
+
+### Variables de Entorno
+
+| Variable | Descripcion | Default |
+|----------|-------------|---------|
+| SPRING_PROFILES_ACTIVE | Perfil de Spring | local |
+| REDIS_HOST | Host de Redis | localhost |
+| REDIS_PORT | Puerto de Redis | 6379 |
+| KEYVAULT_URL | URL de Key Vault | - |
+| COSMOS_ENDPOINT | Endpoint de Cosmos DB | - |
+| COSMOS_KEY | Clave de Cosmos DB | - |
+| SCORING_THRESHOLD | Umbral de scoring | 60 |
+
+### Perfiles
+- **local:** Desarrollo local con MySQL y datos en memoria
+- **azure:** Produccion en Azure con todos los servicios
+
+## Endpoints API
+
+### Ingesta
+- `POST /api/v1/transacciones` - Recibir transaccion
+- `GET /api/v1/transacciones/{id}` - Obtener transaccion
+- `GET /api/v1/transacciones/cuenta/{cuentaId}` - Transacciones por cuenta
+
+### Scoring
+- `GET /api/v1/scoring/cases` - Listar casos de fraude
+- `GET /api/v1/scoring/cases/{caseId}` - Obtener caso
+
+### Health
+- `GET /api/v1/transacciones/health` - Health check ingesta
+- `GET /api/v1/scoring/health` - Health check scoring
+- `GET /actuator/health` - Health check general
+
+## Despliegue
+
+### Local
+```bash
+# Instalar dependencias
+./setup.sh
+
+# Ejecutar backend
+cd centinela-backend
+mvn spring-boot:run -Dspring-boot.run.profiles=local
+
+# Ejecutar frontend
+cd centinela-frontend
+pnpm dev
+```
+
+### Azure
+```bash
+# Aprovisionar infraestructura
+chmod +x provision.sh
+./provision.sh
+
+# Desplegar backend
+cd centinela-backend
+mvn clean package -DskipTests
+az webapp deployment source config-zip \
+    --name centinela-api-<suffix> \
+    --resource-group centinela-rg \
+    --src target/centinela-backend-1.0.0-SNAPSHOT.jar
+
+# Apagar recursos al final del dia
+./shutdown.sh
+```
+
+## Presupuesto
+
+- **Credito total:** $200 USD (30 dias)
+- **Objetivo:** <$60 USD
+- **Region:** Poland Central (costo optimizado)
+
+### Costo Estimado Diario
+| Servicio | Costo/dia |
+|----------|-----------|
+| App Service B1 | ~$0.10 |
+| Cosmos DB Serverless | ~$0.25 |
+| PostgreSQL | ~$0.20 |
+| Storage | ~$0.05 |
+| Redis | ~$0.10 |
+| **Total** | **~$0.70/dia** |
+
+## Script de Apagado
+
+Ejecutar al cierre de cada jornada:
+```bash
+./shutdown.sh
+```
+
+Esto detiene App Service y Redis Cache para evitar consumo innecesario de credito.
+
+## Desarrollo
+
+### Commits
+- Santiago G.: Arquitectura, Scripts Azure
+- Sebastian: Motor de scoring, Reglas
+- Jeronimo: API de ingesta, Dominio
+- Santiago S.: Frontend, Dashboard
+- Juan David: CI/CD, Docker, Observabilidad
+
+### Ramas
+- `main` - Produccion
+- `develop` - Desarrollo
+- `feature/*` - Features
+- `fix/*` - Fixes

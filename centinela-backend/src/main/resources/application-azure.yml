@@ -1,0 +1,51 @@
+spring:
+  config:
+    activate:
+      on-profile: azure
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:centinela}
+    username: ${DB_USERNAME:centinela}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+azure:
+  storage:
+    blob:
+      container-name: documentos-verificacion
+    queue:
+      name: transacciones-pendientes
+  cosmos:
+    database: centinela
+    container: transacciones
+  keyvault:
+    vault-url: ${KEYVAULT_URL:}
+  appconfig:
+    connection-string: ${APPCONFIG_CONNECTION:}
+
+centinela:
+  scoring:
+    threshold: ${SCORING_THRESHOLD:60}
+  rules:
+    velocity:
+      window-minutes: 5
+      max-transactions: 3
+      points: 35
+    amount:
+      multiplier-threshold: 10
+      points: 30
+    geo:
+      max-distance-km: 1000
+      min-time-minutes: 60
+      points: 25
+    merchant:
+      points: 20

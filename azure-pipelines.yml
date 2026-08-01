@@ -1,0 +1,154 @@
+# Pipeline de CI/CD - Centinela
+# Azure DevOps
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  buildConfiguration: 'Release'
+  dockerRegistryServiceConnection: 'centinela-acr'
+  imageRepository: 'centinela-backend'
+  containerRegistry: 'centinelaacr$(Build.BuildId).azurecr.io'
+  dockerfilePath: '$(Build.SourcesDirectory)/centinela-backend/Dockerfile'
+  tag: '$(Build.BuildId)'
+
+stages:
+- stage: Build
+  displayName: 'Build and Test'
+  jobs:
+  - job: BuildBackend
+    displayName: 'Build Backend'
+    steps:
+    - task: JavaToolInstaller@0
+      inputs:
+        versionSpec: '17'
+        jdkArchitectureOption: 'x64'
+        jdkSourceOption: 'PreInstalled'
+
+    - task: Maven@4
+      inputs:
+        mavenPomFile: 'centinela-backend/pom.xml'
+        goals: 'clean package'
+        options: '-DskipTests'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        javaHomeOption: 'JDKVersion'
+        mavenVersionOption: 'Default'
+        mavenAuthenticateFeed: false
+        effectivePomFile: 'pom.xml'
+        mavenOptions: '-Xmx3072m'
+
+    - task: PublishTestResults@2
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        testRunTitle: 'Backend Tests'
+
+  - job: BuildFrontend
+    displayName: 'Build Frontend'
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '20.x'
+
+    - script: |
+        cd centinela-frontend
+        corepack enable
+        pnpm install --frozen-lockfile
+        pnpm build
+      displayName: 'Build Frontend'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(Build.SourcesDirectory)/centinela-frontend/.next'
+        artifactName: 'frontend-build'
+
+- stage: Test
+  displayName: 'Run Tests'
+  dependsOn: Build
+  jobs:
+  - job: RunTests
+    displayName: 'Run Integration Tests'
+    steps:
+    - task: JavaToolInstaller@0
+      inputs:
+        versionSpec: '17'
+        jdkArchitectureOption: 'x64'
+        jdkSourceOption: 'PreInstalled'
+
+    - script: |
+        cd centinela-backend
+        mvn test -Dspring.profiles.active=test
+      displayName: 'Run Backend Tests'
+
+    - task: PublishTestResults@2
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        testRunTitle: 'Integration Tests'
+
+- stage: BuildDocker
+  displayName: 'Build Docker Images'
+  dependsOn: Test
+  jobs:
+  - job: BuildImages
+    displayName: 'Build and Push Images'
+    steps:
+    - task: Docker@2
+      displayName: 'Build Backend Image'
+      inputs:
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        repository: '$(imageRepository)'
+        command: 'buildAndPush'
+        Dockerfile: '$(dockerfilePath)'
+        tags: |
+          $(tag)
+          latest
+
+    - task: Docker@2
+      displayName: 'Build Frontend Image'
+      inputs:
+        containerRegistry: '$(dockerRegistryServiceConnection)'
+        repository: 'centinela-frontend'
+        command: 'buildAndPush'
+        Dockerfile: '$(Build.SourcesDirectory)/centinela-frontend/Dockerfile'
+        tags: |
+          $(tag)
+          latest
+
+- stage: Deploy
+  displayName: 'Deploy to Azure'
+  dependsOn: BuildDocker
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: DeployBackend
+    displayName: 'Deploy Backend'
+    environment: 'production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureWebAppContainer@1
+            inputs:
+              azureSubscription: 'Azure Subscription'
+              appName: 'centinela-api'
+              containers: '$(containerRegistry)/centinela-backend:$(tag)'
+
+  - deployment: DeployFrontend
+    displayName: 'Deploy Frontend'
+    environment: 'production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureWebAppContainer@1
+            inputs:
+              azureSubscription: 'Azure Subscription'
+              appName: 'centinela-frontend'
+              containers: '$(containerRegistry)/centinela-frontend:$(tag)'

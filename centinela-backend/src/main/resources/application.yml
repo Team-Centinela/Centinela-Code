@@ -1,0 +1,49 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: centinela-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+azure:
+  storage:
+    blob:
+      container-name: documentos-verificacion
+    queue:
+      name: transacciones-pendientes
+  cosmos:
+    database: centinela
+    container: transacciones
+  keyvault:
+    vault-url: ${KEYVAULT_URL:}
+  appconfig:
+    connection-string: ${APPCONFIG_CONNECTION:}
+
+logging:
+  level:
+    com.centinela: INFO
+    com.centinela.ingestion: DEBUG

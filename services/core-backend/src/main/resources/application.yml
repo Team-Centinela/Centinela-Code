@@ -11,10 +11,19 @@ spring:
 
   flyway:
     enabled: true
-    schemas: cases,alerts,reporting,auth,rules_config
+    schemas: cases,alerts,reporting,auth,rules_config,outbox
     create-schemas: true
     locations: classpath:db/migration
+    # core-backend lists 6 schemas in `spring.flyway.schemas`. On a reused
+    # emulator / shared-Azure volume the sibling schemas `auth`, `rules_config`,
+    # `outbox` are already populated by ingestion + engine Flyway runs; with
+    # baseline-on-migrate disabled Flyway refuses to migrate because there is
+    # no schema history table. Enabled at baseline-version 0 so V1..V3 still
+    # run on a fresh volume, and a reused volume is baselined then migrated
+    # idempotently. Same posture as the engine (`rules_config`) and ingestion
+    # (`oltp`) first-schema histories. Tracked by #258 / #176 / #182.
     baseline-on-migrate: true
+    baseline-version: 0
 
   jpa:
     hibernate:
@@ -26,6 +35,13 @@ spring:
         default_schema: public
 
   cloud:
+    stream:
+      bindings:
+        transactionsRaw-in-0:
+          destination: transactions-raw
+          group: core-backend
+        fraud-evaluation-out-0:
+          destination: fraud-evaluation
     azure:
       servicebus:
         connection-string: ${AZURE_SERVICEBUS_CONNECTION_STRING:}
@@ -34,6 +50,14 @@ spring:
 
 server:
   port: 8080
+
+outbox:
+  publisher:
+    interval-ms: 1000
+    batch-size: 100
+    max-attempts: 10
+    stale-threshold-minutes: 5
+    drain-timeout-ms: 10000
 
 logging:
   level:

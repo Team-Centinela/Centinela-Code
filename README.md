@@ -10,7 +10,7 @@ created: 2026-07-15
 # Centinela
 
 Real-time transactional fraud detection platform for a small / medium
-fintech, built within a **$60 / 21-day** budget by a **4-person** team
+fintech, built within a **$60 / 21-day** budget by a **5-person** team
 using AI-driven development.
 
 This is a **monorepo**: code, infrastructure, and persistent
@@ -22,7 +22,7 @@ between them without context fragmentation.
 | | |
 |---|---|
 | **Money budget**       | $60 over 21 days |
-| **Team**               | 4 people (full-stack, AI-assisted) |
+| **Team**               | 5 people (full-stack, AI-assisted) |
 | **Delivery model**     | Modular monolith + selective extraction (ADR-001) |
 | **Storage**            | Azure PostgreSQL Flexible Server (B1ms, schema-per-module) (ADR-002) |
 | **Async backbone**     | Azure Service Bus Standard tier (Topics required for `case-events`) (ADR-003) |
@@ -81,6 +81,9 @@ Centinela-Code/
 | [ADR-006](docs/decision-log/ADR-006-security-auth.md) | Security & Auth — API Keys, Idempotency-Key, Key Vault, Auth Module | ACCEPTED (Sprint 0) |
 | [ADR-007](docs/decision-log/ADR-007-observability-cost-telemetry.md) | Observability & Cost Telemetry — App Insights, W3C TraceContext, Budget Alerts | ACCEPTED (Sprint 0) |
 | [ADR-009](docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md) | Compute Substrate — ACA Consumption + SWA Free | ACCEPTED (Sprint 0) |
+| [ADR-010](docs/decision-log/ADR-010-issue-pr-discipline.md) | Issue & PR Discipline — Blockers, `azure-impact` companion issues, Cost Attribution | ACCEPTED (Sprint 1) |
+| [ADR-011](docs/decision-log/ADR-011-local-emulator-stack.md) | Local Emulator Stack for Pre-Validation — `$0` cost gate before any `terraform apply` | ACCEPTED (Sprint 1) |
+| [ADR-012](docs/decision-log/ADR-012-opencode-execution-and-human-handoff.md) | OpenCode Execution + Human-Handoff Contract — instruction loader, permission defaults, commit cadence, human-only action matrix, `USER ACTION REQUIRED` handoff | ACCEPTED (2026-07-29, single-decision-maker; team ratification at next ceremony) |
 
 > Status values here are a convenience snapshot. The canonical status lives in each ADR file.
 
@@ -96,7 +99,9 @@ Centinela-Code/
 
 - Issues: <https://github.com/Team-Centinela/Centinela-Code/issues>
 - Issue templates enforcing ADR linkage:
-  `.github/ISSUE_TEMPLATE/adr.md`, `sprint-task.md`, `bug.md`
+  `.github/ISSUE_TEMPLATE/adr.md`, `sprint-task.md` (deprecated — use `task-managed.md`), `task-managed.md`, `infra-change.md`, `ceremony.md`, `adr-amend.md`, `bug.md`
+- AI agent preflight: `.github/agent-preflight.md`
+- PR & Issue discipline (lane matrix + companion infra convention): `docs/best-practices/05-pr-and-issue-discipline.md`
 - CI: `.github/workflows/ci.yml`
 - AI tooling: `opencode.json`
 

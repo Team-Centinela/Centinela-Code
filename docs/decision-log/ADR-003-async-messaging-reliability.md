@@ -7,8 +7,8 @@ Cross-module coordination in the modular monolith must be async by rule (`../arc
 1. Guarantee at-least-once delivery for every domain event (no silent drops).
 2. Survive transient broker outages without needing distributed transactions.
 3. Expose idempotency on the consumer side as a first-class concern.
-4. Stay under the $60 budget over the 21-day project.
-5. Provide publish/subscribe semantics **and** queue semantics; the architecture references both a `case-events` **topic** (subscriber model) and `documents-pending` / `transactions-raw` **queues** (single-consumer model).
+4. Stay under the $60 budget over the 21-day project (due July 31, 2026).
+5. Provide publish/subscribe semantics **and** queue semantics; the architecture references `case-events` and `transactions-raw` **topics** (subscriber model — `case-events` fan-out to `reporting-updates` and `alerts`; `transactions-raw` fan-out to `serverless-engine` and `core-backend`) and a `documents-pending` **queue** (single-consumer model).
 
 Three small decisions are bundled under this ADR: message broker choice, transport primitives (queues vs topics), and reliability patterns.
 
@@ -22,8 +22,8 @@ Three small decisions are bundled under this ADR: message broker choice, transpo
 | **Tier** | **Standard** |
 | **Why Standard, not Basic** | Basic tier forbids Topics. The architecture's `case-events` topic (used for analytics, alerting, future notification consumers) requires Topics. Standard also enables Scheduled Messages, Sessions, Transactions, ForwardTo (forwarding), Large Messages up to 100 KB (Standard) vs 256 KB (Basic), and De-duplication. |
 | Cost | Base charge ≈ $10/mo (first 13M ops/month free, then tiered). For 21 days ≈ **~$7** |
-| Subscriptions | `shared` topic `case-events` with two subscriptions: `reporting-updates` and `alerts` |
-| Queues | `transactions-raw`, `documents-pending` |
+| Subscriptions | `shared` topic `case-events` with two subscriptions: `reporting-updates` and `alerts`; `shared` topic `transactions-raw` with two subscriptions: `serverless-engine` (engine scoring) and `core-backend` (audit / case-side advancement) |
+| Queues | `documents-pending` (OCR inbound) |
 
 **Client library pinning** (per #26 — Week 1 decision, not Week 2):
 
@@ -31,7 +31,7 @@ Three small decisions are bundled under this ADR: message broker choice, transpo
 |---|---|---|---|
 | Core Backend | Java 21 / Spring Boot 3.4.x | `com.azure.spring:spring-cloud-azure-starter-servicebus` (Spring Cloud Azure Service Bus binder) over `spring-cloud-stream` 4.x | Pinned in `services/pom.xml` (`<spring-cloud-azure.version>5.19.0</spring-cloud-azure.version>`, `azure-messaging-servicebus 7.17.7`); see PR #36 for the foundation and sub-issue #39 for the explicit `spring-cloud-stream` pin still pending. |
 | Ingestion API | Java 21 / Spring Boot 3.4.x | Same as Core Backend — shares `services/pom.xml` parent. Same version source. | |
-| Serverless Engine (Rule Engine) | Java 21 / Spring Boot 3.4.x | Same binder chain as Core Backend and Ingestion API — its single consumer adapter binds to the `transactions-raw` queue subscription. KEDA `azure-servicebus` scaler reads from the same `Manage`-policy connection. | Pinned in `services/pom.xml`. |
+| Serverless Engine (Rule Engine) | Java 21 / Spring Boot 3.4.x | Same binder chain as Core Backend and Ingestion API — its consumer adapter binds to the `transactions-raw` topic subscription `serverless-engine`. KEDA `azure-servicebus` scaler reads from the same `Manage`-policy connection. | Pinned in `services/pom.xml`. |
 | OCR Worker | Python 3.12 / FastAPI | `azure-servicebus` 7.x async client (PyPI `azure-servicebus`) | Pinned in `services/ocr-worker/pyproject.toml` once issue #40 implementation lands. |
 
 Why the binder (not raw SDK): the Spring Cloud Azure Service Bus binder is queue/topic-aware, integrates with `spring-cloud-stream` declarative bindings, and gives us idempotency primitives (NACK vs ACK) aligned with ADR-003 §3.3. Raw `com.azure:azure-messaging-servicebus` is reserved for places where the binder model is too restrictive (e.g. session-keyed-by-`aggregateId` for in-order per-aggregate processing). Versions must appear in build files on **Day 1** and may not be bumped during Sprint 1 without an ADR amendment issue.
@@ -55,14 +55,14 @@ Service Bus (queue or topic)
 **No shortcuts allowed**, including in the Ingestion Service (which is an independent deployment). The Ingestion Service will:
 - Persist `transaction` rows to PostgreSQL `oltp` schema.
 - Insert into `outbox_events` in the same transaction.
-- Run its own Outbox publisher `scheduled` task that drains and publishes to the `transactions-raw` queue.
+- Run its own Outbox publisher `scheduled` task that drains and publishes to the `transactions-raw` topic.
 
 This is non-negotiable for ADRs compressing two writes (DB + broker) into one durable operation. Outbox is the published-through classifier for cross-module reliability.
 
 **Outbox row lifecycle** (per #25 — closes the shutdown / cold-start gap):
 
 ```
-                              ┌──────────────────────┐
+                               ┌──────────────────────┐
 INSERT (status=PENDING,        │  Scheduled tick @1s  │
   attempts=0,                  │  SELECT ... FOR      │
   last_attempt_at=NULL)        │   UPDATE SKIP        │
@@ -72,18 +72,18 @@ INSERT (status=PENDING,        │  Scheduled tick @1s  │
                                │   ORDER BY id        │
                                │   LIMIT 100          │
                                └──────────┬───────────┘
-                                          │
-                ┌─────────────────────────┼─────────────────────────┐
-                ▼                         ▼                         ▼
-  publish OK                   broker transient 5xx          JVM shutdown /
-  ───────────────              ──────────────────            unclean crash
-  UPDATE status=PUBLISHED,     attempts++,                    ──────────────
-  published_at=NOW()           backoff (exp, max 10/60s)     row stays
-                                                              status=PENDING,
-  After 10 attempts                                           attempts>0
-  ────────────────
-  UPDATE status=DEAD_LETTER,
-  alert fired
+                                           │
+                 ┌─────────────────────────┼─────────────────────────┐
+                 ▼                         ▼                         ▼
+   publish OK                   broker transient 5xx          JVM shutdown /
+   ───────────────              ──────────────────            unclean crash
+   UPDATE status=PUBLISHED,     attempts++,                    ──────────────
+   published_at=NOW()           backoff (exp, max 10/60s)     row stays
+                                                               status=PENDING,
+   After 10 attempts                                           attempts>0
+   ────────────────
+   UPDATE status=DEAD_LETTER,
+   alert fired
 ```
 
 **Recovery / cold-start semantics** (addresses scenarios flagged in #25):
@@ -93,11 +93,29 @@ INSERT (status=PENDING,        │  Scheduled tick @1s  │
 3. **PostgreSQL B1ms auto-stop race.** The startup ping above is the guard. If the ping fails after 5 s, the publisher self-defers (a `PublisherStatus.DEGRADED` state) and Application Insights receives a `outbox-publisher-degraded` event. Listener backoff on the readiness probe keeps the container from receiving traffic until the DB is reachable.
 4. **Observable lag.** `/actuator/health/outbox-lag` exposes two Micrometer gauges — `outbox.pending.count` and `outbox.pending.oldest.seconds` — wired into Application Insights. SLO: after broker recovery, no more than **120 s** of event backlog.
 
-The recovery step does not require a schema change beyond `last_attempt_at TIMESTAMPTZ NULL` and `attempts INT NOT NULL DEFAULT 0`, both already implied by ADR-003 §3.4's idempotency table. Concrete DDL lives in `infrastructure/modules/postgres/oltp_schema.sql` (added in #40).
+The recovery step does not require a schema change beyond `last_attempt_at TIMESTAMPTZ NULL` and `attempts INT NOT NULL DEFAULT 0`, both already implied by ADR-003 §3.4's idempotency table. Concrete DDL lives in the service-local Flyway migrations: `services/core-backend/src/main/resources/db/migration/V2__outbox_schema.sql` and `services/ingestion/src/main/resources/db/migration/V1__init_ingestion_schemas.sql`.
 
 ### 3.3 Idempotency Key strategy
 
-Every domain event carries an `aggregateId` (e.g. `transactionId`) used as the Idempotency Key. The consumer of every queue and topic subscription dedupes via the **SELECT-then-conditional-UPDATE** strategy (per #16's "pick one of Sessions / INSERT ON CONFLICT / SELECT FOR UPDATE" question — we pick SELECT FOR UPDATE, anchored on `aggregateId`):
+Every domain event carries an `aggregateId` (e.g. `transactionId`) used as the Idempotency Key. Two strategies are used, depending on the consumer's ownership of the target table:
+
+#### 3.3.1 Inbound message dedup — `processed_events` ledger
+
+Consumers that receive events from a queue or topic subscription dedup via a `processed_events` ledger table with an atomic `INSERT ... ON CONFLICT DO NOTHING`. This is the primary mechanism for event-driven consumers:
+
+```sql
+INSERT INTO processed_events (consumer, idempotency_key, processed_at)
+VALUES (:consumer, :aggregateId, NOW())
+ON CONFLICT (consumer, idempotency_key) DO NOTHING;
+```
+
+Returns 1 if inserted (first-time processing), 0 if duplicate. The `IdempotencyService` wraps this as a `@Transactional` method. On duplicate, the handler ACKs and skips. On INSERT failure, the exception aborts the transaction and the message is redelivered.
+
+This is the correct choice here because the consumer **is** the writer of the `processed_events` row — there is no canonical business row to gate on at the moment of ingestion.
+
+#### 3.3.2 Business status gating — `SELECT ... FOR UPDATE SKIP LOCKED`
+
+For consumers that mutate an existing business table (e.g. case creation or alert advancement), the **SELECT-then-conditional-UPDATE** strategy is used:
 
 ```
 SELECT status
@@ -107,15 +125,15 @@ SELECT status
    FOR UPDATE SKIP LOCKED
 ```
 
-If the row exists in the expected status, **skip** processing and ACK the message. Otherwise UPDATE with an idempotent guard (`WHERE status < expected_status`) so two concurrent consumers can never advance the same `aggregateId`. This is the same idempotency strategy for all hops: Ingestion → Serverless Engine (scoring), Serverless Engine → Core Backend (case creation), Core Backend → OCR Worker (document extraction).
+If the row exists in the expected status, **skip** processing and ACK the message. Otherwise UPDATE with an idempotent guard (`WHERE status < expected_status`). This strategy is reserved for business-table writers where the consumer advances application state.
 
-**Why SELECT ... FOR UPDATE SKIP LOCKED, not the alternatives** flagged in #16:
+**Why not the alternatives** flagged in #16:
 
 - *Sessions-keyed-by-aggregateId* — sessions add session-create-then-renew cost and break the binder's at-least-once retry contract when a consumer crashes mid-session. Rejected.
-- *INSERT ON CONFLICT* — requires the consumer to be the writer of the canonical row, which it is not (`cases`/`alerts` are mutated under explicit use-case code). Rejected.
+- *INSERT ON CONFLICT on business tables* — requires the consumer to be the writer of the canonical row, which it is not (`cases`/`alerts` are mutated under explicit use-case code). Rejected for business tables; used for the `processed_events` ledger (§3.3.1).
 - *Plain SELECT (no FOR UPDATE)* — leaves a TOCTOU window for at-least-once duplicates. Rejected in favour of the locked read.
 
-Concrete conditional-UPDATE shape lands in #41 (consumer-side idempotency implementation, sub-issue of #37).
+Implementation of both strategies lands in #41 (consumer-side idempotency, sub-issue of #37). The `processed_events` ledger and `IdempotencyService` live in each service's `shared/idempotency/` package.
 
 ### 3.4 Failure handling escalator
 
@@ -133,8 +151,8 @@ Concrete conditional-UPDATE shape lands in #41 (consumer-side idempotency implem
 
 The ADR's `max_delivery_count = 3` value is governed by Terraform, not application config:
 
-- Location: `infrastructure/modules/servicebus/main.tf` (provisioning) plus per-entity `.tf` files: `queues-transactions-raw.tf`, `queues-documents-pending.tf`, `topics-case-events.tf`.
-- All three queues (`transactions-raw`, `documents-pending`) and both topic subscriptions (`case-events/reporting-updates`, `case-events/alerts`) set `max_delivery_count = 3`.
+- Location: `infrastructure/modules/servicebus/main.tf` (provisioning) plus per-entity `.tf` files: `topics-transactions-raw.tf`, `queues-documents-pending.tf`, `topics-case-events.tf`. (`transactions-raw` is a topic with two subscriptions per §3.1; the previous queue artefact was renamed to a topic-artefact name when the #255 amendment landed.)
+- The `documents-pending` queue and all three topic subscriptions (`transactions-raw/serverless-engine`, `transactions-raw/core-backend`, `case-events/reporting-updates`, `case-events/alerts`) set `max_delivery_count = 3`.
 - Poison routing is provisioned as `azurerm_servicebus_subscription_rule` forwarding-on-dead-letter (or the equivalent for queues) to the named `-poison` sibling. Cost: 5 additional entities (~0 at Standard tier; well under the $10/mo base charge).
 - Drift detection via `terraform plan` in CI; a `checkov` or `tflint` policy encodes the invariant "no Service Bus queue/subscription ships without a `-poison` sibling".
 
@@ -159,7 +177,7 @@ The ADR text **does not** carry `max_delivery_count = 3` literal into Java/Pytho
 |---|---|
 | Azure Storage Queues | No topics; no scheduled; no native transactions; no dead-letter; weaker delivery semantics. |
 | Azure Event Grid | Pub/sub only — no queue primitive; no scheduled messages; no de-dup. |
-| RabbitMQ on a Container App | Operational complexity (patch, scale, monitor) for a 4-person / 21-day project. |
+| RabbitMQ on a Container App | Operational complexity (patch, scale, monitor) for a 5-person / 21-day project. |
 | Service Bus **Basic** tier | No Topics → breaks `case-events`. Selecting Basic before mapping the architecture to the tier was an error in earlier drafts. |
 | Postgres LISTEN/NOTIFY (no broker) | NOT for cross-process events; ordering, replay, dead-letter, fan-out all weak. |
 

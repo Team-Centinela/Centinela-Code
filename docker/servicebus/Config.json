@@ -1,0 +1,111 @@
+{
+  "UserConfig": {
+    "Namespaces": [
+      {
+        "Name": "SbEmulatorConfig",
+        "Queues": [
+          {
+            "Name": "documents-pending",
+            "Properties": {
+              "MaxSizeInMegabytes": 1024,
+              "DefaultMessageTimeToLive": "PT1H",
+              "MaxDeliveryCount": 3,
+              "EnablePartitioning": false,
+              "LockDuration": "PT1M"
+            }
+          },
+          {
+            "Name": "documents-pending-pub",
+            "Properties": {
+              "MaxSizeInMegabytes": 1024,
+              "DefaultMessageTimeToLive": "PT1H",
+              "MaxDeliveryCount": 3,
+              "EnablePartitioning": false,
+              "LockDuration": "PT30S"
+            }
+          },
+          {
+            "Name": "fraud-evaluation",
+            "Properties": {
+              "MaxSizeInMegabytes": 1024,
+              "DefaultMessageTimeToLive": "PT1H",
+              "MaxDeliveryCount": 3,
+              "EnablePartitioning": false,
+              "LockDuration": "PT30S"
+            }
+          }
+        ],
+        "Topics": [
+          {
+            "Name": "transactions-raw",
+            "Properties": {
+              "MaxSizeInMegabytes": 1024,
+              "DefaultMessageTimeToLive": "PT1H",
+              "MaxDeliveryCount": 3,
+              "EnablePartitioning": false
+            },
+            "Subscriptions": [
+              {
+                "Name": "serverless-engine",
+                "Properties": {
+                  "DefaultMessageTimeToLive": "PT1H",
+                  "MaxDeliveryCount": 3,
+                  "LockDuration": "PT30S"
+                }
+              },
+              {
+                "Name": "core-backend",
+                "Properties": {
+                  "DefaultMessageTimeToLive": "PT1H",
+                  "MaxDeliveryCount": 3,
+                  "LockDuration": "PT30S"
+                }
+              }
+            ]
+          },
+          {
+            "Name": "case-events",
+            "Properties": {
+              "MaxSizeInMegabytes": 1024,
+              "DefaultMessageTimeToLive": "PT1H",
+              "MaxDeliveryCount": 3,
+              "EnablePartitioning": false
+            },
+            "Subscriptions": [
+              {
+                "Name": "core-backend-sub",
+                "Properties": {
+                  "DefaultMessageTimeToLive": "PT1H",
+                  "MaxDeliveryCount": 3,
+                  "LockDuration": "PT1M"
+                }
+              }
+            ]
+          },
+          {
+            "Name": "fraud-evaluation-events",
+            "Properties": {
+              "MaxSizeInMegabytes": 1024,
+              "DefaultMessageTimeToLive": "PT1H",
+              "MaxDeliveryCount": 3,
+              "EnablePartitioning": false
+            },
+            "Subscriptions": [
+              {
+                "Name": "ingestion-sub",
+                "Properties": {
+                  "DefaultMessageTimeToLive": "PT1H",
+                  "MaxDeliveryCount": 3,
+                  "LockDuration": "PT1M"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "Logging": {
+      "Type": "File"
+    }
+  }
+}

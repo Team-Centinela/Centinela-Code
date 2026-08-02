@@ -14,7 +14,9 @@ spring:
     schemas: oltp,outbox,auth
     create-schemas: true
     locations: classpath:db/migration
-    baseline-on-migrate: true
+    # Disabled so Flyway runs V1 from version 0 and owns schema creation in
+    # every environment. Tracked by #176 and #182.
+    baseline-on-migrate: false
 
   jpa:
     hibernate:
@@ -26,6 +28,10 @@ spring:
         default_schema: oltp
 
   cloud:
+    stream:
+      bindings:
+        fraud-evaluation-out-0:
+          destination: fraud-evaluation
     azure:
       servicebus:
         connection-string: ${AZURE_SERVICEBUS_CONNECTION_STRING:}
@@ -44,6 +50,14 @@ server:
 logging:
   level:
     com.centinela: DEBUG
+
+outbox:
+  publisher:
+    interval-ms: 1000
+    batch-size: 100
+    max-attempts: 10
+    stale-threshold-minutes: 5
+    drain-timeout-ms: 10000
 
 applicationinsights:
   connection-string: ${APPLICATIONINSIGHTS_CONNECTION_STRING:}

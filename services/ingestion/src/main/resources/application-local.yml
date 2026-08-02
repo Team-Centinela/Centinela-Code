@@ -4,8 +4,6 @@ spring:
     username: sa
     password:
     driver-class-name: org.h2.Driver
-    hikari:
-      schema: PUBLIC
 
   flyway:
     enabled: false
@@ -22,10 +20,3 @@ spring:
     exclude:
       - com.azure.spring.cloud.autoconfigure.implementation.servicebus.AzureServiceBusAutoConfiguration
       - com.azure.spring.cloud.autoconfigure.implementation.servicebus.AzureServiceBusMessagingAutoConfiguration
-
-server:
-  port: 8081
-
-logging:
-  level:
-    com.centinela: DEBUG

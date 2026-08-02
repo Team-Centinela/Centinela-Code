@@ -14,7 +14,7 @@ Distributed transactions (XA) are slow, complex, and often unsupported by cloud 
 
 ## The Solution
 
-Write the event to the same database, in the same ACID transaction, as the business data. A background process reads unsent events and publishes them to the broker. Every service that owns event-emitting aggregates runs its own publisher (the Ingestion API publishes `TransactionReceived` to the `transactions-raw` queue; the Serverless Engine publishes `FraudEvaluationCompleted` to the `case-events` topic; the Core Backend publishes `CaseOpened` / `FraudAlertRaised` / `CaseResolved`).
+Write the event to the same database, in the same ACID transaction, as the business data. A background process reads unsent events and publishes them to the broker. Every service that owns event-emitting aggregates runs its own publisher (the Ingestion API publishes `TransactionReceived` to the `transactions-raw` topic; the Serverless Engine publishes `FraudEvaluationCompleted` to the `case-events` topic; the Core Backend publishes `CaseOpened` / `FraudAlertRaised` / `CaseResolved`).
 
 ```
 Business Operation (ACID)
@@ -25,7 +25,7 @@ Outbox Publisher (@Scheduled, every 1 second — one in each deploying service)
 ├── SELECT * FROM outbox_events WHERE status = 'PENDING' ORDER BY created_at
 ├── For each event:
 │   ├── Publish to Azure Service Bus
-│   ├── Success → UPDATE status = 'SENT', sent_at = NOW()
+│   ├── Success → UPDATE status = 'PUBLISHED', published_at = NOW()
 │   └── Failure → UPDATE retry_count = retry_count + 1
 └── (Events with retry_count > 10 are marked DEAD_LETTER)
 ```
@@ -40,7 +40,7 @@ CREATE TABLE outbox_events (
     aggregate_type VARCHAR(255) NOT NULL,
     payload        JSONB NOT NULL,
     created_at     TIMESTAMP NOT NULL DEFAULT NOW(),
-    sent_at        TIMESTAMP,
+    published_at   TIMESTAMP,
     retry_count    INT DEFAULT 0,
     status         VARCHAR(20) DEFAULT 'PENDING'
 );
@@ -65,7 +65,15 @@ public class OutboxPublisher {
         for (OutboxEvent event : pending) {
             try {
                 ServiceBusSender sender = serviceBusClient.createSender(event.getEventType());
-                sender.sendMessage(new ServiceBusMessage(event.getPayload()));
+                ServiceBusMessage message = new ServiceBusMessage(event.getPayload());
+                // Always-set contract (Phase 0.2.6 / §30.5 S2 #2): the Service
+                // Bus messageId MUST equal outbox_events.id, the deterministic
+                // rail ADR-003 §3.3.1's processed_events / received_messages
+                // ledger relies on. Consumer TransactionsRawConsumer throws
+                // when the header is absent, so a missing id here would cause
+                // legitimate redeliveries to be dead-lettered.
+                message.setMessageId(event.getId().toString());
+                sender.sendMessage(message);
                 outboxRepo.markSent(event.getId());
             } catch (Exception e) {
                 outboxRepo.incrementRetry(event.getId());
@@ -74,6 +82,14 @@ public class OutboxPublisher {
     }
 }
 ```
+
+> The reference implementation in `services/shared-messaging/` uses the
+> Spring Cloud Stream binder (`StreamBridge`) rather than the raw
+> `azure-messaging-servicebus` client — the always-set contract applies
+> identically: the `messageId` header MUST be set on every outbound
+> `MessageBuilder.withPayload(payload).setHeader("messageId", outboxRowId)`
+> call, and the binder propagates it to the native SB message-id property.
+> See `ServiceBusPublisherImpl.java` and `OutboxPublisher.java`.
 
 ## Recovery
 

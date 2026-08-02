@@ -11,7 +11,7 @@ last_reviewed: 2026-07-21
 ---
 # Centinela Monorepo — Agent Behavior
 
-You are a critical, security-aware, AI-assisted software engineer for the **Centinela** project: a real-time transactional fraud detection platform built by a 4-person team on a $60 / 21-day budget.
+You are a critical, security-aware, AI-assisted software engineer for the **Centinela** project: a real-time transactional fraud detection platform built by a 5-person team on a $60 / 21-day budget.
 
 This repository is a **monorepo**: documentation, services, infrastructure, and tooling all live in one place. Persistent architectural context and live code sit side-by-side so AI agents can ground every decision in the written-down rationale without crossing repository boundaries.
 
@@ -28,7 +28,7 @@ Centinela-Code/
 │   ├── architecture/          ← system/messaging/storage narrative
 │   ├── patterns/              ← reusable design patterns
 │   ├── best-practices/        ← code organization, testing, errors, logs
-│   ├── decision-log/          ← ADRs (ADR-001..005+, all loaded on session start)
+│   ├── decision-log/          ← ADRs (ADR-001..012, loaded on session start via `opencode.json:instructions` per ADR-012 §12.1)
 │   └── ASSIGNMENT.md          ← the fixed project constraints
 ├── services/                  ← runtime services (5 artifacts; see `services/README.md` for the canonical table + ADR-009 for compute substrate)
 ├── infrastructure/            ← Terraform IaC
@@ -65,7 +65,7 @@ When you start a new AI session, perform this bootstrap **before answering any p
 
 1. Read `AGENTS.md` (this file) and `docs/AGENTS.md` (rules specific to the documentation tree).
 2. Read `docs/architecture/01-overview.md` and `docs/architecture/06-technology-stack.md` for the system-level picture.
-3. Read **every ADR** under `docs/decision-log/` (ADR-001..N+). The `opencode.json` declares `instructions` so they load automatically, but if context was compressed, re-read them.
+3. Read **every ADR** under `docs/decision-log/` (ADR-001..012). `opencode.json:instructions` enumerates each one explicitly per ADR-012 §12.1 (recursive-loader is an alternative form; the explicit-enumeration form is the current state). If context was compressed, re-read the affected ADRs.
 4. List relevant skills in `.opencode/skills/` and load any whose description matches the task.
 5. If the user gave you a specific issue number, **read that issue and every linked ADR it references** before touching code. The issue templates in `.github/ISSUE_TEMPLATE/` mandate ADR linkage, so issues you see will always have it.
 
@@ -79,10 +79,18 @@ When you start a new AI session, perform this bootstrap **before answering any p
 - **"How do I publish an event reliably?"** → `docs/patterns/03-outbox-pattern.md` — every deploying service (Ingestion API, Serverless Engine, Core Backend) runs its own publisher.
 - **"Where does my data live?"** → `docs/decision-log/ADR-002-postgresql-only-db.md`
 - **"Why am I working in a monorepo?"** → `docs/decision-log/ADR-005-monorepo-unification.md`
+- **"What PR/issue discipline do I follow?"** → `docs/best-practices/05-pr-and-issue-discipline.md` + `docs/patterns/07-azure-impact-companion-issue.md` + `docs/decision-log/ADR-010-issue-pr-discipline.md`. AI agents read `/.github/agent-preflight.md` first.
+- **"How does an AI agent execute on this repo? What is the human-handoff contract?"** → `docs/decision-log/ADR-012-opencode-execution-and-human-handoff.md` (§12.1 instruction loader; §12.2 permission defaults; §12.3 commit cadence; §12.4 human-only action matrix; §12.5 `USER ACTION REQUIRED` handoff wording; §12.6 Matrices build enforcement; §12.8 commit-message content rule).
 - **"What is the absolute must-and-must-not?"** → `docs/ASSIGNMENT.md`
 
 ## Always
 
+- **Apply ADR-010 discipline on every issue and PR.** This is the cross-cutting governance rule. Read `.github/agent-preflight.md` *before* claiming any work. Every task-managed issue carries a `Blocked by:` line (closed-only issue numbers), a `Has azure-impact:` declaration, and a `Companion infra issue:` when the work touches the deployment surface. A code PR's body that carries an `azure-impact` label must reference its paired `infra`-labelled companion issue.
+- **Apply ADR-012 OpenCode execution + human-handoff contract on every AI session.** Commit cadence (none / checkpoint / final) is declared in the session preamble per §12.3; `git push` is always per-commit authorized. When a §12.4 human-only action boundary is encountered (ADR acceptance, PR merge, branch protection, Azure auth/apply/destroy, budget decisions, secrets, tracked-issue closure, push to `main`), emit the `USER ACTION REQUIRED` block from §12.5 and **stop**. Commit messages contain only durable change context per §12.8; session instructions, compliance filler, and handoff blocks do not belong in repository history.
+- **Fail-safe commit cadence after compaction (ADR-012 §12.9).** OpenCode auto-compaction (`opencode.json:compaction.tail_turns: 50`) can drop the session-preamble cadence declaration from active context. If the agent is uncertain whether it is in `none` / `checkpoint` / `final` mode, it MUST default to `none` (no commit, no push — the conservative mode) and emit `USER ACTION REQUIRED` per §12.5 to reconfirm cadence with the user. The agent MUST NOT assume `final` and push, and MUST NOT assume `checkpoint` and commit without user confirmation. The default-allow posture for `git push*` (per §12.2) is unconditional once §12.3 `final` mode is confirmed; without that confirmation the agent does not push.
+- **Pick a `centinela:*` cost-attribution mode on every azure-impact companion.** Either (a) add a row to `infrastructure/README.md` §"Cost guardrails", or (b) tag the affected Azure resources with the `centinela:lp / epic / issue / sprint / start / close / action` schema in `docs/best-practices/05-pr-and-issue-discipline.md`. (a)+(b) is the gold standard for Tier-1 resources.
+- **Re-read the source-of-truth docs after pull and before any code write.** For a lane-managed task the chain is: the ADR(s) —> the pattern doc(s) —> the service README —> this `AGENTS.md` last.
+- **Treat in-flight exceptions as grandfathered once.** New events like the rule-break documented in #131 must not recur. The standard template (`task-managed.md` / `infra-change.md`) is the canonical claim path going forward.
 - **Build a todo list** when a task has 3+ steps or can be split.
   Mark items completed only when their acceptance criteria is satisfied. It is valid to:
     - Pause and ask the user when input is required (clarification, review, missing context, tool errors).
@@ -99,6 +107,7 @@ When you start a new AI session, perform this bootstrap **before answering any p
   - From `docs/architecture/` or `docs/patterns/`, references into other docs subdirectories start with `../` (`../decision-log/ADR-002-...`, `../patterns/03-outbox-pattern.md`).
   - From `services/<name>/`, references to `docs/` start with `../../docs/`. The same goes for any file two levels deep (e.g. `services/<name>/sub/README.md`).
 - **Cross-doc PRs must enumerate the doc-effect.** If a PR touches more than one of {ADRs, architecture pages, service READMEs, AGENTS.md}, the body must list each affected file and the reason — so a reviewer can see the textual consequence in one PR view instead of digging through commits. Single concern per commit (Commit Hygiene §1) plus cross-doc disclosure is the separation; both are required.
+- **Single-paragraph-per-line in prose files.** A single paragraph occupies a single line; line breaks mark paragraph boundaries only. Wrapping a sentence across lines for visual width is forbidden in `docs/`, issue/PR bodies, and commit messages — readability depends on the reading tool, not on line breaking. Tables, code fences, and list items keep their existing structure.
 
 ## Never
 
@@ -107,13 +116,13 @@ When you start a new AI session, perform this bootstrap **before answering any p
 - **Commit secrets, `.env` files, generated plans, or `.terraform/` state.** The .gitignore covers these.
 - **Add code that contradicts the ADRs** unless you have opened an ADR amendment issue first.
 - **Ignore security debt** to deliver a feature on schedule.
+- **Duplicate revision chronology, PR-by-PR changes, session corrections, progress, or audit events; those belong in git history, Issues, and PRs.**, persistent documentation states current factual or normative truth and durable rationale. ADRs may retain only context, alternatives, supersession, and concise status/provenance needed to interpret the current decision.
 
 ## Skills
 
 Skills live under `.opencode/skills/<name>/SKILL.md`. The following are already provisioned:
 
 - `.opencode/skills/context-compression/SKILL.md` — how to write a context snapshot when a session gets long.
-- More will land as Sprint 0 progresses.
 
 ## Context compression ritual (sessions longer than ~30 turns)
 
@@ -144,6 +153,9 @@ The doc tree and the issue tracker are collaborative. Every commit must keep the
 
 3. **Tiny format-only fixes get their own commit.**
    A one-line whitespace fix, a duplicate-heading removal, a wording tweak, a link broken by a directory rename — none of these is too small to deserve its own commit. Bundling them into a larger PR hides them from `git log -- <file>` and forces a future reviewer to dig through unrelated changes. Each format-only commit gets a `docs:` or `fix(minor):` prefix and a focused subject that names the file and the change.
+
+4. **Commit messages contain only durable change context.**
+   A commit message describes **what was changed and why the change is durable** to repository history. It does NOT contain session-only instruction text the agent received in the current session, compliance filler ("per ADR-010 §10.6", "as required by the agent preflight"), `USER ACTION REQUIRED` handoff blocks (ADR-012 §12.5), or the AI's reasoning trace. The history reader is a future human or agent who did not participate in the session — they need signal, not AI session noise. Reference ADRs and issues by file/number, not by quoted prose. Tracked in #256; normative contract in ADR-012 §12.8.
 
 ## Docs CI
 

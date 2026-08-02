@@ -15,8 +15,8 @@ Pulled out per ADR-001's **Selective Extraction Strategy** § (`../../docs/archi
 | HTTP API entry point for `POST /transactions` | Spring Boot @RestController |
 | Persist transactions to PostgreSQL `oltp.transactions` | JPA / JOOQ adapter (`ports.outbound.oltp.*`) |
 | Insert outbox event in same ACID tx | `outbox.outbox_events` |
-| Run outbox publisher draining `transactions-raw` queue | Scheduled job `@1s` |
-| Publish to Azure Service Bus queue `transactions-raw` | `spring-cloud-azure-starter-servicebus` binder adapter (per ADR-003 §3.1) |
+| Run outbox publisher draining `transactions-raw` topic | Scheduled job `@1s` |
+| Publish to Azure Service Bus topic `transactions-raw` | `spring-cloud-azure-starter-servicebus` binder adapter (per ADR-003 §3.1). Always-set `messageId` header = `outbox_events.id` (Phase 0.2.6 / §30.5 S2 #2 always-set contract; producer-side mirror of `TransactionsRawConsumer` H7 fix). |
 
 ## What it does **not** own
 
@@ -44,7 +44,19 @@ ingestion/
 └── Dockerfile
 ```
 
+## Architecture Verification
+
+Hexagonal-layer purity is enforced by `src/test/java/com/centinela/ingestion/archunit/HexagonalArchitectureTest.java` (4 ArchUnit rules):
+1. Domain must not depend on Spring, JPA, or Azure packages
+2. Domain classes must not carry Spring stereotype annotations
+3. Domain must not access infrastructure adapters
+4. Layered ordering: `domain` ← `application` ← `infrastructure`
+
+Run: `mvn test` (executes as part of the full suite, no special profile needed).
+
 References:
+- [ADR-001 §Hexagonal](../../docs/decision-log/ADR-001-modular-monolith-hexagonal.md) — port/adapter layout mandatory for Ingestion API
+- [Hexagonal Architecture](../../docs/architecture/03-hexagonal-architecture.md) — domain is the innermost ring
 - `../../docs/architecture/01-overview.md` §"Ingestion"
 - `../../docs/architecture/05-selective-extraction.md` §"Ingestion API"
 - `../../docs/decision-log/ADR-002-postgresql-only-db.md` §"Storage matrix"

@@ -11,12 +11,20 @@ GitHub-PR/
 # Local secrets / scratch
 *.env
 *.local
+# .env.example is the template (checked in); .env above is gitignored
+!.env.example
 
 # Local context compression snapshots created by the AI agent workflow
 # (see docs/AGENTS.md §"Context compression ritual"). They never leave the
 # developer's machine.
 .context-snapshots/
 context-snapshot-*.md
+
+# Ad-hoc test-run captures (mvn / verify-emulators.{ps1,sh} / docker logs
+# redirected to a file during local debugging). Same role as the
+# context-snapshot pattern above: scratch artifacts that should never be
+# committed. Regenerated on every local test run.
+_test-*.log
 
 # Targeted build / dependency outputs (per service language)
 
@@ -27,6 +35,10 @@ build/
 *.jar
 .gradle/
 out/
+
+# Negate Java source "out" directories (used for adapter/out/ packages)
+!services/*/src/main/java/**/out/
+!services/*/src/test/java/**/out/
 
 # Python
 __pycache__/

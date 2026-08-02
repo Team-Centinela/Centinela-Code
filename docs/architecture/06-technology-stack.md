@@ -7,7 +7,7 @@ Technologies selected and the rationale for each choice.
 | Component | Technology | What It Does |
 |-----------|-----------|--------------|
 | **Ingestion API** | Spring Boot (Java 21) on Azure Container Apps (Consumption, HTTP-scaled) | Fast HTTP endpoint for transaction submission |
-| **Serverless Engine** (Rule Engine) | Spring Boot (Java 21) on Azure Container Apps (Consumption, KEDA `azure-servicebus` scaler on `transactions-raw`) | Evaluates fraud rules (FR-1..FR-4), calculates risk scores, publishes `FraudEvaluationCompleted` |
+| **Serverless Engine** (Rule Engine) | Spring Boot (Java 21) on Azure Container Apps (Consumption, KEDA `azure-servicebus` scaler on `transactions-raw` topic subscription `serverless-engine`) | Evaluates fraud rules (FR-1..FR-4), calculates risk scores, publishes `FraudEvaluationCompleted` |
 | **Core Backend** | Spring Boot (Java 21) on Azure Container Apps (Consumption, HTTP-scaled) | Case management, alerts, reporting, auth, transaction query API |
 | **OCR Worker** | FastAPI (Python 3.12) on Azure Container Apps (Consumption, KEDA `azure-servicebus` scaler on `documents-pending`) | Document image processing via Azure AI Document Intelligence |
 | **Frontend** | React + TypeScript (Vite) on Azure Static Web Apps | Analyst dashboard for case review and rule configuration |

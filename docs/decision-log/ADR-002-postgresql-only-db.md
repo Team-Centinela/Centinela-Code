@@ -4,45 +4,29 @@
 
 `ASSIGNMENT.md` §E requires defending the storage engine choice based on the access patterns of each data type:
 
-| Access pattern | Expected read pattern |
+| Data class | Access pattern |
 |---|---|
 | Transactions & scores | High-volume writes, partition lookup by `accountId` |
 | Fraud cases | Low volume, highly relational (Case ↔ Analyst ↔ Resolution ↔ Audit log) |
 | Verification documents | Binary, write-once-read-rarely |
 
-Two competing storage strategies have been proposed:
-
-1. **Polyglot** (historical draft — [Team-Centinela/Centinela-docs#3](https://github.com/Team-Centinela/Centinela-docs/issues/3), now closed): Azure Cosmos DB for transactions, PostgreSQL for cases, Azure Blob Storage for documents.
-2. **Unified PostgreSQL** (`../architecture/06-technology-stack.md` + `../architecture/02-modular-monolith.md`): one PostgreSQL Flexible Server with schema-per-module; one Blob Storage account for documents only.
-
-The two proposals contradict each other and must be reconciled before Sprint 1 begins.
-
 ### Decision drivers
 
-1. **Budget**: $60 USD hard limit over 21 days. Cosmos DB Serverless + PostgreSQL + Blob Storage are individually cheap, but operating two data engines for one data class is wasted spend.
-2. **Operational simplicity** (`ASSIGNMENT.md` §T.1): 4-person team in 3 weeks, no SRE.
-3. **Reporting** (`../architecture/02-modular-monolith.md`): Reporting module reads from the **primary** PostgreSQL Flexible Server via read-only DB role. Joining across data classes (e.g. case → account → transactions) requires a single engine. A read-replica was dropped from scope — see issue #24 and Considerations §Read-replica removal rationale below.
-4. **Service Bus + Outbox** (`../patterns/03-outbox-pattern.md`): the outbox table is already PostgreSQL. A polyglot strategy would force the previous-Service-Bus observers to either (a) read from Cosmos to build the outbox or (b) maintain two transactional origins per event.
-5. **PostGIS extension** (`../architecture/06-technology-stack.md`): geolocation checks (`FR-3 Impossible Location`) require spatial queries that PostgreSQL handles natively via PostGIS.
+1. **Budget** (`ASSIGNMENT.md` §3): $60 USD hard limit over 21 days (Due July 31, 2026).
+2. **Operational simplicity** (`ASSIGNMENT.md` §T.1): 5-person team in 3 weeks, no SRE.
+3. **Reporting** (`../architecture/02-modular-monolith.md`): joining across data classes (case → account → transactions) requires a single engine. A read-replica was dropped from scope — see issue #24 and §Read-replica removal rationale.
+4. **Outbox** (`../patterns/03-outbox-pattern.md`): the outbox table is PostgreSQL; the unified strategy keeps the business write + outbox insert in the same ACID transaction.
+5. **PostGIS** (`../architecture/06-technology-stack.md`): FR-3 Impossible Location needs spatial queries PostgreSQL handles natively.
 
-### Cost comparison (3-week Azure spend)
+### Cost envelope (storage engine, 21 days)
 
-| Strategy | Component | SKU/Tier | Est. cost (21 days) |
-|---|---|---|---|
-| **Unified PostgreSQL** | Azure Database for PostgreSQL Flexible Server | B1ms (1 vCore / 2 GiB), nightly auto-stop on non-testing hours (12 h/day, weekday nights + weekends). See §Planned DB downtime & outbox restart-drain. | **~$5–8** |
-| | Azure Blob Storage | LRS Hot, near-zero | **<$1** |
-| | (no Cosmos DB, no extra DB engines) | — | **$0** |
-| | **Subtotal (storage engine only)** | | **~$6–9** |
-| **Polyglot** | Azure Cosmos DB | Serverless (Free tier: 1000 RU/s + 25 GB free) | **$0** |
-| | Azure Database for PostgreSQL | B1ms, no auto-stop (always-on to host Cosmos-outbox bridge per service topology — a second-engine design cannot tolerate DB restarts) | **~$9–12** |
-| | Azure Blob Storage | LRS Hot | **<$1** |
-| | **Subtotal (storage engine only)** | | **~$10–13** |
+| Component | SKU | Est. cost |
+|---|---|---|
+| Azure Database for PostgreSQL Flexible Server | B1ms (1 vCore / 2 GiB), 12 h/day auto-stop on non-testing hours (see §Planned DB downtime & outbox restart-drain) | ~$5–8 |
+| Azure Blob Storage (verification document blobs only) | LRS Hot, WORM | <$1 |
+| **Storage-engine subtotal** | | **~$6–9** |
 
-Both strategies fit the $60 budget. The cost gap is, on its own, **not** the deciding factor. The deciding factors are operational simplicity and join/reporting capability.
-
-> **Cost-table note:** the "always-on to host outbox" qualifier on the Polyglot PostgreSQL row describes a Cosmos-side change-feed bridge that would have to stay running. In a polyglot design the outbox cannot be a PostgreSQL table (Cosmos writes have no PostgreSQL transaction), so a separate bridge service would be required — that bridge would force always-on. The Unified strategy is not subject to that constraint because the outbox *is* PostgreSQL; see §Planned DB downtime & outbox restart-drain.
-
-> **Full system budget:** the table above covers only the storage engine. For the complete 21-day budget including compute (ACA Consumption with the free grant: first 180k vCPU-seconds, 360k GiB-seconds, 2M requests/month), messaging (Service Bus Standard), observability (App Insights), secrets (Key Vault), frontend (Static Web Apps Free), and automation (Azure Automation runbook), see `infrastructure/README.md` §Cost Guardrails (total ~$15–24).
+Full system budget (compute, messaging, observability, secrets, frontend, automation) is in `infrastructure/README.md` §Cost Guardrails (~$15–24 total). The polyglot alternative (Cosmos + PostgreSQL + Blob) sits in a comparable cost band; the deciding factors are operational simplicity and cross-class join capability, not dollars. See Alternatives considered for the rejected option.
 
 ## Decision
 
@@ -103,14 +87,10 @@ This has a direct interaction with the Outbox Pattern mandated by `ADR-003` – 
 
 **What auto-stop does *not* solve and which ADR-003 gaps this keeps open:** auto-stop does not help against (a) broker-side outages — for which the Outbox Pattern was originally designed, (b) consumer-side poison messages, or (c) intermediate service crashes. Those are unaffected by DB availability and continue to be handled by the rest of `ADR-003`.
 
-### Reconciliation of the historical "always-on to host outbox" claim
-
-A previous revision of this ADR listed "(no auto-stop, always-on to host outbox)" *as a counter-argument for keeping PostgreSQL always-on under the unified strategy*. That phrasing was wrong: the unified strategy **does** host the outbox, and the outbox is safe across the auto-stop window (no writer means no in-flight events, store-and-forward on restart). This ADR now states the strategy unambiguously as: auto-stop is on (per the §Planned DB downtime above), and the cost saving is real.
-
 ## Consequences
 
 ### Positive
-- One DB engine, one backup story, one IAM path, one connection pool story. Reduces ops surface area for a 4-person, 3-week team.
+- One DB engine, one backup story, one IAM path, one connection pool story. Reduces ops surface area for a 5-person, 3-week team.
 - Reporting reads from the primary via a `SELECT`-only role; no read-replica to operate, no second connection pool to tune. Joins across data classes are native.
 - PostGIS enables the `FR-3` geo-velocity check `WHERE ST_Distance(...)` queries at zero licensing cost.
 - Outbox events live in the same engine as the business tables — atomic writes, no two-phase.
@@ -129,7 +109,7 @@ A previous revision of this ADR listed "(no auto-stop, always-on to host outbox)
 | Cross-schema boundary leakage | Flyway migrations are namespaced per schema; CI rejects any migration referencing another module's schema. |
 | Reporting accidental writes against the primary | Provision a `reporting_reader` PostgreSQL role with `SELECT`-only grants; Reporting service connection string uses this role. CI denies DDL/DML through that role. |
 | Hash-partition hot spots | Use modulo 16 hashing by default; for V2, rebalance to range/hash composite if hotspot observed. |
-| Outbox noise | Clean up `outbox_events WHERE status='SENT' AND sent_at < NOW() - INTERVAL '7 days'` weekly (`../patterns/03-outbox-pattern.md`). |
+| Outbox noise | Clean up `outbox_events WHERE status='PUBLISHED' AND published_at < NOW() - INTERVAL '7 days'` weekly (`../patterns/03-outbox-pattern.md`). |
 | Blob lifecycle confusion with immutability | Document in IaC comments; lifecycle rule sets `tier_to_cool` after 90d and `tier_to_archive` after 365d; immutability policy remains fixed at 7y. |
 
 ## Alternatives considered
@@ -159,4 +139,4 @@ A previous revision of this ADR listed "(no auto-stop, always-on to host outbox)
 
 ## Status
 
-**APPROVED** (Sprint 0, 2026-07-17) — addresses blockers #24, #33, #34 raised in [#16](https://github.com/Team-Centinela/Centinela-Code/issues/16) Sprint 0 review. This ADR clusters with [#1, #12, #13](https://github.com/Team-Centinela/Centinela-Code/issues?q=is%3Aopen+label%3Aadr); the historical [docs#3](https://github.com/Team-Centinela/Centinela-docs/issues/3) stays closed. The `draft` label on [#11](https://github.com/Team-Centinela/Centinela-Code/issues/11) is removed in the same release.
+**ACCEPTED** (Sprint 0, 2026-07-17) — addresses blockers #24, #33, #34 raised in [#16](https://github.com/Team-Centinela/Centinela-Code/issues/16) Sprint 0 review. This ADR clusters with [#1, #12, #13](https://github.com/Team-Centinela/Centinela-Code/issues?q=is%3Aopen+label%3Aadr); the historical [docs#3](https://github.com/Team-Centinela/Centinela-docs/issues/3) stays closed. The `draft` label on [#11](https://github.com/Team-Centinela/Centinela-Code/issues/11) is removed in the same release.

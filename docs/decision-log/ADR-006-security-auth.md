@@ -1,9 +1,5 @@
 # ADR-006: Security & Auth
 
-## Status
-
-**ACCEPTED** — Ratified during Sprint 0 ADR review ([#16](https://github.com/Team-Centinela/Centinela-Code/issues/16)). Tracked at [#3](https://github.com/Team-Centinela/Centinela-Code/issues/3). Implementation sub-issues #44 (Ingestion API key auth), #45 (Idempotency-Key filter), #46 (Key Vault wiring), #47 (Auth module boundary), and #48 (ACA managed identity / SWA auth) roll up to epic #43.
-
 ## Context
 
 The platform has four distinct authentication and authorization surfaces:
@@ -18,7 +14,7 @@ The platform has four distinct authentication and authorization surfaces:
 Decision drivers:
 
 1. **Budget**: $60 / 21 days — no API Management tier, no dedicated identity provider. Use Azure-native, zero-additional-cost auth mechanisms.
-2. **Operational simplicity**: 4-person team, no SRE. Managed identity eliminates secret rotation for service-to-service. SWA built-in auth eliminates custom login code for the analyst portal.
+2. **Operational simplicity**: 5-person team, no SRE. Managed identity eliminates secret rotation for service-to-service. SWA built-in auth eliminates custom login code for the analyst portal.
 3. **Compliance** (`ASSIGNMENT.md` §E, §T.4): API keys must be rotatable, auditable, and stored encrypted. `Idempotency-Key` must be enforced at the HTTP boundary per RFC 9110 §9.3.1.
 4. **Module boundary discipline** (`../architecture/02-modular-monolith.md`): Auth logic lives in the **Auth module** (`auth` schema) inside the Core Backend monolith; extracted services consume it via managed identity, not by sharing the schema.
 
@@ -125,7 +121,7 @@ public interface ApiKeyRepository {
 | Service | Identity | Resource Access |
 |---|---|---|
 | **Ingestion API** (ACA) | System-assigned MI `centinela-ingestion-mi` | Key Vault (`get` secrets), PostgreSQL (Azure AD token via `azure-identity` + `pgjdbc`), Service Bus (`Manage` via connection string from KV) |
-| **Serverless Engine** (ACA) | System-assigned MI `centinela-engine-mi` | Key Vault (`get`), PostgreSQL (Azure AD token), Service Bus (`Manage` + `Listen` on `transactions-raw`) |
+| **Serverless Engine** (ACA) | System-assigned MI `centinela-engine-mi` | Key Vault (`get`), PostgreSQL (Azure AD token), Service Bus (`Manage` + `Listen` on `transactions-raw/serverless-engine`) |
 | **Core Backend** (ACA) | System-assigned MI `centinela-core-mi` | Key Vault (`get`), PostgreSQL (Azure AD token), Service Bus (`Manage` + `Send` on `case-events`, `Listen` on `case-events/*`) |
 | **OCR Worker** (ACA) | System-assigned MI `centinela-ocr-mi` | Key Vault (`get`), PostgreSQL (Azure AD token), Service Bus (`Listen` on `documents-pending`), Document Intelligence (Azure AD token) |
 | **Frontend** (SWA) | SWA built-in auth (Entra ID app registration `centinela-swa-app`) | User sign-in → SWA sets `X-MS-CLIENT-PRINCIPAL` header → Core Backend reads roles from header |

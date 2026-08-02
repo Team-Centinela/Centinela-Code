@@ -1,9 +1,5 @@
 # ADR-009: Compute Substrate — Azure Container Apps Consumption + Static Web Apps Free
 
-## Status
-
-**ACCEPTED** (Sprint 0, 2026-07-17) — Ratified during Sprint 0 ADR review ([#16](https://github.com/Team-Centinela/Centinela-Code/issues/16)). Tracker [#48](https://github.com/Team-Centinela/Centinela-Code/issues/48) closed.
-
 ## Context
 
 The platform runs four backend services (Ingestion API, Serverless Engine, Core Backend, OCR Worker) and one frontend (React + Vite SPA). Each needs a compute runtime. ASSIGNMENT.md §1.6 mandates cost-efficient cloud architecture under $60 over 21 days. ASSIGNMENT.md §3 (Out of Scope) explicitly forbids managed cluster orchestrators (AKS / Kubernetes). ASSIGNMENT.md §T.4 (Architectural Justification) requires every technical choice to be documented with cost and trade-off reasoning.
@@ -14,7 +10,7 @@ Decision drivers:
 2. **Scale to zero**: Fraud detection is bursty — hours of no transactions followed by a spike. Compute must not charge for idle replicas.
 3. **KEDA integration**: The Serverless Engine and OCR Worker scale on Azure Service Bus queue depth via KEDA. The runtime must support event-driven scaling natively.
 4. **Spring Boot compatibility**: Three services run on Spring Boot (Java 21). The runtime must run standard container images without framework adaptation.
-5. **Operational simplicity**: 4-person team, 21 days, no SRE. No cluster control plane to manage, patch, or monitor.
+5. **Operational simplicity**: 5-person team, 21 days, no SRE. No cluster control plane to manage, patch, or monitor.
 
 ## Decision
 
@@ -25,7 +21,7 @@ All four backend services run on a single Azure Container Apps Environment using
 | Backend | Scaler | Replica count |
 |---------|--------|---------------|
 | **Ingestion API** | HTTP (concurrent requests) | 0–N, scales on incoming HTTP traffic |
-| **Serverless Engine** (Rule Engine) | KEDA `azure-servicebus` on `transactions-raw` queue depth | 0–N, scales on pending messages |
+| **Serverless Engine** (Rule Engine) | KEDA `azure-servicebus` on `transactions-raw` topic subscription `serverless-engine` depth | 0–N, scales on pending messages |
 | **Core Backend** | HTTP (concurrent requests) | 0–N, scales on incoming HTTP traffic |
 | **OCR Worker** | KEDA `azure-servicebus` on `documents-pending` queue depth | 0–N, scales on pending messages |
 

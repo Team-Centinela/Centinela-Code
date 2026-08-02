@@ -141,7 +141,8 @@ services:
         condition: service_started
     environment:
       SPRING_PROFILES_ACTIVE: local-emulator
-      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus:5672;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;TransportType=Amqp;UseDevelopmentEmulator=true;"
+      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus:5672;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+      SPRING_CLOUD_AZURE_SERVICEBUS_TRANSPORT_TYPE: "amqp"
     ports:
       - "${INGESTION_PORT:-8081}:8081"
     networks:
@@ -188,7 +189,9 @@ services:
         condition: service_completed_successfully
     environment:
       SPRING_PROFILES_ACTIVE: local-emulator
-      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus:5672;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;TransportType=Amqp;UseDevelopmentEmulator=true;"
+      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus:5672;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+      SPRING_CLOUD_AZURE_SERVICEBUS_TRANSPORT_TYPE: "amqp"
+      SPRING_CLOUD_STREAM_ENABLED: "true"
     ports:
       - "${CORE_BACKEND_PORT:-8080}:8080"
     networks:
@@ -207,7 +210,8 @@ services:
         condition: service_started
     environment:
       SPRING_PROFILES_ACTIVE: local-emulator
-      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus:5672;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;TransportType=Amqp;UseDevelopmentEmulator=true;"
+      AZURE_SERVICEBUS_CONNECTION_STRING: "Endpoint=sb://centinela-servicebus:5672;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+      SPRING_CLOUD_AZURE_SERVICEBUS_TRANSPORT_TYPE: "amqp"
       SPRING_CLOUD_STREAM_ENABLED: "true"
     ports:
       - "${SERVERLESS_ENGINE_PORT:-8082}:8082"

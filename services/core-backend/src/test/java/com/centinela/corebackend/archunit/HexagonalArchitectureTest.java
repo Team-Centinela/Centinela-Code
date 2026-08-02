@@ -1,5 +1,7 @@
 package com.centinela.corebackend.archunit;
 
+import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.ArchRule;
@@ -10,8 +12,17 @@ import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
 
 class HexagonalArchitectureTest {
 
+    private static final DescribedPredicate<JavaClass> NOT_THIS_TEST = new DescribedPredicate<JavaClass>(
+            "not the HexagonalArchitectureTest class itself") {
+        @Override
+        public boolean test(JavaClass input) {
+            return !"HexagonalArchitectureTest".equals(input.getSimpleName());
+        }
+    };
+
     private final JavaClasses classes = new ClassFileImporter()
-            .importPackages("com.centinela.corebackend");
+            .importPackages("com.centinela.corebackend", "com.centinela.cases")
+            .that(NOT_THIS_TEST);
 
     @Test
     void domainLayerShouldNotDependOnSpring() {
@@ -47,12 +58,39 @@ class HexagonalArchitectureTest {
     }
 
     @Test
+    void casesConsumerRoutesThroughApplicationUseCase() {
+        ArchRule rule = noClasses()
+                .that().haveSimpleName("CaseEventsConsumer")
+                .should().dependOnClassesThat()
+                .haveFullyQualifiedName("com.centinela.cases.adapter.out.persistence.JpaCaseRepository")
+                .orShould().dependOnClassesThat()
+                .haveFullyQualifiedName("com.centinela.cases.adapter.out.persistence.SpringDataCaseRepository")
+                .orShould().dependOnClassesThat()
+                .haveFullyQualifiedName("com.centinela.cases.adapter.out.persistence.CaseEntity")
+                .because("ADR-001 hexagonal purity: the case-events consumer routes through the application use case, never through the JPA adapter or entity");
+        rule.check(classes);
+    }
+
+    @Test
+    void caseDomainDependsOnlyOnJavaAndJsr305() {
+        ArchRule rule = noClasses()
+                .that().resideInAPackage("com.centinela.cases.domain..")
+                .should().dependOnClassesThat()
+                .resideInAnyPackage(
+                        "org.springframework..",
+                        "com.centinela.cases.adapter..",
+                        "com.centinela.corebackend..")
+                .because("ADR-001 §Hexagonal: domain layer is pure Java; adapters are the only place framework imports live");
+        rule.check(classes);
+    }
+
+    @Test
     void layeredArchitectureShouldBeRespected() {
         ArchRule rule = layeredArchitecture()
                 .consideringAllDependencies()
                 .layer("domain").definedBy("..domain..")
                 .layer("application").definedBy("..application..")
-                .layer("infrastructure").definedBy("..infrastructure..")
+                .layer("infrastructure").definedBy("..infrastructure..", "..adapter..")
                 .whereLayer("domain").mayOnlyBeAccessedByLayers("application", "infrastructure")
                 .whereLayer("application").mayOnlyBeAccessedByLayers("infrastructure")
                 .whereLayer("infrastructure").mayNotBeAccessedByAnyLayer()

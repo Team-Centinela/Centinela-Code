@@ -36,10 +36,14 @@ spring:
 
   cloud:
     stream:
+      enabled: ${SPRING_CLOUD_STREAM_ENABLED:true}
       bindings:
         transactionsRaw-in-0:
           destination: transactions-raw
           group: core-backend
+        caseEventsIn-in-0:
+          destination: case-events
+          group: core-backend-sub
         fraud-evaluation-out-0:
           destination: fraud-evaluation
     azure:

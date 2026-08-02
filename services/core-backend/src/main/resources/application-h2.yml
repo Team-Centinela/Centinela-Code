@@ -26,4 +26,4 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
-        default_schema: oltp
+        default_schema: public

@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS cases.cases (
     resolved_by       VARCHAR(255),
     resolution_notes  TEXT,
     correlation_id    UUID,
-    trace_id          CHAR(32)
+    trace_id          VARCHAR(32)
 );
 
 CREATE INDEX IF NOT EXISTS idx_cases_transaction_id

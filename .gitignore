@@ -20,6 +20,12 @@ GitHub-PR/
 .context-snapshots/
 context-snapshot-*.md
 
+# Ad-hoc test-run captures (mvn / verify-emulators.{ps1,sh} / docker logs
+# redirected to a file during local debugging). Same role as the
+# context-snapshot pattern above: scratch artifacts that should never be
+# committed. Regenerated on every local test run.
+_test-*.log
+
 # Targeted build / dependency outputs (per service language)
 
 # Java / Maven / Gradle

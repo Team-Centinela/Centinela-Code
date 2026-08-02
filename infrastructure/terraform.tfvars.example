@@ -1,0 +1,27 @@
+project                       = "centinela"
+environment                   = "dev"
+location                      = "eastus2"
+subscription_id               = "6c3ca994-9b84-4788-ba81-2a3c84e1bf85"
+tenant_id                     = "b1ca2d7d-3550-4672-b2e4-83fc05dbfe48"
+github_org                    = "Team-Centinela"
+github_repo                   = "Centinela-Code"
+oidc_federated_branch         = "develop"
+aad_owner_email               = "torreslopezjeronimo@gmail.com"
+
+postgresql_admin_password              = null
+postgresql_aad_administrator_login     = "terraform-deployer"
+postgresql_aad_administrator_object_id = ""
+postgresql_extensions                  = ["postgis", "uuid-ossp", "pg_stat_statements"]
+
+ingestion_image         = "acrcentineladev6c3ca9.azurecr.io/centinela-ingestion:0.0.1-SNAPSHOT"
+serverless_engine_image = "acrcentineladev6c3ca9.azurecr.io/centinela-serverless-engine:0.0.1-SNAPSHOT"
+core_backend_image      = "acrcentineladev6c3ca9.azurecr.io/centinela-core-backend:0.0.1-SNAPSHOT"
+
+ocr_worker_enabled             = false
+ocr_worker_image               = "acrcentineladev6c3ca9.azurecr.io/centinela-ocr-worker:0.0.1-SNAPSHOT"
+document_intelligence_endpoint = null
+
+budget_alert_emails = ["centinela-team@centinela.onmicrosoft.com"]
+teams_webhook_url   = null
+
+worm_owner_group_principal = ""

@@ -33,14 +33,16 @@ See the ADRs for each technology's rationale:
 |---|---|---|---|
 | Azure Resource Group `rg-centinela-dev` | Container for all Centinela resources; provisioned by S1-A.1 (#62) | **$0** | Resource Groups themselves do not incur charges; cost shows in the rows of contained resources. |
 | Azure Resource Group `rg-tfstate-bootstrap` | One-time container for the Terraform remote state. Holds Storage Account `stcentinelatfstate` only | **~$0** | Not counted toward the $60 project budget; ~0 marginal storage. |
-| Azure Container Apps (Consumption) | Pay-per-second, free grant first 180k vCPU-seconds + 360k GiB-seconds + 2M requests/month/subscription | **~$0–5** | Four backends share one ACA Environment; scale to zero when idle. Free grant covers expected Sprint 1–3 traffic. |
+| Azure Container Apps (Consumption) | Pay-per-second, free grant first 180k vCPU-seconds + 360k GiB-seconds + 2M requests/month/subscription | **~$0–5** | Three backends share one ACA Environment (OCR Worker gated by `var.ocr_worker_enabled = false` until services/ocr-worker ships a Dockerfile). HTTP scaler on Ingestion + Core Backend, KEDA `azure-servicebus` on Serverless Engine. Free grant covers expected Sprint 1–3 traffic. See `services/container_apps.tf`. |
 | Azure Static Web Apps | Free | **$0** | 100 GB bandwidth/month included; enough for SPA demo traffic. |
-| Azure Database for PostgreSQL Flexible Server | B1ms (1 vCore / 2 GiB), nightly auto-stop | **~$5–8** | Auto-stop after 1h idle saves ~40% vs always-on. |
-| Azure Service Bus (Standard tier) | ~$10/month base; first 13M ops/month free | **~$7** | 21-day pro-rata. Required for Topics (case-events). |
-| Azure Blob Storage | LRS Hot, near-zero for 21 days | **<$1** | Documents metadata in PostgreSQL; only document blobs here. |
-| Azure Cognitive Services — Document Intelligence | Free (F0) | **$0** | 500 pages/month free quota. |
-| Azure Key Vault | Standard | **<$1** | 25,000 transactions/month free. |
-| Azure Application Insights | Pay-per-gig, first 5 GB/month free | **~$2** | |
+| Azure Database for PostgreSQL Flexible Server | B1ms (1 vCore / 2 GiB), AAD-only auth | **~$5–8** | Single database `centinela` (schema-per-module; Flyway-owned). PostGIS + uuid-ossp + pg_stat_statements extensions. **No native PG idle auto-stop is implemented at the IaC layer** — the runbook §Operational Posture in `../docs/architecture/01-overview.md` drives scheduled start/stop externally via `az postgres flexible-server start` / `stop`. See `services/postgresql.tf`. |
+| Azure Service Bus (Standard tier) | ~$10/month base; first 13M ops/month free | **~$7** | 21-day pro-rata. Required for Topics. Topology: 2 topics (`transactions-raw`, `case-events`) with 2 subscriptions each + 1 queue (`documents-pending`) + 5 poison siblings. All 5 working entities carry `max_delivery_count = 3`. Service Bus role assignments are scoped to topic/subscription/queue ids, not namespace-wide. See `services/servicebus.tf`. |
+| Azure Blob Storage | LRS Hot GPv2, AAD-only (shared key disabled), change-feed enabled | **<$1** | `documents-worm` container with 7-year time-based immutability policy (`protected_append_writes_all_enabled = true`) + Hot→Cool→Archive lifecycle. See `services/storage.tf`. |
+| Azure Cognitive Services — Document Intelligence | Free (F0) | **$0** | 500 pages/month free quota. OCR Worker container gated off until code lands. |
+| Azure Key Vault | Standard, RBAC-enabled | **<$1** | 25,000 transactions/month free. Stores SB connection string + App Insights connection string + optional PostgreSQL admin break-glass password. See `services/keyvault.tf`. |
+| Azure Container Registry | Basic, admin disabled | **<$0.20** | AcrPull via ACA managed identity. See `services/container_apps.tf`. |
+| Azure Application Insights | Workspace-based, 100% sampling, 30d retention, 1 GB/day cap | **~$2** | Log Analytics workspace PerGB2018. See `services/observability.tf`. |
+| Consumption budget + Action Group | 50/80/90/100% of $60 | **$0** | Email + optional Teams webhook receivers (ADR-007 §7.7). See `services/budget.tf`. |
 | **Total** | | **~$15–24** | Well under the $60 ceiling. |
 
 Key cost-saving mechanisms (scale-to-zero, free grants, PostgreSQL auto-stop, budget alerts at 50/80/90/100% of $60) are canonical in [`../docs/decision-log/ADR-007-observability-cost-telemetry.md`](../docs/decision-log/ADR-007-observability-cost-telemetry.md) §7.7 and [`../docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md`](../docs/decision-log/ADR-009-compute-substrate-container-apps-static-web-apps.md) §Cost Impact.
@@ -81,7 +83,16 @@ Per-lane cost rows (live):
 | lane | service | sprint | resource delta (or note) | cost | companion | start | spent |
 |---|---|---|---|---|---|---|---|
 | lane-a | governance | _process_ | PR #120/#121/#127 acknowledge path | _doc only_ | _regex 131_ | 2026-07-25 | — |
-| _pending_ | _pending_ | sprint-1 | _companion issues [B.A1] etc. land rows here as they close_ | _TBD_ | _TBD_ | _TBD_ | _TBD_ |
+| lane-b | ingestion | sprint-1 | Container App `centinela-ingestion` (HTTP scale 0..5, MI, KV secret refs for SB + App Insights, PostgreSQL env) | $0.00–1.00 | #141 (companion #135) | 2026-07-31 | first run $0.00–1.00 |
+| lane-b | ingestion | sprint-1 | Container App `centinela-ingestion` HTTP scale rule + AcrPull + KV Secrets User + SB Data Sender (topic-scoped on `transactions-raw`) | $0.00 | #139 / #140 | 2026-07-31 | first run $0.00 |
+| lane-c | serverless-engine | sprint-1 | Container App `centinela-serverless-engine` (KEDA `azure-servicebus` on `transactions-raw/serverless-engine`, 0..10, MI, KV secret refs) | $0.00–2.00 | #142 (companion #136) | 2026-07-31 | first run $0.00–2.00 |
+| lane-c | serverless-engine | sprint-1 | Serverless Engine MI + SB Data Receiver (subscription-scoped on `transactions-raw/serverless-engine`) + SB Data Sender (topic-scoped on `case-events`) + App Insights env wiring | $0.00 | #143 / #144 | 2026-07-31 | first run $0.00 |
+| lane-d | core-backend | sprint-1 | Container App `centinela-core-backend` (HTTP scale 0..5, MI, KV secret refs, PostgreSQL env) | $0.00–1.00 | #147 (companion #138) | 2026-07-31 | first run $0.00–1.00 |
+| lane-d | core-backend | sprint-1 | Core Backend HTTP scale rule + SB Data Receiver (subscription-scoped on `transactions-raw/core-backend`) | $0.00 | #145 / #146 | 2026-07-31 | first run $0.00 |
+| lane-e | platform | sprint-1 | PostgreSQL Flexible Server B1ms + database `centinela` + AAD-only auth + extensions allowlist (postgis, uuid-ossp, pg_stat_statements) | $5.00–8.00 | #148 | 2026-07-31 | first run $5.00–8.00 |
+| lane-e | platform | sprint-1 | Service Bus Standard namespace + 2 topics (4 subs) + 1 queue + 5 poison siblings + role assignments (entity-scoped, not namespace-wide) | $7.00–9.00 | #149 | 2026-07-31 | first run $7.00–9.00 |
+| lane-e | platform | sprint-1 | Application Insights (workspace-based, 100% sampling, 30d retention, 1 GB/day cap) + Log Analytics + ACA Environment + Key Vault (Standard, RBAC, AAD-only) + Storage Account (LRS Hot, AAD-only, change-feed) + Consumption budget 50/80/90/100% of $60 + Action Group | $2.00–3.00 | #150 | 2026-07-31 | first run $2.00–3.00 |
+| lane-e | platform | sprint-1 | Container Registry Basic (admin disabled) + documents-worm WORM 7y immutability (Hot→Cool→Archive lifecycle, protected_append_writes_all_enabled) | $0.00–0.20 | adjacent to #149 | 2026-07-31 | first run $0.00–0.20 |
 | _phase-0_ | _emulator surface_ | sprint-1 | _Mode (c) closes land here with `$0.00–0.00` + verify-script marker_ | _$0.00_ | _TBD_ | _TBD_ | _$0.00_ |
 
 **Row format and apply-time procedure**: see [`RUNBOOK-FIRST-APPLY.md`](RUNBOOK-FIRST-APPLY.md) — the operational recipe for the first Phase-2 `terraform apply` (pre-flight gates, Apply steps A–H, Mode (a) row format, budget alarm confirmation, drift monitoring, rollback).
@@ -103,13 +114,22 @@ See:
 
 Per ADR-003 §3.4 (issue #27), `max_delivery_count = 3` and `<entity>-poison` siblings are IaC-owned and **must not** be overridden in application config:
 
-- Module root: `infrastructure/modules/servicebus/main.tf`
-- Per-entity files planned at `infrastructure/services/queues-transactions-raw.tf`, `queues-documents-pending.tf`, `topics-case-events.tf`
-- All three queues (`transactions-raw`, `documents-pending`) and both topic subscriptions (`case-events/reporting-updates`, `case-events/alerts`) carry `max_delivery_count = 3`.
-- Poison routing: a sibling `<entity>-poison` queue is provisioned per queue, and `azurerm_servicebus_subscription_rule` forward-on-dead-letter is provisioned per subscription.
+- Module root: `infrastructure/services/servicebus.tf` (consolidated module, per ADR-010 §10.6).
+- Topology (corrected against the legacy `transactions-raw` queue artefact in issue #149 per PR #260 + ADR-003 §3.1): 2 topics (`transactions-raw`, `case-events`) × 2 subscriptions each + 1 queue (`documents-pending`) + 5 poison siblings. All 5 working entities carry `max_delivery_count = 3` and `dead_lettering_on_message_expiration = true`.
+- Poison routing: every working entity declares `forward_dead_lettered_messages_to = "<entity>-poison"`. The 5 poison siblings are ordinary queues (one per subscription + the documents-pending queue).
+- Role assignments are scoped to **topic id** (Sender) / **subscription id** (Receiver) / **queue id** (Receiver) — not the namespace-wide `Data Sender` / `Data Receiver` grants that the legacy PR #120 carried.
 - Drift detection via `terraform plan` in CI; a `tflint`/`checkov` policy encodes "no queue/subscription ships without a `-poison` sibling".
 
 Cost: 5 additional Standard-tier entities (~0 marginal; well under the $10/mo base charge).
+
+## Container Apps delivery surface
+
+Per ADR-009 §9.1 all four backends share one Consumption-plan Container Apps Environment. KEDA + HTTP scaling, AAD-only Key Vault access, and AcrPull via managed identity are wired in `infrastructure/services/container_apps.tf`:
+
+- **Ingestion** (`centinela-ingestion`, HTTP scale 0..5, port 8081). MI + `AcrPull` + `Key Vault Secrets User` + `Azure Service Bus Data Sender` scoped to `transactions-raw` topic.
+- **Serverless Engine** (`centinela-serverless-engine`, KEDA `azure-servicebus` scale 0..10 on `transactions-raw/serverless-engine`, port 8082). MI + `AcrPull` + `Key Vault Secrets User` + `Azure Service Bus Data Receiver` scoped to `transactions-raw/serverless-engine` subscription + `Azure Service Bus Data Sender` scoped to `case-events` topic.
+- **Core Backend** (`centinela-core-backend`, HTTP scale 0..5, port 8080). MI + `AcrPull` + `Key Vault Secrets User` + `Azure Service Bus Data Receiver` scoped to `transactions-raw/core-backend` subscription. PostgreSQL env vars (`DB_HOST`/`DB_PORT`/`DB_NAME`/`DB_USER`) match `services/core-backend/src/main/resources/application.yml`.
+- **OCR Worker** (`centinela-ocr-worker`, KEDA `azure-servicebus` scale 0..3 on `documents-pending`, port 8000). **Gated** by `var.ocr_worker_enabled` (default `false`) because `services/ocr-worker` currently ships a README only. Set `ocr_worker_enabled = true` only after a Dockerfile + `pyproject.toml` + push target exist for the OCR image.
 
 ## Bootstrap (`rg-tfstate-bootstrap`)
 

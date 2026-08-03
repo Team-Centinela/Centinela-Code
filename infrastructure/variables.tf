@@ -48,11 +48,88 @@ variable "oidc_federated_branch" {
   default     = "develop"
 }
 
-# AAD owner / budget recipients. Default is the operator tenant seeded for
-# Phase 0 (#274); AAD group creation lives in a follow-up. Override per
-# environment via terraform.tfvars when promoting past Phase 0.
 variable "aad_owner_email" {
-  description = "AAD group email used as the documents-worm owner (ADR-002 §WORM) and as the budget-alert recipient (ADR-007 §7.7)."
+  description = "AAD owner email used as the documents-worm owner (ADR-002 §WORM) and as the budget-alert recipient (ADR-007 §7.7)."
   type        = string
   default     = "torreslopezjeronimo@gmail.com"
+}
+
+variable "postgresql_admin_password" {
+  description = "Initial AAD-bootstrap administrator password for PostgreSQL Flexible Server. Sensitive; supply via secrets.tfvars."
+  type        = string
+  sensitive   = true
+  default     = null
+}
+
+variable "postgresql_aad_administrator_login" {
+  description = "AAD UPN/display name granted PostgreSQL AAD admin (break-glass)."
+  type        = string
+  default     = ""
+}
+
+variable "postgresql_aad_administrator_object_id" {
+  description = "AAD object id of the administrator login above. Empty string defaults to the Terraform runner's principal id."
+  type        = string
+  default     = ""
+}
+
+variable "postgresql_extensions" {
+  description = "Allowlist of PostgreSQL extensions to enable on the B1ms Flexible Server."
+  type        = list(string)
+  default     = ["postgis", "uuid-ossp", "pg_stat_statements"]
+}
+
+variable "ingestion_image" {
+  description = "Fully qualified ingestion image reference (ACR login server / repo : tag)."
+  type        = string
+  default     = ""
+}
+
+variable "serverless_engine_image" {
+  description = "Fully qualified serverless-engine image reference."
+  type        = string
+  default     = ""
+}
+
+variable "core_backend_image" {
+  description = "Fully qualified core-backend image reference."
+  type        = string
+  default     = ""
+}
+
+variable "ocr_worker_enabled" {
+  description = "Whether to provision the ocr-worker ACA app. Default false; only enable once OCR research confirms deployable code exists."
+  type        = bool
+  default     = false
+}
+
+variable "ocr_worker_image" {
+  description = "Fully qualified OCR worker image reference. Required only when ocr_worker_enabled = true."
+  type        = string
+  default     = null
+}
+
+variable "document_intelligence_endpoint" {
+  description = "Azure AI Document Intelligence endpoint. Required only when ocr_worker_enabled = true."
+  type        = string
+  default     = null
+}
+
+variable "budget_alert_emails" {
+  description = "Email recipients for budget notifications at 50/80/90/100 percent thresholds (ADR-007 §7.7)."
+  type        = list(string)
+  default     = []
+}
+
+variable "teams_webhook_url" {
+  description = "Microsoft Teams incoming webhook URL. Optional; if null, Teams channel is skipped."
+  type        = string
+  sensitive   = true
+  default     = null
+}
+
+variable "worm_owner_group_principal" {
+  description = "AAD group principal (object id) that owns the WORM immutability policy."
+  type        = string
+  default     = ""
 }

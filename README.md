@@ -1,12 +1,5 @@
----
-title: Centinela — Real-time Fraud Detection Platform
-type: overview
-tags:
-  - overview
-  - onboarding
-created: 2026-07-15
----
-
+> This project is in hiatus, as of today August 3rd, 2026, no more updates will be updated in this project.
+> If you want to understand the repository, please look at branch `feat/week-one-consolidation` which is the last more updated branch
 # Centinela
 
 Real-time transactional fraud detection platform for a small / medium
